@@ -242,7 +242,7 @@ void ra_add_array(struct RegAdjusterState* s, int(*vars)[], int length, char* na
 
 //////////////////////////////////////////////////////////////////////////////
 
-void ra_do_menu(struct RegAdjusterState* s, int x_pos, int y_pos, int base)
+void ra_do_menu(struct RegAdjusterState* s, int x_pos, int y_pos, int base, int tile_addr)
 {
    int i;
    for (i = 0; i < s->num_menu_items; i++)
@@ -261,7 +261,7 @@ void ra_do_menu(struct RegAdjusterState* s, int x_pos, int y_pos, int base)
       sprintf(value, "=%02d", s->vars[i].value);
       strcat(current_line, s->vars[i].name);
       strcat(current_line, value);
-      write_str_as_pattern_name_data(x_pos, i+y_pos, current_line, 3, base, 0x40000);
+      write_str_as_pattern_name_data(x_pos, i+y_pos, current_line, 3, base, tile_addr);
    }
 
    if (per[0].but_push_once & PAD_UP)
@@ -1040,7 +1040,7 @@ void vdp2_extended_color_calculation_test()
 
       ra_update_vars(&s);
 
-      ra_do_menu(&s, 17,0,0);
+      ra_do_menu(&s, 17,0,0,tile_address);
 
       VDP2_REG_CCCTL =
          (v.extended_color_calculation << 10) |
@@ -1515,7 +1515,7 @@ void vdp2_special_priority_test()
 
       ra_update_vars(&s);
 
-      ra_do_menu(&s, 17,0,0);
+      ra_do_menu(&s, 17,0,0,vdp2_tile_address);
 
       do_color_ratios(&framecount, &ratio, &ratio_dir);
 
@@ -1905,7 +1905,7 @@ void vdp2_line_window_test()
 
       ra_update_vars(&s);
 
-      ra_do_menu(&s, 8,3,0);
+      ra_do_menu(&s, 8,3,0,vdp2_tile_address);
 
       if (per[0].but_push_once & PAD_A)
       {
@@ -1995,14 +1995,36 @@ void write_line_scroll_table(u32 address, int counter, int h_scroll, int v_scrol
 
 //////////////////////////////////////////////////////////////////////////////
 
-void write_vertical_cell_scroll_table(u32 address, int counter)
+void write_vertical_cell_scroll_table(u32 address, int counter, int both_enabled, int limit)
 {
    volatile u32 *ptr = (volatile u32 *)(VDP2_RAM + address);
 
    int i;
-   for (i = 0; i < 224; i++)
+   int j = 0;
+
+   if (both_enabled)
    {
-      ptr[i] = sine_tbl[(counter + i) & 0xff] << 14;
+      for (i = 0; i < 40; i++)
+      {
+         if (i < limit)
+         {
+            if ((i & 1) == 0)
+               ptr[i] = sine_tbl[(counter + i) & 0xff] << 14;
+            else
+               ptr[i] = sine_tbl[((-counter) + i) & 0xff] << 14;
+         }
+         else
+         {
+            ptr[i] = 0;
+         }
+      }
+   }
+   else
+   {
+      for (i = 0; i < 40; i++)
+      {
+         ptr[i] = sine_tbl[(counter + i) & 0xff] << 14;
+      }
    }
 }
 
@@ -2010,47 +2032,90 @@ void write_vertical_cell_scroll_table(u32 address, int counter)
 
 void vdp2_line_scroll_test()
 {
-   const u32 vdp2_tile_address = 0x40000;
-   const u32 line_scroll_table_address =  0x42000;
-   const u32 vertical_cell_scroll_table_address =  0x43000;
+   //vram a-0 0x00000-0x1FFFF
+   //vram a-1 0x20000-0x3FFFF
+   //vram b-0 0x40000-0x5FFFF
+   //vram b-1 0x60000-0x7FFFF
 
-   vdp2_basic_tile_scroll_setup(vdp2_tile_address);
+   const u32 line_scroll_table_address = 0x50380;//vram a-1
+   const u32 vertical_cell_scroll_table_address = 0x50700 + 0x1000;//vram a-1
 
-   VDP2_REG_CYCA0L = 0x01FF;
-   VDP2_REG_CYCA0U = 0xFFFF;
-   VDP2_REG_CYCB0L = 0xC4C5;
-   VDP2_REG_CYCB0U = 0xCCCC;
+   const u32 vdp2_vram_tile_address = 0x40000;
+
+   vdp2_basic_tile_scroll_setup(vdp2_vram_tile_address);
+   // load_font_8x8_to_vram_1bpp_to_4bpp(vdp2_vram_tile_address[0], VDP2_RAM);
+
+   VDP2_REG_CYCA0L = 0x012F;
+   VDP2_REG_CYCA0U = 0xFEEE;
+
+   VDP2_REG_CYCB0L = 0xCD45;
+   VDP2_REG_CYCB0U = 0xFE6E;
+
+   VDP2_REG_RAMCTL = 0x0000;//vram a in two banks
+
+   //   (*(volatile u32 *)0x25F80010) = 0x01FFFFFF;//vram a
+   //   (*(volatile u32 *)0x25F80018) = 0xCDD5FFF4;//vram b
+   screen_settings_struct settings;
+   settings.is_bitmap = TRUE;
+   settings.bitmap_size = BG_BITMAP512x256;
+   settings.transparent_bit = 0;
+   settings.color = BG_256COLOR;
+   settings.special_priority = 0;
+   settings.special_color_calc = 0;
+   settings.extra_palette_num = 0;
+   settings.map_offset = (0x40000 >> 17);
+   //   settings.parameteraddr = 0x25E60000;
+   vdp_nbg1_init(&settings);
+
+   vdp_set_font(SCREEN_NBG1, &test_disp_font, 1);
+   test_disp_font.out = (u8 *)0x25E40000;
 
    int i;
    for (i = 0; i < 32; i += 2)
    {
-      write_str_as_pattern_name_data_special(0, 0 + i, "\n\n\n\nNBG0\n\n\n\n\n\n\n\n", 4, 0x000000, vdp2_tile_address, 0, 0);
+      write_str_as_pattern_name_data_special(0, 0 + i, "\n \n \n \n \n \n \n \n ", 4, 0x000000, vdp2_vram_tile_address, 0, 0);
+      vdp_printf(&test_disp_font, 0 * 8, ((i+1) * 8), 0xC, " \n \n \n \n \n \n \n \n");
+      //write_str_as_pattern_name_data_special(0, 1 + i, " \n \n \n \n \n \n \n \n", 5, 0x004000, vdp2_vram_tile_address, 0, 0);
    }
 
+
+//   for (i = 6; i < 24; i += 2)
+      
+
+
    VDP2_REG_PRINA = 1 | 7 << 8;
+   VDP2_REG_PRINB = 1 | 1 << 8;
+   //   VDP2_REG_SCXIN0 = -4;
+   //   VDP2_REG_SCYIN0 = 4;
 
    //vars for reg adjuster
    struct {
-      int line_scroll_interval;
-      int line_zoom_enable;
-      int vertical_line_scroll_enable;
-      int horizontal_line_scroll_enable;
-      int vertical_cell_scroll_enable;
-   }v = { 0 } ;
+      struct {
+         int line_scroll_interval;
+         int line_zoom_enable;
+         int vertical_line_scroll_enable;
+         int horizontal_line_scroll_enable;
+         int vertical_cell_scroll_enable;
+      }nbg[2];
+   }v = { 0 };
 
    struct RegAdjusterState s = { 0 };
 
-   ra_add_var(&s, &v.line_scroll_interval,           "Line scrll intrvl ", 3);
-   ra_add_var(&s, &v.line_zoom_enable,  "Line zoom enable  ", 1);
-   ra_add_var(&s, &v.vertical_line_scroll_enable,  "Vert lin scrl enab", 1);
-   ra_add_var(&s, &v.horizontal_line_scroll_enable,  "Horiz ln scrl enab", 1);
-   ra_add_var(&s, &v.vertical_cell_scroll_enable,  "Vert cll scrl enab", 1);
+   for (i = 0; i < 2; i++)
+   {
+      ra_add_var(&s, &v.nbg[i].line_scroll_interval, "Line scrll intrvl ", 3);
+      ra_add_var(&s, &v.nbg[i].line_zoom_enable, "Line zoom enable  ", 1);
+      ra_add_var(&s, &v.nbg[i].vertical_line_scroll_enable, "Vert lin scrl enab", 1);
+      ra_add_var(&s, &v.nbg[i].horizontal_line_scroll_enable, "Horiz ln scrl enab", 1);
+      ra_add_var(&s, &v.nbg[i].vertical_cell_scroll_enable, "Vert cll scrl enab", 1);
+   }
 
-   *(volatile u32 *)0x25F800A0 =  (line_scroll_table_address / 2);
+   *(volatile u32 *)0x25F800A0 = (line_scroll_table_address / 2);
    *(volatile u32 *)0x25F8009C = (vertical_cell_scroll_table_address / 2);
 
-   int presets[][5] =
+   int presets[][10] =
    {
+      { 0, 0, 0, 0, 1, 0, 0, 0, 0, 1 },
       { 0, 0, 0, 1, 0 },
       { 0, 0, 0, 0, 1 },
       { 0, 1, 0, 0, 0 },
@@ -2067,6 +2132,10 @@ void vdp2_line_scroll_test()
    int counter = 0;
 
    ra_do_preset(&s, presets[preset]);
+   int val = 0;
+   int which = 0;
+
+   volatile u32 *ptr = (volatile u16 *)(VDP2_RAM + vertical_cell_scroll_table_address);
 
    for (;;)
    {
@@ -2074,22 +2143,64 @@ void vdp2_line_scroll_test()
 
       counter++;
 
-      VDP2_REG_SCRCTL = v.vertical_cell_scroll_enable |
-         (v.horizontal_line_scroll_enable << 1) |
-         (v.vertical_line_scroll_enable << 2) |
-         (v.line_zoom_enable << 3) |
-         (v.line_scroll_interval << 4);
+      VDP2_REG_SCRCTL = (v.nbg[1].vertical_cell_scroll_enable << 8) |
+         (v.nbg[1].horizontal_line_scroll_enable << 9) |
+         (v.nbg[1].vertical_line_scroll_enable << 10) |
+         (v.nbg[1].line_zoom_enable << 11) |
+         (v.nbg[1].line_scroll_interval << 12) |
+         v.nbg[0].vertical_cell_scroll_enable |
+         (v.nbg[0].horizontal_line_scroll_enable << 1) |
+         (v.nbg[0].vertical_line_scroll_enable << 2) |
+         (v.nbg[0].line_zoom_enable << 3) |
+         (v.nbg[0].line_scroll_interval << 4);
 
-      write_line_scroll_table(line_scroll_table_address, counter, 
-         v.horizontal_line_scroll_enable,
-         v.vertical_line_scroll_enable,
-         v.line_zoom_enable);
+      write_line_scroll_table(line_scroll_table_address, counter,
+         v.nbg[0].horizontal_line_scroll_enable,
+         v.nbg[0].vertical_line_scroll_enable,
+         v.nbg[0].line_zoom_enable);
 
-      write_vertical_cell_scroll_table(vertical_cell_scroll_table_address, counter);
+      int both_enabled = v.nbg[0].vertical_cell_scroll_enable && v.nbg[1].vertical_cell_scroll_enable;
+
+      write_vertical_cell_scroll_table(vertical_cell_scroll_table_address, counter, both_enabled, val);
 
       ra_update_vars(&s);
 
-      ra_do_menu(&s, 17, 0, 0x004000);
+      ra_do_menu(&s, 17, 0, 0x008000, vdp2_vram_tile_address);
+
+      //ptr[which] = val;
+
+      char str[64] = { 0 };
+
+      for (i = 0; i < 16; i++)
+      {
+         int int_part = ptr[i] >> 16;
+         sprintf(str, "%02d: %03d", i, int_part);
+
+         write_str_as_pattern_name_data(18, 12 + i, str, 4, 0x008000, vdp2_vram_tile_address);
+      }
+
+      if (per[0].but_push_once & PAD_R)
+      {
+         val++;
+      }
+
+      if (per[0].but_push_once & PAD_L)
+      {
+         val--;
+
+         if (val < 0)
+            val = 0;
+      }
+
+      if (per[0].but_push_once & PAD_X)
+      {
+         which--;
+      }
+
+      if (per[0].but_push_once & PAD_Y)
+      {
+         which++;
+      }
 
       if (per[0].but_push_once & PAD_A)
       {
@@ -2103,7 +2214,7 @@ void vdp2_line_scroll_test()
 
       if (per[0].but_push_once & PAD_START)
       {
-         break;
+         reset_system();
       }
    }
 

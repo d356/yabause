@@ -5,10 +5,11 @@ include(ExternalProject)
 
 SET(CMAKE_SYSTEM_NAME SegaSaturn)
 
-# Specify the cross compiler.
-CMAKE_FORCE_C_COMPILER("C:/Program Files (x86)/KPIT Cummins/GNUSHv10.02-ELF/sh-elf/bin/sh-elf-gcc.exe" GNU)
-CMAKE_FORCE_CXX_COMPILER("C:/Program Files (x86)/KPIT Cummins/GNUSHv10.02-ELF/sh-elf/bin/sh-elf-g++.exe" GNU)
-SET(CMAKE_FIND_ROOT_PATH "C:/Program Files (x86)/KPIT Cummins/GNUSHv10.02-ELF/sh-elf/bin/" "C:/Program Files (x86)/KPIT Cummins/GNUSHv10.02-ELF/Other Utilities/")
+CMAKE_FORCE_C_COMPILER("C:/gnu/sh-elf/bin/sh-elf-gcc.exe" GNU)
+CMAKE_FORCE_CXX_COMPILER("C:/gnu/sh-elf/bin/sh-elf-g++.exe" GNU)
+SET(CMAKE_FIND_ROOT_PATH "C:/gnu/sh-elf/bin/")
+SET(CMAKE_MAKE_PROGRAM "C:/gnu/other/make.exe")
+SET(CMAKE_ASM_COMPILER "C:/gnu/sh-elf/bin/sh-elf-as.exe")
 
 find_path(IAPETUS_INCLUDE_DIR 
           NAMES iapetus.h

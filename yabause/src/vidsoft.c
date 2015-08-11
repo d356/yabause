@@ -637,6 +637,21 @@ static u8 FASTCALL GetAlpha(vdp2draw_struct * info, u32 color, u32 dot)
 
 //////////////////////////////////////////////////////////////////////////////
 
+static int DoVerticalCellScroll(vdp2draw_struct *info, int *table_pos, const int x, int y)
+{
+   int pos = *table_pos * info->verticalscrollinc;
+
+   y += T1ReadLong(Vdp2Ram, info->verticalscrolltbl + pos) >> 16;
+   y &= 0x1FF;
+
+   if ((x > 0) && ((x + 1) % 8) == 0)
+      *table_pos = *table_pos + 1;
+
+   return y;
+}
+
+//////////////////////////////////////////////////////////////////////////////
+
 static void FASTCALL Vdp2DrawScroll(vdp2draw_struct *info)
 {
    int i, j;
@@ -647,6 +662,7 @@ static void FASTCALL Vdp2DrawScroll(vdp2draw_struct *info)
    int scrolly;
    int *mosaic_y, *mosaic_x;
    clipping_struct colorcalcwindow[2];
+   int vertical_cell_scroll_table_pos;
 
    info->coordincx *= (float)resxratio;
    info->coordincy *= (float)resyratio;
@@ -727,19 +743,11 @@ static void FASTCALL Vdp2DrawScroll(vdp2draw_struct *info)
       ReadLineWindowClip(info->islinewindow, clip, &linewnd0addr, &linewnd1addr);
       y &= sinfo.ymask;
 
-      if (info->isverticalscroll)
-      {
-         // this is *wrong*, vertical scroll use a different value per cell
-         // info->verticalscrolltbl should be incremented by info->verticalscrollinc
-         // each time there's a cell change and reseted at the end of the line...
-         // or something like that :)
-         y += T1ReadLong(Vdp2Ram, info->verticalscrolltbl) >> 16;
-         y &= 0x1FF;
-      }
-
       Y=y;
 
       info->LoadLineParams(info, j);
+
+      vertical_cell_scroll_table_pos = 0;
 
       for (i = 0; i < vdp2width; i++)
       {
@@ -770,14 +778,25 @@ static void FASTCALL Vdp2DrawScroll(vdp2draw_struct *info)
          {
             // Tile
             y=Y;
+
+            if (info->isverticalscroll)
+               y = DoVerticalCellScroll(info, &vertical_cell_scroll_table_pos, x, y);
+
             Vdp2MapCalcXY(info, &x, &y, &sinfo);
-         }
 
-         if (!Vdp2FetchPixel(info, x, y, &color, &dot))
+            if (!Vdp2FetchPixel(info, x, y, &color, &dot))
+               continue;
+         }
+         else//bitmap mode
          {
-            continue;
-         }
+            int bitmap_cell_scroll_y = y;
 
+            if (info->isverticalscroll)
+               bitmap_cell_scroll_y = DoVerticalCellScroll(info, &vertical_cell_scroll_table_pos, x, y);
+
+            if (!Vdp2FetchPixel(info, x, bitmap_cell_scroll_y, &color, &dot))
+               continue;
+         }
 
          priority = info->priority;
 

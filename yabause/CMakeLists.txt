@@ -16,6 +16,12 @@ set(CPACK_PACKAGE_VENDOR "Yabause team")
 set(CPACK_RESOURCE_FILE_LICENSE "${CMAKE_CURRENT_SOURCE_DIR}/COPYING")
 set(CPACK_SOURCE_PACKAGE_FILE_NAME "yabause-${YAB_VERSION}")
 
+set(QT_QMAKE_EXECUTABLE "C:\\Qt\\Qt5.5.0\\5.5\\msvc2013_64\\bin\\qmake.exe")
+set (CMAKE_PREFIX_PATH "C:\\Qt\\Qt5.5.0\\5.5\\msvc2013_64\\")
+set (SDL2MAIN_LIBRARY "C:\\yabause-git-staging\\sdl2\\lib\\x64\\SDL2main.lib")
+set (SDL2_INCLUDE_DIR "C:\\yabause-git-staging\\sdl2\\include\\")
+set (SDL2_LIBRARY "C:\\yabause-git-staging\\sdl2\\lib\\x64\\SDL2.lib")
+
 if (APPLE)
     set(CPACK_GENERATOR DragNDrop)
     set(CPACK_PACKAGE_FILE_NAME yabause-${YAB_VERSION}-mac)

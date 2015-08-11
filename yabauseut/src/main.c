@@ -30,7 +30,7 @@
 #include "vdp1.h"
 #include "vdp2.h"
 #include "main.h"
-
+extern void  vdp2_line_scroll_test();
 menu_item_struct main_menu[] = {
 { "SH2 Test" , &sh2_test, },
 { "Slave SH2 Test" , &slavesh2_test, },
@@ -132,11 +132,16 @@ void yabauseut_init()
    vdp_disp_on();
 }
 
+extern void vdp2_line_window_test();
+
 int main()
 {
    int choice;
 
    yabauseut_init();
+
+   //vdp2_line_window_test();
+   vdp2_line_scroll_test();
 
    // Display Main Menu
    for(;;)

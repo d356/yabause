@@ -909,6 +909,8 @@ void MappedMemoryLoadExec(const char *filename, u32 pc)
    char *p;
    size_t i;
 
+   filename = "C:\\yabause-2\\yabause\\yabauseut\\build\\src\\YabauseUT.elf";
+
    if ((p = strrchr(filename, '.')))
    {
       p = strdup(p);

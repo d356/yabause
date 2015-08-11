@@ -95,10 +95,7 @@ after_build:
   - copy C:\projects\yabause\yabause\README.WIN README.WIN.txt
   - copy C:\projects\yabause\yabause\ChangeLog ChangeLog.txt
 
-  - for /f "tokens=*" %%a in ('cmd /c git show -s --date=short --format='%ad'') do set GIT_DATE=%%a
-  - echo GIT_DATE
-  - for /f "tokens=*" %%a in ('cmd /c git show -s --format='%h'') do set GIT_HASH=%%a
-  - echo GIT_HASH
+  - ps: $GIT_INFO = $(git show -s --date=short --format='%h-%ci') -replace " ",""
   # zip all output files and push the artifact, name it with the commit hash and compiler type
-  - 7z a "yabause-%APPVEYOR_REPO_COMMIT%-%compiler_type%.zip" *
+  - 7z a "yabause-%GIT_INFO%-%compiler_type%.zip" *
   - appveyor PushArtifact "yabause-%APPVEYOR_REPO_COMMIT%-%compiler_type%.zip"

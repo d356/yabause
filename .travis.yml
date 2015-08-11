@@ -42,6 +42,11 @@ matrix:
         - make
 
     - language: android
+      addons:
+        apt:
+          packages:
+            - arm-linux-androideabi-gcc
+            - arm-linux-androideabi-g++
       script:
         - cmake -DCMAKE_TOOLCHAIN_FILE=../src/android/android.cmake ..
         - make

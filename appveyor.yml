@@ -99,7 +99,7 @@ after_build:
   - ps: cd ..
   - ps: cd ..
   - dir
-  - git show -s --date=short --pretty=format:'%h-%cd' > temp.txt
+  - ps: git show -s --date=short --pretty=format:'%h-%cd' | Out-File temp.txt
   - set /p git_hash_date= < temp.txt
   - set git_hash_date=%git_hash_date:~1,-1%
   - cd yabayse\build\output

@@ -34,6 +34,7 @@ init:
   # cmake errors if sh on the path
   - rm "C:\Program Files (x86)\Git\bin\sh.exe"
   - set Path=%MINGW%\bin;%Path%
+  - git submodule update --init --recursive
 
 before_build:
   # fetch appropriate sdl lib for visual studio or mingw
@@ -95,12 +96,8 @@ after_build:
   - copy C:\projects\yabause\yabause\README.WIN README.WIN.txt
   - copy C:\projects\yabause\yabause\ChangeLog ChangeLog.txt
   # zip all output files and push the artifact, name it with the commit hash and compiler type
-  - ps: cd ..
-  - ps: cd ..
-  - ps: cd ..
-  - dir
-  - ps: git show -s --date=short --pretty=format:'%h-%cd' | Out-File temp.txt
-  - set /p git_hash_date= < temp.txt
-  - cd yabayse\build\output
-  - 7z a "yabause-%git_hash_date%-%compiler_type%.zip" *
-  - appveyor PushArtifact "yabause-%git_hash_date%-%compiler_type%.zip"
+  - ps: >
+        $git_hash_date = $(git show -s --date=short --pretty=format:'%h-%cd')
+        $name = "yabause-${git_hash_date}-${env:compiler_type}.zip"
+        7z a $name *
+        appveyor PushArtifact $name

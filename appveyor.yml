@@ -94,8 +94,7 @@ after_build:
   - copy C:\projects\yabause\yabause\README README.txt
   - copy C:\projects\yabause\yabause\README.WIN README.WIN.txt
   - copy C:\projects\yabause\yabause\ChangeLog ChangeLog.txt
-
-  - ps: $GIT_INFO = $(git show -s --date=short --format='%h-%ci') -replace " ",""
   # zip all output files and push the artifact, name it with the commit hash and compiler type
-  - 7z a "yabause-%GIT_INFO%-%compiler_type%.zip" *
-  - appveyor PushArtifact "yabause-%APPVEYOR_REPO_COMMIT%-%compiler_type%.zip"
+  - ps: $git_hash_date = $(git show -s --date=short --pretty=format:'%h-%cd')
+  - ps: 7z a "yabause-$git_hash_date-$env:compiler_type.zip" *
+  - ps: appveyor PushArtifact "yabause-$git_hash_date-$env:compiler_type.zip"

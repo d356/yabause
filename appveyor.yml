@@ -97,10 +97,11 @@ after_build:
   # zip all output files and push the artifact, name it with the commit hash and compiler type
   - ps: cd ..
   - ps: cd ..
+  - ps: cd ..
   - dir
   - git show -s --date=short --pretty=format:'%h-%cd' > temp.txt
   - set /p git_hash_date= < temp.txt
   - set git_hash_date=%git_hash_date:~1,-1%
-  - cd build\output
+  - cd yabayse\build\output
   - 7z a "yabause-%git_hash_date%-%compiler_type%.zip" *
   - appveyor PushArtifact "yabause-%git_hash_date%-%compiler_type%.zip"

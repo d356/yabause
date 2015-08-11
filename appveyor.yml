@@ -32,7 +32,7 @@ shallow_clone: true
 
 before_build:
   - ps: $git_hash_date = ${env:APPVEYOR_REPO_COMMIT}.substring(0, 7)
-  - ps: $git_date = ${env:APPVEYOR_REPO_COMMIT_TIMESTAMP}
+  - ps: $git_date = ${env:APPVEYOR_REPO_COMMIT_TIMESTAMP}.substring(0,10)
   - ps: $git_hash_date
   - ps: $git_date
   # cmake errors if sh on the path

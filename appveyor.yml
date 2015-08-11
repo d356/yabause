@@ -98,7 +98,9 @@ after_build:
   - ps: cd ..
   - ps: cd ..
   - dir
-  - ps: $git_hash_date = $(git show -s --date=short --pretty=format:'%h-%cd')
-  - ps: cd build\output
-  - ps: 7z a "yabause-$git_hash_date-$env:compiler_type.zip" *
-  - ps: appveyor PushArtifact "yabause-$git_hash_date-$env:compiler_type.zip"
+  - git show -s --date=short --pretty=format:'%h-%cd' > temp.txt
+  - set /p git_hash_date= < temp.txt
+  - set git_hash_date=%git_hash_date:~1,-1%
+  - cd build\output
+  - 7z a "yabause-%git_hash_date%-%compiler_type%.zip" *
+  - appveyor PushArtifact "yabause-%git_hash_date%-%compiler_type%.zip"

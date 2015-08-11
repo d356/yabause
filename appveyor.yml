@@ -5,6 +5,14 @@ environment:
   qt_dll_suffix: ""
 
   matrix:
+    # Visual Studio build
+    - generator: "Visual Studio 12 Win64"
+      CMAKE_PREFIX_PATH: C:\Qt\5.4\msvc2013_64_opengl
+      compiler_type: "vs12-x64"
+      sdl_filename: SDL2-devel-2.0.3-VC.zip
+      sdl_arch: x64
+      dx_args: "-DYAB_WANT_DIRECTSOUND=ON -DYAB_WANT_DIRECTINPUT=ON"
+
     # MingGW x86 build
     - generator: "MinGW Makefiles"
       CMAKE_PREFIX_PATH: C:\Qt\5.5\mingw492_32
@@ -19,14 +27,6 @@ environment:
 
     # included directx headers incompatible with mingw
       dx_args: ""
-
-    # Visual Studio build
-    - generator: "Visual Studio 12 Win64"
-      CMAKE_PREFIX_PATH: C:\Qt\5.4\msvc2013_64_opengl
-      compiler_type: "vs12-x64"
-      sdl_filename: SDL2-devel-2.0.3-VC.zip
-      sdl_arch: x64
-      dx_args: "-DYAB_WANT_DIRECTSOUND=ON -DYAB_WANT_DIRECTINPUT=ON"
 
 shallow_clone: true
 
@@ -94,6 +94,7 @@ after_build:
   - copy C:\projects\yabause\yabause\README README.txt
   - copy C:\projects\yabause\yabause\README.WIN README.WIN.txt
   - copy C:\projects\yabause\yabause\ChangeLog ChangeLog.txt
+
   # zip all output files and push the artifact, name it with the commit, date and compiler type
   - ps: $git_hash_date = ${env:APPVEYOR_REPO_COMMIT}.substring(0, 7)
   - ps: $git_hash_date += "-"

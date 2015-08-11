@@ -30,11 +30,12 @@ environment:
 
 shallow_clone: true
 
-before_build:
+init:
   # cmake errors if sh on the path
   - rm "C:\Program Files (x86)\Git\bin\sh.exe"
   - set Path=%MINGW%\bin;%Path%
 
+before_build:
   # fetch appropriate sdl lib for visual studio or mingw
   - cd c:\
   - appveyor DownloadFile https://www.libsdl.org/release/%sdl_filename%

@@ -96,8 +96,9 @@ after_build:
   - copy C:\projects\yabause\yabause\ChangeLog ChangeLog.txt
   # zip all output files and push the artifact, name it with the commit hash and compiler type
   - ps: cd ..
+  - ps: cd ..
   - dir
   - ps: $git_hash_date = $(git show -s --date=short --pretty=format:'%h-%cd')
-  - ps: cd output
+  - ps: cd build\output
   - ps: 7z a "yabause-$git_hash_date-$env:compiler_type.zip" *
   - ps: appveyor PushArtifact "yabause-$git_hash_date-$env:compiler_type.zip"

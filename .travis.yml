@@ -42,11 +42,9 @@ matrix:
         - make
 
     - language: android
-      addons:
-        apt:
-          packages:
-            - arm-linux-androideabi-gcc
-            - arm-linux-androideabi-g++
+      before_script:
+        - git clone https://github.com/urho3d/android-ndk.git $HOME/android-ndk-root
+        - export ANDROID_NDK_HOME=$HOME/android-ndk-root
       script:
         - cmake -DCMAKE_TOOLCHAIN_FILE=../src/android/android.cmake ..
         - make

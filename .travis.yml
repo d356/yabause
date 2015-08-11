@@ -41,9 +41,11 @@ matrix:
         - cmake -DCMAKE_TOOLCHAIN_FILE=toolchain.cmake ..
         - make
 
+    - language: android
+
 language: cpp
 
-before_install:
+before_install: 
   - cd yabause
   - mkdir build
   - cd build

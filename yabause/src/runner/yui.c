@@ -80,7 +80,7 @@ char* text_white = "\033[01;37m";
 void set_color(char* color)
 {
 #ifndef _MSC_VER
-    printf(color);
+    printf("%s",color);
 #endif
 }
 

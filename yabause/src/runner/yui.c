@@ -132,6 +132,7 @@ int main(int argc, char *argv[])
 	int tests_failed = 0;
 	int tests_total = 0;
 	int tests_passed = 0;
+    int finished = 0;
 
 	printf("Running tests...\n\n");
 
@@ -214,14 +215,22 @@ next_test:
 				}
 				else if (!strcmp(command, "QUIT"))
 				{
-                    printf("%d of %d tests passed.", tests_passed, tests_total);
-					goto end;
+                    printf("%d of %d tests passed.\n", tests_passed, tests_total);
+                    finished = 1;
 				}
+
+                if (finished)
+                {
+                    break;
+                }
 			}
+
+            if (finished)
+            {
+                break;
+            }
 		}
 	}
-
-end:
 
 	return tests_failed;
 }

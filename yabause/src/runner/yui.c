@@ -215,7 +215,18 @@ next_test:
 				}
 				else if (!strcmp(command, "QUIT"))
 				{
+                    if (tests_passed < tests_total)
+                    {
+                        set_color(text_red);
+                    }
+                    else
+                    {
+                        set_color(text_green);
+                    }
                     printf("%d of %d tests passed.\n", tests_passed, tests_total);
+
+                    set_color(text_white);
+
                     finished = 1;
 				}
 

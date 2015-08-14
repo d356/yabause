@@ -3,7 +3,7 @@ matrix:
     # compile runner and run yabauseut tests
     - compiler: gcc
       script:
-        - cmake -DYAB_PORT=runner ..
+        - cmake -DYAB_PORTS=runner ..
         - make
       after_script:
         - cd src/runner

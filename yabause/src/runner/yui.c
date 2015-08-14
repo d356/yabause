@@ -73,6 +73,17 @@ M68K_struct * M68KCoreList[] = {
 	NULL
 };
 
+char* text_red = "\033[22;31m";
+char* text_green = "\033[22;31m";
+char* text_white = "\033[01;37m";
+
+void set_color(char* color)
+{
+#ifndef _MSC_VER
+    printf(color);
+#endif
+}
+
 static const char *bios = "";
 static int emulate_bios = 0;
 
@@ -92,6 +103,26 @@ void get_test_strings(int *i, char *full_str, char *command)
 	sprintf(command, "%s", Vdp2Ram + AUTO_TEST_OUTPUT_ADDRESS + *i);
 
 	*i = *i + (int)strlen(command) + 1;
+}
+
+void print_result(char* test_info, char* command,int passed)
+{
+    set_color(text_white);
+
+    printf("%-32s ", test_info, command);
+
+    if (passed)
+    {
+        set_color(text_green);
+    }
+    else
+    {
+        set_color(text_red);
+    }
+
+    printf("%s\n", command);
+
+    set_color(text_white);
 }
 
 int main(int argc, char *argv[]) 
@@ -160,7 +191,7 @@ next_test:
 				else if (!strcmp(command, "PASS"))
 				{
 					//sub-test passed, continue to next
-					printf("%-32s %s\n", test_info, command);
+                    print_result(&test_info[0], &command[0],1);
 					tests_total++;
 					tests_passed++;
 					continue;
@@ -168,7 +199,7 @@ next_test:
 				else if (!strcmp(command, "FAIL"))
 				{
 					//sub-test failure
-					printf("%-32s %s\n", test_info, command);
+                    print_result(&test_info[0], &command[0],0);
 					tests_total++;
 					tests_failed++;
 					continue;
@@ -183,6 +214,7 @@ next_test:
 				}
 				else if (!strcmp(command, "QUIT"))
 				{
+                    printf("%d/%d tests passed.", tests_passed, tests_total);
 					goto end;
 				}
 			}
@@ -190,8 +222,6 @@ next_test:
 	}
 
 end:
-
-	printf("%d/%d tests passed.", tests_passed,tests_total);
 
 	return tests_failed;
 }

@@ -34,6 +34,9 @@
 #define AUTO_TEST_NOT_RUNNING 0
 #define AUTO_TEST_BUSY 1
 #define AUTO_TEST_FINISHED 2
+#define TEST_PASSED 1
+#define TEST_FAILED 2
+#define TEST_FAILED_EXPECTED 3
 
 #define VDP2_VRAM 0x25E00000
 
@@ -76,6 +79,7 @@ M68K_struct * M68KCoreList[] = {
 char* text_red = "\033[22;31m";
 char* text_green = "\033[22;32m";
 char* text_white = "\033[01;37m";
+char* text_light_red = "\033[01;31m";
 
 void set_color(char* color)
 {
@@ -105,19 +109,28 @@ void get_test_strings(int *i, char *full_str, char *command)
 	*i = *i + (int)strlen(command) + 1;
 }
 
-void print_result(char* test_info, char* command,int passed)
+void print_result(char* test_info, char* command,int status)
 {
     set_color(text_white);
 
     printf("%-32s ", test_info, command);
 
-    if (passed)
+    if (status==TEST_PASSED)
     {
         set_color(text_green);
     }
-    else
+    else if (status== TEST_FAILED)
     {
         set_color(text_red);
+    }
+    else if (status == TEST_FAILED_EXPECTED)
+    {
+        set_color(text_light_red);
+        printf("%s", "FAIL");
+        set_color(text_green);
+        printf("%s", " (Expected)\n");
+        set_color(text_white);
+        return;
     }
 
     printf("%s\n", command);
@@ -125,14 +138,22 @@ void print_result(char* test_info, char* command,int passed)
     set_color(text_white);
 }
 
+//order matters
+char* tests_expected_to_fail[] =
+{
+"SCU Mask Cache Quirk",
+"Slave VBlank"
+};
+
 int main(int argc, char *argv[]) 
 {
 	yabauseinit_struct yinit = { 0 };
 	int current_test = 0;
-	int tests_failed = 0;
+	int regressions = 0;
 	int tests_total = 0;
 	int tests_passed = 0;
     int finished = 0;
+    int expected_failure_count = 0;
 
 	printf("Running tests...\n\n");
 
@@ -192,17 +213,27 @@ next_test:
 				else if (!strcmp(command, "PASS"))
 				{
 					//sub-test passed, continue to next
-                    print_result(&test_info[0], &command[0],1);
+                    print_result(&test_info[0], &command[0],TEST_PASSED);
 					tests_total++;
 					tests_passed++;
 					continue;
 				}
 				else if (!strcmp(command, "FAIL"))
 				{
-					//sub-test failure
-                    print_result(&test_info[0], &command[0],0);
+                    //sub-test failure, due to pre-existing
+                    //emulation issues, not a regression
+                    if (!strcmp(test_info, tests_expected_to_fail[expected_failure_count]))
+                    {
+                        print_result(&test_info[0], "", TEST_FAILED_EXPECTED);
+                        tests_total++;
+                        expected_failure_count++;
+                        continue;
+                    }
+
+					//sub-test failure, regression
+                    print_result(&test_info[0], &command[0], TEST_FAILED);
 					tests_total++;
-					tests_failed++;
+					regressions++;
 					continue;
 				}
 				else if (!strcmp(command, "NEXT"))
@@ -215,7 +246,7 @@ next_test:
 				}
 				else if (!strcmp(command, "QUIT"))
 				{
-                    if (tests_passed < tests_total)
+                    if (regressions > 0)
                     {
                         set_color(text_red);
                     }
@@ -223,7 +254,7 @@ next_test:
                     {
                         set_color(text_green);
                     }
-                    printf("%d of %d tests passed.\n", tests_passed, tests_total);
+                    printf("%d of %d tests passed. %d regressions. %d expected failures. \n", tests_passed, tests_total,regressions,expected_failure_count);
 
                     set_color(text_white);
 
@@ -243,5 +274,5 @@ next_test:
 		}
 	}
 
-	return tests_failed;
+	return regressions;
 }

@@ -3,12 +3,15 @@ matrix:
     # compile runner and run yabauseut tests
     - compiler: gcc
       script:
-        - cmake -DYAB_PORTS=runner ..
+        - cmake -DYAB_PORTS=runner -DYAB_WANT_C68K=OFF -DYAB_WANT_Q68=OFF -DYAB_WANT_OPENGL=OFF ..
         - make
       after_script:
         - cd src/runner
         - git clone git://github.com/d356/yabauseut-bin.git
-        - ./yabause yabauseut-bin/YabauseUT.elf
+        - ls
+        - cd yabauseut-bin
+        - ls
+        #- ./yabause yabauseut-bin/YabauseUT.elf
 
 language: cpp
 

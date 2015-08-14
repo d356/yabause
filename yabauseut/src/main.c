@@ -30,6 +30,7 @@
 #include "vdp1.h"
 #include "vdp2.h"
 #include "main.h"
+#include "tests.h"
 
 menu_item_struct main_menu[] = {
 { "SH2 Test" , &sh2_test, },
@@ -132,11 +133,44 @@ void yabauseut_init()
    vdp_disp_on();
 }
 
+#ifdef BUILD_AUTOMATED_TESTING
+
+void (*auto_tests[])() =
+{ 
+   sh2_test, 
+   scu_register_test,
+   scsp_timing_test,
+   scsp_misc_test,
+   auto_test_all_finished
+};
+
+#endif
+
+int auto_test_get_selection()
+{
+#ifdef BUILD_AUTOMATED_TESTING
+   volatile u8* ptr = (volatile u8 *)VDP2_RAM;
+   return ptr[AUTO_TEST_SELECT_ADDRESS];
+#endif
+   return 0;
+}
+
+void auto_test_do_selected_test(int selection)
+{
+#ifdef BUILD_AUTOMATED_TESTING
+   (*auto_tests[selection])();
+#endif
+}
+
 int main()
 {
    int choice;
 
+   int auto_test_selection = auto_test_get_selection();
+
    yabauseut_init();
+
+   auto_test_do_selected_test(auto_test_selection);
 
    // Display Main Menu
    for(;;)

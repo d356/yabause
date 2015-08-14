@@ -27,6 +27,9 @@
 #include "../m68kc68k.h"
 #include "../vidsoft.h"
 #include "../vdp2.h"
+#ifdef _MSC_VER
+#include <Windows.h>
+#endif
 
 #define AUTO_TEST_SELECT_ADDRESS 0x7F000
 #define AUTO_TEST_STATUS_ADDRESS 0x7F004
@@ -73,18 +76,28 @@ M68K_struct * M68KCoreList[] = {
 #ifdef HAVE_Q68
 	&M68KQ68,
 #endif
-	NULL
+    NULL
 };
 
-char* text_red = "\033[22;31m";
-char* text_green = "\033[22;32m";
-char* text_white = "\033[01;37m";
-char* text_light_red = "\033[01;31m";
+struct ConsoleColor
+{
+    char ansi[12];
+    int windows;
+};
 
-void set_color(char* color)
+struct ConsoleColor text_red = { "\033[22;31m",4 };
+struct ConsoleColor text_green = { "\033[22;32m", 2};
+struct ConsoleColor text_white = { "\033[01;37m", 7};
+struct ConsoleColor text_light_red = { "\033[01;31m", 0xc};
+struct ConsoleColor text_light_green = { "\033[01;32m",0xa };
+
+void set_color(struct ConsoleColor color)
 {
 #ifndef _MSC_VER
-    printf("%s",color);
+    printf("%s",color.ansi);
+#else
+    HANDLE hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
+    SetConsoleTextAttribute(hConsole, (WORD)color.windows);
 #endif
 }
 
@@ -127,7 +140,7 @@ void print_result(char* test_info, char* command,int status)
     {
         set_color(text_light_red);
         printf("%s", "FAIL");
-        set_color(text_green);
+        set_color(text_light_green);
         printf("%s", " (Expected)\n");
         set_color(text_white);
         return;

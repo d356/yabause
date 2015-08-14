@@ -74,7 +74,7 @@ M68K_struct * M68KCoreList[] = {
 };
 
 char* text_red = "\033[22;31m";
-char* text_green = "\033[22;31m";
+char* text_green = "\033[22;32m";
 char* text_white = "\033[01;37m";
 
 void set_color(char* color)
@@ -214,7 +214,7 @@ next_test:
 				}
 				else if (!strcmp(command, "QUIT"))
 				{
-                    printf("%d/%d tests passed.", tests_passed, tests_total);
+                    printf("%d of %d tests passed.", tests_passed, tests_total);
 					goto end;
 				}
 			}

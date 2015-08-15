@@ -137,10 +137,25 @@ void yabauseut_init()
 
 void (*auto_tests[])() =
 { 
-   sh2_test, 
+   //sh2
+   sh2_test,
+   //sh2 slave
+   slavesh2_test,
+   //scu
    scu_register_test,
+   scu_int_test,
+   scu_dma_test,
+   scu_dsp_test,
+   //cd block
+   //mpeg card
+   //cartridge
+   //68k
+   //scsp
    scsp_timing_test,
    scsp_misc_test,
+   //smpc
+   //vdp1
+   //vdp2
    auto_test_all_finished
 };
 

@@ -38,6 +38,9 @@ u8 numtests=0;
 
 //////////////////////////////////////////////////////////////////////////////
 
+//the automated testing interface uses the last 4096 bytes of vdp2 ram
+//to relay messages to yabause
+
 int auto_test_write_offset = 0;
 
 void auto_test_write(char* str)

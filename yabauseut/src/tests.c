@@ -180,7 +180,7 @@ void do_tests(const char *testname, int x, int y)
          if (stage_status == STAGESTAT_DONE)
          {
             vdp_printf(&test_disp_font, (x + 38) * 8, (y + stage + 2) * 8, 0xA, "OK");
-			auto_test_write("PASS");
+            auto_test_write("PASS");
          }
 
          else if (stage_status < 0)
@@ -226,7 +226,7 @@ void do_tests(const char *testname, int x, int y)
          if (tests[stage].name)
          {
             vdp_printf(&test_disp_font, x * 8, (y + stage + 3) * 8, 0xF, (char *)tests[stage].name);
-			auto_test_write((char *)tests[stage].name);
+            auto_test_write((char *)tests[stage].name);
          }
 
          if (tests[stage].testfunc)

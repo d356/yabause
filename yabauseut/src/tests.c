@@ -185,28 +185,32 @@ void do_tests(const char *testname, int x, int y)
 
          else if (stage_status < 0)
          {
-			 auto_test_write("FAIL");
-
             // Handle error
             switch (stage_status)
             {
                case STAGESTAT_BADTIMING:
                   vdp_printf(&test_disp_font, (x+38) * 8, (y + stage + 2) * 8, 0xE, "BT");
+                  auto_test_write("FAIL (Bad Timing)");
                   break;
                case STAGESTAT_BADDATA:
                   vdp_printf(&test_disp_font, (x+38) * 8, (y + stage + 2) * 8, 0xC, "BD");
+                  auto_test_write("FAIL (Bad Data)");
                   break;
                case STAGESTAT_BADSIZE:
                   vdp_printf(&test_disp_font, (x+38) * 8, (y + stage + 2) * 8, 0xC, "BS");
+                  auto_test_write("FAIL (Bad Size)");
                   break;
                case STAGESTAT_BADINTERRUPT:
                   vdp_printf(&test_disp_font, (x+38) * 8, (y + stage + 2) * 8, 0xC, "BI");
+                  auto_test_write("FAIL (Bad Interrupt)");
                   break;
                case STAGESTAT_NOTEST:
                   vdp_printf(&test_disp_font, (x+38) * 8, (y + stage + 2) * 8, 0xF, "NT");
+                  auto_test_write("FAIL (No Test)");
                   break;
                default:
                   vdp_printf(&test_disp_font, (x+38) * 8, (y + stage + 2) * 8, 0xC, "failed");
+                  auto_test_write("FAIL");
                   break;
             }
          }

@@ -1088,8 +1088,8 @@ void ScuExec(u32 timing) {
                   ScuDsp->ProgControlPort.part.Z = 1;
                else
                   ScuDsp->ProgControlPort.part.Z = 0;
-			   
-               if ((s64)ScuDsp->ALU.all < 0)
+
+               if ((s64)ScuDsp->ALU.part.L < 0)
                   ScuDsp->ProgControlPort.part.S = 1;
                else
                   ScuDsp->ProgControlPort.part.S = 0;

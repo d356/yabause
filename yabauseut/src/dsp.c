@@ -171,9 +171,6 @@ void dsp_test_end(int * yval, int count, int which_test, int * test_status, stru
          color = 40;//red, result doesn't match the table. test failed
          stage_status = STAGESTAT_BADDATA;
          *test_status = 0xdead;//test failed
-         char str2[256] = { 0 };
-         sprintf(str2,"test %d count %d %08x != %08x", which_test, count, ppd[i], results->instruction_results[which_test].results_of_value_combination[count].val[i]);
-         auto_test_debug_message(str2);
       }
       //print reg data
       sprintf(str, "%08x", (unsigned int)ppd[i]);
@@ -196,22 +193,19 @@ void dsp_test_end(int * yval, int count, int which_test, int * test_status, stru
 
   for (i = 0; i < 4; i++)
   {
-     int color = 0xf;
-     //check that the flags match
-     if (flags[i] != flags_correct[i])
-     {
-        color = 40;//wrong, test failed
-        stage_status = STAGESTAT_BADDATA;
-        *test_status = 0xdead;//test failed
-        char str2[256] = { 0 };
-        sprintf(str2, "test %d count %d %08x != %08x flag %d", which_test, count, flags[i], flags_correct[i], i);
-        auto_test_debug_message(str2);
-     }
-     //print flag
-     sprintf(str, "%01x", (unsigned int)flags[i]);
-     vdp_printf(&test_disp_font, x * 8, *yval * 8, color, str);
-     x += 1;
-  }
+      int color = 0xf;
+      //check that the flags match
+      if (flags[i] != flags_correct[i])
+      {
+         color = 40;//wrong, test failed
+         stage_status = STAGESTAT_BADDATA;
+         *test_status = 0xdead;//test failed
+      }
+      //print flag
+      sprintf(str, "%01x", (unsigned int)flags[i]);
+      vdp_printf(&test_disp_font, x * 8, *yval * 8, color, str);
+      x += 1;
+   }
 
    *yval = *yval + 1;
 }

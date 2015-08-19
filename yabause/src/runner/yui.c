@@ -99,7 +99,7 @@ static const char *bios = "";
 static int emulate_bios = 0;
 
 void YuiErrorMsg(const char *error_text) {
-   fprintf(stderr, "\n\nError: %s\n", error_text);
+   printf("\n\nError: %s\n", error_text);
    printf("                                 ");
 }
 

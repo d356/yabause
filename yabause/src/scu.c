@@ -1136,7 +1136,7 @@ void ScuExec(u32 timing) {
 
                ScuDsp->ProgControlPort.part.C = ScuDsp->AC.part.L >> 31;
 
-               ScuDsp->ALU.all = (s64)((ScuDsp->AC.part.L << 1) | ScuDsp->ProgControlPort.part.C);
+               ScuDsp->ALU.all = (s64)(((u32)ScuDsp->AC.part.L << 1) | ScuDsp->ProgControlPort.part.C) | (ScuDsp->AC.part.L & 0xffff00000000);
                
                if (ScuDsp->ALU.all == 0)
                   ScuDsp->ProgControlPort.part.Z = 1;

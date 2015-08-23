@@ -33,7 +33,7 @@ void ScspDspDisasm(u8 addr, char *outstring)
 
    if (instruction.all == 0)
    {
-      sprintf(outstring, "nop ", addr);
+      sprintf(outstring, "nop ");
       outstring += strlen(outstring);
       return;
    }
@@ -190,13 +190,13 @@ void ScspDspDisasm(u8 addr, char *outstring)
 
    if (instruction.part.unknown)
    {
-      sprintf(outstring, "unknown ", addr);
+      sprintf(outstring, "unknown ");
       outstring += strlen(outstring);
    }
 
    if (instruction.part.unknown2)
    {
-      sprintf(outstring, "unknown2 ", addr);
+      sprintf(outstring, "unknown2 ");
       outstring += strlen(outstring);
    }
 

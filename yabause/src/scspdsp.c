@@ -20,7 +20,7 @@
 #include "scsp.h"
 #include "scspdsp.h"
 
-struct ScspDsp scsp_dsp;
+ScspDsp scsp_dsp;
 
 void ScspDspDisasm(u8 addr, char *outstring)
 {

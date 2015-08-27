@@ -136,6 +136,7 @@ typedef struct
    int coloroffset;
    int transparencyenable;
    int specialprimode;
+   int shadow;
 
    s32 cor;
    s32 cog;
@@ -162,6 +163,8 @@ typedef struct
    u32 verticalscrolltbl;
    int verticalscrollinc;
    int linescreen;
+   int color_calc_ratio;
+   int color_calc_enable;
    
    // WindowMode
    u8  LogicWin;    // Window Logic AND OR

@@ -26,8 +26,19 @@
 #define TITAN_BLEND_BOTTOM  1
 #define TITAN_BLEND_ADD     2
 
+#define TITAN_SPRITE 5
+#define TITAN_RBG0 4
+#define TITAN_NBG0 3
+#define TITAN_NBG1 2
+#define TITAN_NBG2 1
+#define TITAN_NBG3 0
+
+#define TITAN_NORMAL_SHADOW 0
+#define TITAN_MSB_SHADOW 1
+#define TITAN_NORMAL_SHADOW_VALUE 0xFFFE
+
 int TitanInit();
-int TitanDeInit();
+void TitanErase();
 
 void TitanSetResolution(int width, int height);
 void TitanGetResolution(int * width, int * height);
@@ -38,12 +49,11 @@ void TitanPutBackHLine(s32 y, u32 color);
 
 void TitanPutLineHLine(int linescreen, s32 y, u32 color);
 
-void TitanPutPixel(int priority, s32 x, s32 y, u32 color, int linescreen);
-void TitanPutHLine(int priority, s32 x, s32 y, s32 width, u32 color);
+//void TitanPutPixel(int priority, s32 x, s32 y, u32 color, int linescreen,int original_layer, int shadow);
 
-void TitanPutShadow(int priority, s32 x, s32 y);
+void TitanPutShadow(int priority, s32 x, s32 y, int type);
 
-void TitanRender(pixel_t * dispbuffer);
+void TitanRender(pixel_t * dispbuffer, int debug);
 
 void TitanWriteColor(pixel_t * dispbuffer, s32 bufwidth, s32 x, s32 y, u32 color);
 

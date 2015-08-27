@@ -18,6 +18,7 @@
 */
 
 #include "titan.h"
+#include "../vdp2.h"
 
 #include <stdlib.h>
 
@@ -25,21 +26,34 @@
 typedef u32 (*TitanBlendFunc)(u32 top, u32 bottom);
 typedef int FASTCALL (*TitanTransFunc)(u32 pixel);
 
+struct OnePixel {
+   u8 priority;
+   u8 is_msb_shadow;
+   u8 shadow_enabled_on_layer;
+   u8 line_screen_inserts;
+   u8 color_calc_enable;
+   u8 color_calc_ratio;
+   u32 pixel;
+};
+
+struct PixelsAtPos
+{
+   struct OnePixel pixels[6];
+};
+
 static struct TitanContext {
    int inited;
-   u32 * vdp2framebuffer[8];
-   u32 * linescreen[4];
+   struct PixelsAtPos bg_layers[704 * 480];
+   u32 backscreen[480];
+   u32 linescreen[480];
    int vdp2width;
    int vdp2height;
    TitanBlendFunc blend;
    TitanTransFunc trans;
-} tt_context = {
-   0,
-   { NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL },
-   { NULL, NULL, NULL, NULL },
-   320,
-   224
-};
+   int color_calc_enable[8];
+   int color_calc_ratio[8];
+   int extended_color_calc;
+} tt_context;
 
 #if defined WORDS_BIGENDIAN
 #ifdef USE_RGB_555
@@ -109,6 +123,33 @@ static u32 TitanBlendPixelsBottom(u32 top, u32 bottom)
    return TitanCreatePixel(TitanGetAlpha(top), tr + br, tg + bg, tb + bb);
 }
 
+//when selecting by top
+//when the top layer is 0 is fully opaque
+//when the top layer is 31 is fully transparent
+
+//when selecting by bottom
+//when the bottom layer is 31 the top layer is fully transparent. you only see the bottom layer
+//when the bottom layer is 0 the top layer is fully opaque. you only see the top layer
+static u32 TitanBlendPixelsExtendedBottom(u32 top, u32 bottom, u32 top_alpha, u32 bottom_alpha)
+{
+   u8 tr, tg, tb, br, bg, bb;
+
+   top_alpha <<= 3;
+   bottom_alpha <<= 3;
+
+   top_alpha = 0xff - bottom_alpha;
+
+   tr = (TitanGetRed(top) * top_alpha) / 0xFF;
+   tg = (TitanGetGreen(top) * top_alpha) / 0xFF;
+   tb = (TitanGetBlue(top) * top_alpha) / 0xFF;
+
+   br = (TitanGetRed(bottom) * bottom_alpha) / 0xFF;
+   bg = (TitanGetGreen(bottom) * bottom_alpha) / 0xFF;
+   bb = (TitanGetBlue(bottom) * bottom_alpha) / 0xFF;
+
+   return TitanCreatePixel(0x3f, tr + br, tg + bg, tb + bb);
+}
+
 static u32 TitanBlendPixelsAdd(u32 top, u32 bottom)
 {
    u32 r, g, b;
@@ -125,6 +166,39 @@ static u32 TitanBlendPixelsAdd(u32 top, u32 bottom)
    return TitanCreatePixel(0x3F, r, g, b);
 }
 
+static u32 TitanBlendPixelsAddExtended(u32 a_in, u32 b_in, int a_shift, int b_shift)
+{
+   int ra = TitanGetRed(a_in);
+   int ga = TitanGetGreen(a_in);
+   int ba = TitanGetBlue(a_in);
+
+   int rb = TitanGetRed(b_in);
+   int gb = TitanGetGreen(b_in);
+   int bb = TitanGetBlue(b_in);
+
+   ra >>= a_shift;
+   ga >>= a_shift;
+   ba >>= a_shift;
+
+   rb >>= b_shift;
+   gb >>= b_shift;
+   bb >>= b_shift;
+
+   int r = ra + rb;
+   int g = ga + gb;
+   int b = ba + bb;
+
+   int clamp = 0xff;
+   if (r > clamp) 
+      r = clamp;
+   if (g > clamp)
+      g = clamp;
+   if (b > clamp) 
+      b = clamp;
+
+   return TitanCreatePixel(0x3F, r, g, b);
+}
+
 static INLINE int FASTCALL TitanTransAlpha(u32 pixel)
 {
    return TitanGetAlpha(pixel) < 0x3F;
@@ -135,73 +209,217 @@ static INLINE int FASTCALL TitanTransBit(u32 pixel)
    return pixel & 0x80000000;
 }
 
-static u32 TitanDigPixel(int priority, int pos)
+int TitanDoPriority(int pos, struct OnePixel *pos_stack)
 {
-   u32 pixel = 0;
-   while((priority > -1) && (! pixel))
-   {
-      pixel = tt_context.vdp2framebuffer[priority][pos];
-      priority--;
-   }
-   tt_context.vdp2framebuffer[priority + 1][pos] = 0;
-   if (priority == -1) return pixel;
+   struct PixelsAtPos bg_layers_at_pos = tt_context.bg_layers[pos];
+   int stack_pos = 1;
 
-   if (tt_context.trans(pixel))
+   //sort the pixels from highest to lowest priority
+   for (int priority = 7; priority > 0; priority--)
    {
-      u32 bottom = TitanDigPixel(priority, pos);
-      pixel = tt_context.blend(pixel, bottom);
+      for (int which_layer = TITAN_SPRITE; which_layer >= 0; which_layer--)
+      {
+         if (bg_layers_at_pos.pixels[which_layer].priority == priority)
+         {
+   //         bg_layers_at_pos.pixels[which_layer].color_calc_enable = tt_context.color_calc_enable[which_layer];
+    //        bg_layers_at_pos.pixels[which_layer].color_calc_ratio = tt_context.color_calc_ratio[which_layer];
+            pos_stack[stack_pos] = bg_layers_at_pos.pixels[which_layer];
+            stack_pos++;
+         }
+      }
    }
-   else while (priority > 0)
+
+   return stack_pos;
+}
+
+u32 TitanDoExtendedColorCalc(int  stack_pos, struct OnePixel *pos_stack)
+{
+   struct OnePixel first = pos_stack[stack_pos];
+   struct OnePixel second = pos_stack[stack_pos + 1];
+   struct OnePixel third = pos_stack[stack_pos + 2];
+
+   u32 outpixel = 0;
+#if 0
+   if (second.line_screen_inserts)
    {
-      tt_context.vdp2framebuffer[priority][pos] = 0;
-      priority--;
+      if (second.color_calc_enable)
+      {
+         return TitanBlendPixelsAddExtended(first.pixel, second.pixel, 0, 0);
+      }
+      else
+      {
+         u32 second_blend = TitanBlendPixelsAddExtended(second.pixel, third.pixel, 1, 5);
+
+       //  outpixel = TitanBlendPixelsAddExtended(first.pixel, second_blend, 2, 0);
+
+       //  return outpixel;
+         if ((Vdp2Regs->CCCTL >> 8) & 1)
+         {
+
+         }
+         else
+         {
+
+            u32 first_ratio = pos_stack[stack_pos].color_calc_ratio;
+            u32 second_ratio = pos_stack[stack_pos + 1].color_calc_ratio;
+
+            return TitanBlendPixelsExtendedBottom(first.pixel, second_blend, first_ratio, second_ratio);
+          //  return tt_context.blend(first.pixel, second_blend);
+            //additive
+          //  return TitanBlendPixelsAddExtended(first.pixel, second_blend, 2, 0);
+         }
+      }
    }
-   return pixel;
+#endif
+   if (!first.color_calc_enable)
+   {
+      outpixel = first.pixel;
+   }
+   else if (first.color_calc_enable && !second.color_calc_enable)
+   {
+      outpixel = tt_context.blend(first.pixel, second.pixel);
+   }
+   else
+   {
+      int second_blend = 0;
+
+      if (((Vdp2Regs->RAMCTL >> 12) & 3) == 0)
+      {
+         second_blend = TitanBlendPixelsAddExtended(second.pixel, third.pixel, 1, 5);
+      }
+
+      if (((Vdp2Regs->CCCTL) >> 9) & 1)
+      {
+         //select per second screen
+         u32 first_ratio = pos_stack[stack_pos].color_calc_ratio;
+         u32 second_ratio = pos_stack[stack_pos + 1].color_calc_ratio;
+
+         outpixel = TitanBlendPixelsExtendedBottom(first.pixel, second_blend, first_ratio, second_ratio);
+      }
+      else
+      {
+         //select per top
+         outpixel = tt_context.blend(first.pixel, second_blend);
+      }
+   }
+
+   return outpixel;
+}
+
+static u32 TitanDigPixel(int x, int y, int debug)
+{
+   struct OnePixel pos_stack[8] = { 0 };
+
+   int stack_pos = TitanDoPriority((y*tt_context.vdp2width) + x, &pos_stack);
+
+   if (y == 8 * 13)
+   {
+      if (x == 8 * 0)
+      {
+         int i = 0;
+      }
+   }
+
+   //vdp2 viewer
+   if (debug)
+   {
+      return pos_stack[1].pixel;
+   }
+
+   //bottom pixel is always the back screen
+   pos_stack[stack_pos++].pixel = tt_context.backscreen[y];
+
+   //put the line screen in front if it is enabled
+   if (pos_stack[1].line_screen_inserts)
+   {
+      pos_stack[0].pixel = tt_context.linescreen[y];
+      pos_stack[0].color_calc_enable = (Vdp2Regs->CCCTL >> 5) & 1;
+      pos_stack[0].color_calc_ratio = Vdp2Regs->CCRLB & 0x1f;
+      stack_pos = 0;
+   }
+   else
+   {
+      stack_pos = 1;
+   }
+
+   u32 outpixel = pos_stack[stack_pos].pixel;
+
+   if (outpixel == 0)
+      return 0;
+
+   if (tt_context.extended_color_calc)
+   {
+         outpixel = TitanDoExtendedColorCalc(stack_pos, pos_stack);
+   }
+   else
+   {
+      //blend the line screen
+      if (pos_stack[1].line_screen_inserts)
+      {
+         outpixel = tt_context.blend(pos_stack[1].pixel, pos_stack[0].pixel);
+      }
+      else
+      {
+         if (tt_context.trans(outpixel))
+         {
+            u32 below = pos_stack[stack_pos + 1].pixel;
+            outpixel = tt_context.blend(outpixel, below);
+         }
+      }
+   }
+
+   //normal shadow
+   if (pos_stack[stack_pos].pixel == TITAN_NORMAL_SHADOW_VALUE)
+   {
+      if (pos_stack[stack_pos + 1].shadow_enabled_on_layer)
+      {
+         outpixel = TitanBlendPixelsTop(0x20000000, pos_stack[stack_pos + 1].pixel);
+      }
+      else
+      {
+         outpixel = pos_stack[stack_pos + 1].pixel;
+      }
+   }
+
+   //handle msb shadow
+   if (pos_stack[stack_pos].is_msb_shadow)
+   {
+      if ((pos_stack[stack_pos].pixel & 0x7ff) == 0)
+      {
+         //layer below the shadow has to have shadow enabled
+         if (pos_stack[stack_pos + 1].shadow_enabled_on_layer)
+         {
+            //transparent shadow
+            outpixel = TitanBlendPixelsTop(0x20000000, pos_stack[stack_pos + 1].pixel);
+         }
+         else
+         {
+            outpixel = pos_stack[stack_pos + 1].pixel;
+         }
+      }
+      else
+         //sprite shadow
+         outpixel = TitanBlendPixelsTop(0x20000000, outpixel);
+   }
+
+   return outpixel;
 }
 
 /* public */
 int TitanInit()
 {
-   int i;
-
-   if (! tt_context.inited)
-   {
-      for(i = 0;i < 8;i++)
-      {
-         if ((tt_context.vdp2framebuffer[i] = (u32 *)calloc(sizeof(u32), 704 * 512)) == NULL)
-            return -1;
-      }
-
-      /* linescreen 0 is not initialized as it's not used... */
-      for(i = 1;i < 4;i++)
-      {
-         if ((tt_context.linescreen[i] = (u32 *)calloc(sizeof(u32), 512)) == NULL)
-            return -1;
-      }
-
-      tt_context.inited = 1;
-   }
-
-   for(i = 0;i < 8;i++)
-      memset(tt_context.vdp2framebuffer[i], 0, sizeof(u32) * 704 * 512);
-
-   for(i = 1;i < 4;i++)
-      memset(tt_context.linescreen[i], 0, sizeof(u32) * 512);
-
+   memset(&tt_context, 0, sizeof(tt_context));
+   tt_context.vdp2width = 320;
+   tt_context.vdp2height = 224;
+   tt_context.blend = NULL;
+   tt_context.trans = NULL;
+   tt_context.inited = 1;
    return 0;
 }
 
-int TitanDeInit()
+void TitanErase()
 {
-   int i;
-
-   for(i = 0;i < 8;i++)
-      free(tt_context.vdp2framebuffer[i]);
-
-   for(i = 1;i < 4;i++)
-      free(tt_context.linescreen[i]);
-
-   return 0;
+   memset(tt_context.bg_layers, 0, sizeof(tt_context.bg_layers));
 }
 
 void TitanSetResolution(int width, int height)
@@ -233,77 +451,73 @@ void TitanSetBlendingMode(int blend_mode)
       tt_context.blend = TitanBlendPixelsTop;
       tt_context.trans = TitanTransAlpha;
    }
+
+   tt_context.extended_color_calc = (Vdp2Regs->CCCTL >> 10) & 1;
 }
 
 void TitanPutBackHLine(s32 y, u32 color)
 {
-   u32 * buffer = tt_context.vdp2framebuffer[0] + (y * tt_context.vdp2width);
-   int i;
-
-   for (i = 0; i < tt_context.vdp2width; i++)
-      buffer[i] = color;
+   tt_context.backscreen[y] = color;
 }
 
 void TitanPutLineHLine(int linescreen, s32 y, u32 color)
 {
    if (linescreen == 0) return;
 
-   {
-      u32 * buffer = tt_context.linescreen[linescreen] + y;
-      *buffer = color;
-   }
+   tt_context.linescreen[y] = color;
 }
 
-void TitanPutPixel(int priority, s32 x, s32 y, u32 color, int linescreen)
+void TitanPutPixel(int priority, s32 x, s32 y, u32 color, 
+   int linescreen, int which_layer, int shadow, int color_calc_enable,
+   int color_calc_ratio)
+{
+   int pos = (y * tt_context.vdp2width) + x;
+   tt_context.bg_layers[pos].pixels[which_layer].priority = priority;
+   tt_context.bg_layers[pos].pixels[which_layer].pixel = color;
+   tt_context.bg_layers[pos].pixels[which_layer].shadow_enabled_on_layer = shadow;
+   tt_context.bg_layers[pos].pixels[which_layer].line_screen_inserts = linescreen;
+   tt_context.bg_layers[pos].pixels[which_layer].color_calc_enable = color_calc_enable;
+   tt_context.bg_layers[pos].pixels[which_layer].color_calc_ratio = color_calc_ratio;
+}
+
+void TitanPutShadow(int priority, s32 x, s32 y, int type)
 {
    if (priority == 0) return;
 
+   int pos = (y * tt_context.vdp2width) + x;
+
+   if (type == TITAN_NORMAL_SHADOW)//normal shadow
    {
-      int pos = (y * tt_context.vdp2width) + x;
-      u32 * buffer = tt_context.vdp2framebuffer[priority] + pos;
-      if (linescreen)
-         color = TitanBlendPixelsTop(color, tt_context.linescreen[linescreen][y]);
-      if (tt_context.trans(color) && *buffer)
-         color = tt_context.blend(color, *buffer);
-      *buffer = color;
+      tt_context.bg_layers[pos].pixels[TITAN_SPRITE].priority = priority;
+      tt_context.bg_layers[pos].pixels[TITAN_SPRITE].pixel = TITAN_NORMAL_SHADOW_VALUE;
+   }
+   else
+   {
+      tt_context.bg_layers[pos].pixels[TITAN_SPRITE].is_msb_shadow = 1;
    }
 }
 
-void TitanPutHLine(int priority, s32 x, s32 y, s32 width, u32 color)
+#include <omp.h>
+
+void TitanRender(pixel_t * dispbuffer, int debug)
 {
-   if (priority == 0) return;
+   u32 dot = 0;
+   int y = 0;
 
+//#pragma omp parallel for private(y)
+   for (y = 0; y < tt_context.vdp2height; y++)
    {
-      u32 * buffer = tt_context.vdp2framebuffer[priority] + (y * tt_context.vdp2width) + x;
-      int i;
+      int x;
 
-      for (i = 0; i < width; i++)
-         buffer[i] = color;
-   }
-}
-
-void TitanPutShadow(int priority, s32 x, s32 y)
-{
-   if (priority == 0) return;
-
-   {
-      int pos = (y * tt_context.vdp2width) + x;
-      u32 * buffer = tt_context.vdp2framebuffer[priority] + pos;
-      *buffer = *buffer ? TitanBlendPixelsTop(0x20000000, *buffer) : 0x20000000;
-   }
-}
-
-void TitanRender(pixel_t * dispbuffer)
-{
-   u32 dot;
-   int i;
-
-   for (i = 0; i < (tt_context.vdp2width * tt_context.vdp2height); i++)
-   {
-      dot = TitanDigPixel(7, i);
-      if (dot)
+//#pragma omp parallel for
+      for (x = 0; x < tt_context.vdp2width; x++)
       {
-         dispbuffer[i] = TitanFixAlpha(dot);
+         dot = TitanDigPixel(x, y, debug);
+
+         if (dot)
+         {
+            dispbuffer[(y* tt_context.vdp2width) + x] = TitanFixAlpha(dot);
+         }
       }
    }
 }

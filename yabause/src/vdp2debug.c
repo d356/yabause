@@ -1671,7 +1671,7 @@ pixel_t *Vdp2DebugTexture(u32 screen, int * w, int * h)
 
    TitanGetResolution(w, h);
 
-   TitanRender(bitmap);
+   TitanRender(bitmap,1);
 
    return bitmap;
 }

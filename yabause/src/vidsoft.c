@@ -637,7 +637,7 @@ static u8 FASTCALL GetAlpha(vdp2draw_struct * info, u32 color, u32 dot)
 
 //////////////////////////////////////////////////////////////////////////////
 
-static void FASTCALL Vdp2DrawScroll(vdp2draw_struct *info)
+static void FASTCALL Vdp2DrawScroll(vdp2draw_struct *info, int original_layer)
 {
    int i, j;
    int x, y;
@@ -766,7 +766,25 @@ static void FASTCALL Vdp2DrawScroll(vdp2draw_struct *info)
             continue;
          }
 
-         // check special priority somewhere here
+
+
+         int priority = info->priority;
+
+         //per-pixel priority is on
+         if (info->specialprimode == 2)
+         {
+            //the special function in the pattern name
+            //data must be on as well
+            if (info->specialfunction & 1)
+            {
+               if (info->specialcode & (1 << ((dot & 0xF) >> 1)))
+               {
+                  //if the dot is equal to either value it sets
+                  //the lowest bit to 1
+                  priority = (info->priority & 0xE) | 1;
+               }
+            }
+         }
 
          // Apply color offset and color calculation/special color calculation
          // and then continue.
@@ -781,7 +799,7 @@ static void FASTCALL Vdp2DrawScroll(vdp2draw_struct *info)
             else
                alpha = GetAlpha(info, color, dot);
 
-            TitanPutPixel(info->priority, i, j, info->PostPixelFetchCalc(info, COLSAT2YAB32(alpha, color)), info->linescreen);
+            TitanPutPixel(priority, i, j, info->PostPixelFetchCalc(info, COLSAT2YAB32(alpha, color)), info->linescreen,original_layer,info->shadow, info->color_calc_enable, info->color_calc_ratio);
          }
       }
    }    
@@ -856,7 +874,7 @@ static void FASTCALL Vdp2DrawRotationFP(vdp2draw_struct *info, vdp2rotationparam
                   continue;
                }
 
-               TitanPutPixel(info->priority, i, j, info->PostPixelFetchCalc(info, COLSAT2YAB32(GetAlpha(info, color, dot), color)), info->linescreen);
+               TitanPutPixel(info->priority, i, j, info->PostPixelFetchCalc(info, COLSAT2YAB32(GetAlpha(info, color, dot), color)), info->linescreen, TITAN_RBG0, info->shadow, info->color_calc_enable, info->color_calc_ratio);
             }
             xmul += p->deltaXst;
             ymul += p->deltaYst;
@@ -904,6 +922,10 @@ static void FASTCALL Vdp2DrawRotationFP(vdp2draw_struct *info, vdp2rotationparam
       SetupScreenVars(info, &sinfo, p->PlaneAddr);
       coefx = coefy = 0;
       rcoefx = rcoefy = 0;
+
+      info->shadow = (Vdp2Regs->SDCTL >> 4) & 1;
+      info->color_calc_enable = (Vdp2Regs->CCCTL >> 4) & 1;
+      info->color_calc_ratio = (Vdp2Regs->CCRR >> 0) & 0x1f;
 
       if (p2 != NULL)
       {
@@ -1054,7 +1076,7 @@ static void FASTCALL Vdp2DrawRotationFP(vdp2draw_struct *info, vdp2rotationparam
                continue;
             }
 
-            TitanPutPixel(info->priority, i, j, info->PostPixelFetchCalc(info, COLSAT2YAB32(GetAlpha(info, color, dot), color)), info->linescreen);
+            TitanPutPixel(info->priority, i, j, info->PostPixelFetchCalc(info, COLSAT2YAB32(GetAlpha(info, color, dot), color)), info->linescreen, TITAN_RBG0, info->shadow, info->color_calc_enable, info->color_calc_ratio);
          }
          xmul += p->deltaXst;
          ymul += p->deltaYst;
@@ -1079,7 +1101,7 @@ static void FASTCALL Vdp2DrawRotationFP(vdp2draw_struct *info, vdp2rotationparam
       return;
    }
 
-   Vdp2DrawScroll(info);
+   Vdp2DrawScroll(info, TITAN_RBG0);
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -1263,6 +1285,10 @@ static void Vdp2DrawNBG0(void)
    info.transparencyenable = !(Vdp2Regs->BGON & 0x100);
    info.specialprimode = Vdp2Regs->SFPRMD & 0x3;
 
+   info.shadow = Vdp2Regs->SDCTL & 1;
+   info.color_calc_enable = Vdp2Regs->CCCTL & 1;
+   info.color_calc_ratio = Vdp2Regs->CCRNA & 0x1f;
+
    info.colornumber = (Vdp2Regs->CHCTLA & 0x70) >> 4;
 
    if (Vdp2Regs->CCCTL & 0x201)
@@ -1271,6 +1297,7 @@ static void Vdp2DrawNBG0(void)
       info.alpha = 0x3F;
    if ((Vdp2Regs->CCCTL & 0x201) == 0x201) info.alpha |= 0x80;
    else if ((Vdp2Regs->CCCTL & 0x101) == 0x101) info.alpha |= 0x80;
+
    info.specialcolormode = Vdp2Regs->SFCCMD & 0x3;
    if (Vdp2Regs->SFSEL & 0x1)
       info.specialcode = Vdp2Regs->SFCODE >> 8;
@@ -1307,7 +1334,7 @@ static void Vdp2DrawNBG0(void)
    if (info.enable == 1)
    {
       // NBG0 draw
-      Vdp2DrawScroll(&info);
+      Vdp2DrawScroll(&info,TITAN_NBG0);
    }
    else
    {
@@ -1380,6 +1407,10 @@ static void Vdp2DrawNBG1(void)
    if (Vdp2Regs->LNCLEN & 0x2)
       info.linescreen = 1;
 
+   info.shadow = (Vdp2Regs->SDCTL >> 1) & 1;
+   info.color_calc_enable = (Vdp2Regs->CCCTL >> 1) & 1;
+   info.color_calc_ratio = (Vdp2Regs->CCRNA >> 8) & 0x1f;
+
    info.coloroffset = (Vdp2Regs->CRAOFA & 0x70) << 4;
    ReadVdp2ColorOffset(Vdp2Regs, &info, 0x2, 0x2);
    info.coordincx = (Vdp2Regs->ZMXN1.all & 0x7FF00) / (float) 65536;
@@ -1414,7 +1445,7 @@ static void Vdp2DrawNBG1(void)
 
    info.LoadLineParams = (void (*)(void *, int)) LoadLineParamsNBG1;
 
-   Vdp2DrawScroll(&info);
+   Vdp2DrawScroll(&info,TITAN_NBG1);
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -1462,6 +1493,10 @@ static void Vdp2DrawNBG2(void)
    if (Vdp2Regs->LNCLEN & 0x4)
       info.linescreen = 1;
 
+   info.shadow = (Vdp2Regs->SDCTL >> 2) & 1;
+   info.color_calc_ratio = (Vdp2Regs->CCRNB >> 0) & 0x1f;
+   info.color_calc_enable = (Vdp2Regs->CCCTL >> 2) & 1;
+
    info.coloroffset = Vdp2Regs->CRAOFA & 0x700;
    ReadVdp2ColorOffset(Vdp2Regs, &info, 0x4, 0x4);
    info.coordincx = info.coordincy = 1;
@@ -1481,7 +1516,9 @@ static void Vdp2DrawNBG2(void)
 
    info.LoadLineParams = (void (*)(void *, int)) LoadLineParamsNBG2;
 
-   Vdp2DrawScroll(&info);
+   
+
+   Vdp2DrawScroll(&info,TITAN_NBG2);
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -1530,6 +1567,10 @@ static void Vdp2DrawNBG3(void)
    if (Vdp2Regs->LNCLEN & 0x8)
       info.linescreen = 1;
 
+   info.shadow = (Vdp2Regs->SDCTL >> 3) & 1;
+   info.color_calc_enable = (Vdp2Regs->CCCTL >> 3) & 1;
+   info.color_calc_ratio = (Vdp2Regs->CCRNB >> 8) & 0x1f;
+
    info.coloroffset = (Vdp2Regs->CRAOFA & 0x7000) >> 4;
    ReadVdp2ColorOffset(Vdp2Regs, &info, 0x8, 0x8);
    info.coordincx = info.coordincy = 1;
@@ -1550,7 +1591,7 @@ static void Vdp2DrawNBG3(void)
 
    info.LoadLineParams = (void (*)(void *, int)) LoadLineParamsNBG3;
 
-   Vdp2DrawScroll(&info);
+   Vdp2DrawScroll(&info,TITAN_NBG3);
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -2097,7 +2138,7 @@ static void putpixel(int x, int y) {
 			y < vdp1clipyend);
 
       //vdp1_clip_test in yabauseut
-      if ((cmd.CMDPMOD >> 9) & 0x3 == 0x3)//outside clipping mode
+      if (((cmd.CMDPMOD >> 9) & 0x3) == 0x3)//outside clipping mode
       {
          //don't display inside the box
          if (Vdp1Regs->userclipX1 <= x && 
@@ -2836,6 +2877,8 @@ void VIDSoftVdp2DrawStart(void)
 
    Vdp2DrawBackScreen();
    Vdp2DrawLineScreen();
+
+   TitanErase();
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -2883,6 +2926,9 @@ void VIDSoftVdp2DrawEnd(void)
 
       vdp1coloroffset = (Vdp2Regs->CRAOFB & 0x70) << 4;
       vdp1spritetype = Vdp2Regs->SPCTL & 0xF;
+
+      info.color_calc_enable = (Vdp2Regs->CCCTL >> 6) & 1;
+      info.color_calc_ratio = 0xdead;
 
       ReadVdp2ColorOffset(Vdp2Regs, &info, 0x40, 0x40);
 
@@ -2944,7 +2990,7 @@ void VIDSoftVdp2DrawEnd(void)
                   // -always- drawn and sprite types 8-F are always
                   // transparent.
                   if (pixel != 0x8000 || vdp1spritetype < 2 || (vdp1spritetype < 8 && !(Vdp2Regs->SPCTL & 0x10)))
-                     TitanPutPixel(prioritytable[0], i, i2, info.PostPixelFetchCalc(&info, COLSAT2YAB16(alpha, pixel)), 0);
+                     TitanPutPixel(prioritytable[0], i, i2, info.PostPixelFetchCalc(&info, COLSAT2YAB16(alpha, pixel)), 0, TITAN_SPRITE, info.shadow, info.color_calc_enable, info.color_calc_ratio);
                }
                else
                {
@@ -2956,22 +3002,7 @@ void VIDSoftVdp2DrawEnd(void)
                   Vdp1GetSpritePixelInfo(vdp1spritetype, &pixel, &spi);
                   if (spi.normalshadow)
                   {
-                     TitanPutShadow(prioritytable[spi.priority], i, i2);
-                     continue;
-                  }
-                  if (spi.msbshadow)
-                  {
-                     if (Vdp2Regs->SPCTL & 0x10) {
-                        /* sprite window, not handled yet... we avoid displaying garbage */
-                     } else {
-                        /* msb shadow */
-                        if (pixel)
-                        {
-                            dot = Vdp2ColorRamGetColor(vdp1coloroffset + pixel);
-                            TitanPutPixel(prioritytable[spi.priority], i, i2, info.PostPixelFetchCalc(&info, COLSAT2YAB32(0x3F, dot)), 0);
-                        }
-                        TitanPutShadow(prioritytable[spi.priority], i, i2);
-                     }
+                     TitanPutShadow(prioritytable[spi.priority], i, i2, TITAN_NORMAL_SHADOW);
                      continue;
                   }
 
@@ -3015,7 +3046,21 @@ void VIDSoftVdp2DrawEnd(void)
                      }
                   }
 
-                  TitanPutPixel(prioritytable[spi.priority], i, i2, info.PostPixelFetchCalc(&info, COLSAT2YAB32(alpha, dot)), 0);
+                  TitanPutPixel(prioritytable[spi.priority], i, i2, info.PostPixelFetchCalc(&info, COLSAT2YAB32(alpha, dot)), 0, TITAN_SPRITE, info.shadow, info.color_calc_enable, info.color_calc_ratio);
+
+                  if (spi.msbshadow)
+                  {
+                     if (Vdp2Regs->SPCTL & 0x10) {
+                        /* sprite window, not handled yet... we avoid displaying garbage */
+                     }
+                     else {
+                        /* msb shadow */
+                     //   dot = Vdp2ColorRamGetColor(vdp1coloroffset + pixel);
+                       // TitanPutPixel(prioritytable[spi.priority], i, i2, info.PostPixelFetchCalc(&info, COLSAT2YAB32(0x3F, dot)), 0, TITAN_SPRITE, info.shadow);
+                        TitanPutShadow(prioritytable[spi.priority], i, i2, TITAN_MSB_SHADOW);
+                     }
+                     continue;
+                  }
                }
             }
             else
@@ -3033,7 +3078,7 @@ void VIDSoftVdp2DrawEnd(void)
                   Vdp1GetSpritePixelInfo(vdp1spritetype, &pixel, &spi);
                   if (spi.normalshadow)
                   {
-                     TitanPutShadow(prioritytable[spi.priority], i, i2);
+                     TitanPutShadow(prioritytable[spi.priority], i, i2,TITAN_NORMAL_SHADOW);
                      continue;
                   }
 
@@ -3077,13 +3122,13 @@ void VIDSoftVdp2DrawEnd(void)
                      }
                   }
 
-                  TitanPutPixel(prioritytable[spi.priority], i, i2, info.PostPixelFetchCalc(&info, COLSAT2YAB32(alpha, dot)), 0);
+                  TitanPutPixel(prioritytable[spi.priority], i, i2, info.PostPixelFetchCalc(&info, COLSAT2YAB32(alpha, dot)), 0, TITAN_SPRITE, info.shadow, info.color_calc_enable, info.color_calc_ratio);
                }
             }
          }
       }
    }
-   TitanRender(dispbuffer);
+   TitanRender(dispbuffer,0);
 
    VIDSoftVdp1SwapFrameBuffer();
 
@@ -3111,28 +3156,45 @@ void VIDSoftVdp2DrawEnd(void)
 
 void VIDSoftVdp2DrawScreens(void)
 {
-   int i;
-
    VIDSoftVdp2SetResolution(Vdp2Regs->TVMD);
    VIDSoftVdp2SetPriorityNBG0(Vdp2Regs->PRINA & 0x7);
    VIDSoftVdp2SetPriorityNBG1((Vdp2Regs->PRINA >> 8) & 0x7);
    VIDSoftVdp2SetPriorityNBG2(Vdp2Regs->PRINB & 0x7);
    VIDSoftVdp2SetPriorityNBG3((Vdp2Regs->PRINB >> 8) & 0x7);
    VIDSoftVdp2SetPriorityRBG0(Vdp2Regs->PRIR & 0x7);
-
-   for (i = 7; i > 0; i--)
-   {   
-      if (nbg3priority == i)
+#pragma omp parallel sections
+   {
+#pragma omp section
+      {
          Vdp2DrawNBG3();
-      if (nbg2priority == i)
+      }
+
+#pragma omp section
+      {
          Vdp2DrawNBG2();
-      if (nbg1priority == i)
+      }
+
+#pragma omp section
+      {
          Vdp2DrawNBG1();
-      if (nbg0priority == i)
+      }
+
+#pragma omp section
+      {
          Vdp2DrawNBG0();
-      if (rbg0priority == i)
+      }
+
+#pragma omp section
+      {
          Vdp2DrawRBG0();
+      }
    }
+
+//   Vdp2DrawRBG0();
+//   Vdp2DrawNBG0();
+ //  Vdp2DrawNBG1();
+ //  Vdp2DrawNBG2();
+ //  Vdp2DrawNBG3();
 }
 
 //////////////////////////////////////////////////////////////////////////////

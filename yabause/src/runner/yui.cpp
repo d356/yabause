@@ -20,6 +20,7 @@
 
 #include <stdio.h>
 
+extern "C" {
 #include "../yui.h"
 #include "../peripheral.h"
 #include "../cs0.h"
@@ -27,9 +28,15 @@
 #include "../m68kc68k.h"
 #include "../vidsoft.h"
 #include "../vdp2.h"
+#include "../titan/titan.h"
+}
+
 #ifdef _MSC_VER
 #include <Windows.h>
 #endif
+
+#include "lodepng/lodepng.h"
+#include "lodepng/lodepng.cpp"
 
 #define AUTO_TEST_SELECT_ADDRESS 0x7F000
 #define AUTO_TEST_STATUS_ADDRESS 0x7F004
@@ -39,41 +46,48 @@
 
 #define VDP2_VRAM 0x25E00000
 
-SH2Interface_struct *SH2CoreList[] = {
-    &SH2Interpreter,
-    NULL
-};
+pixel_t runner_dispbuffer[704 * 512];
 
-PerInterface_struct *PERCoreList[] = {
-    &PERDummy,
-    NULL
-};
+extern "C" {
 
-CDInterface *CDCoreList[] = {
-    &DummyCD,
-    NULL
-};
+   SH2Interface_struct *SH2CoreList[] = {
+       &SH2Interpreter,
+       NULL
+   };
 
-SoundInterface_struct *SNDCoreList[] = {
-    &SNDDummy,
-    NULL
-};
+   PerInterface_struct *PERCoreList[] = {
+       &PERDummy,
+       NULL
+   };
 
-VideoInterface_struct *VIDCoreList[] = {
-    &VIDDummy,
-    NULL
-};
+   CDInterface *CDCoreList[] = {
+       &DummyCD,
+       NULL
+   };
 
-M68K_struct * M68KCoreList[] = {
-    &M68KDummy,
-#ifdef HAVE_C68K
-    &M68KC68K,
-#endif
-#ifdef HAVE_Q68
-    &M68KQ68,
-#endif
-    NULL
-};
+   SoundInterface_struct *SNDCoreList[] = {
+       &SNDDummy,
+       NULL
+   };
+
+   VideoInterface_struct *VIDCoreList[] = {
+       &VIDSoft,
+       &VIDDummy,
+       NULL
+   };
+
+   M68K_struct * M68KCoreList[] = {
+       &M68KDummy,
+   #ifdef HAVE_C68K
+       &M68KC68K,
+   #endif
+   #ifdef HAVE_Q68
+       &M68KQ68,
+   #endif
+       NULL
+   };
+
+}
 
 struct ConsoleColor
 {
@@ -134,7 +148,7 @@ void read_second_part(char*source, char*dest)
 
 void print_basic(char*message)
 {
-   read_second_part(message,message);
+   read_second_part(message, message);
    printf("%s\n", message);
 }
 
@@ -152,6 +166,149 @@ int find_test_expected_to_fail(char* test_name)
    return 0;
 }
 
+std::string make_screenshot_filename(std::string test_name, int preset)
+{
+   return "C:\\yabause\\png\\" + test_name + " " + std::to_string(preset) + ".png";
+}
+
+bool handle_screenshot(bool write_images, std::string test_name, int preset)
+{
+   std::string screenshot_filename = make_screenshot_filename(test_name, preset);
+
+   if (write_images)
+   {
+      int width = 0, height = 0;
+
+      TitanGetResolution(&width, &height);
+      TitanRender(runner_dispbuffer);
+
+      unsigned error = lodepng::encode(screenshot_filename, (unsigned char*)runner_dispbuffer, width, height);
+
+      if (error)
+      {
+         printf("error %u: %s\n", error, lodepng_error_text(error));
+         return false;
+      }
+      else
+      {
+         printf("%s written.\n", screenshot_filename.c_str());
+      }
+   }
+   else
+   {
+      std::vector<unsigned char> correct_image;
+      std::vector<u32> correct_image_u32;
+
+      unsigned correct_width, correct_height;
+
+      unsigned error = lodepng::decode(correct_image, correct_width, correct_height, screenshot_filename);
+
+      int test_width = 0, test_height = 0;
+
+      TitanGetResolution(&test_width, &test_height);
+      TitanRender(runner_dispbuffer);
+
+      bool check_failed = false;
+
+      if (test_width != correct_width)
+      {
+         printf("Vdp2 width was %d. %d was expected.\n", test_width, correct_width);
+      }
+
+      if (test_height != correct_height)
+      {
+         printf("Vdp2 height was %d. %d was expected.\n", test_height, correct_height);
+      }
+
+      correct_image_u32.resize(correct_width*correct_height);
+
+      int j = 0;
+
+      for (unsigned int i = 0; i < correct_width*correct_height * 4; i += 4)
+      {
+         correct_image_u32[j] = (correct_image[i + 3] << 24) | (correct_image[i + 2] << 16) | (correct_image[i + 1] << 8) | correct_image[i + 0];
+         j++;
+      }
+
+      for (unsigned int y = 0; y < correct_height; y++)
+      {
+         for (unsigned int x = 0; x < correct_width; x++)
+         {
+            u32 correct_color = correct_image_u32[(y * correct_width) + x];
+            u32 test_color = runner_dispbuffer[(y * correct_width) + x];
+
+            if (test_color != correct_color)
+            {
+               printf("Test color was 0x%08x at x=%d y=%d. 0x%08x was expected.\n", test_color, x, y, correct_color);
+               return false;
+            }
+         }
+      }
+
+      if (!check_failed)
+      {
+         return true;
+      }
+   }
+
+   return false;
+}
+
+int go_to_next_test(int &current_test, char* filename, yabauseinit_struct yinit)
+{
+   current_test++;
+
+   YabauseDeInit();
+
+   if (YabauseInit(&yinit) != 0)
+      return -1;
+
+   MappedMemoryLoadExec(filename, 0);
+   MappedMemoryWriteByte(VDP2_VRAM + AUTO_TEST_SELECT_ADDRESS, current_test);
+
+   return 1;
+}
+
+struct Stats
+{
+   int regressions;
+   int total_tests;
+   int tests_passed;
+   int expected_failures;
+};
+
+void do_test_pass(struct Stats & stats)
+{
+   //test was passed
+   set_color(text_green);
+   printf("PASS\n");
+   set_color(text_white);
+   stats.tests_passed++;
+}
+
+void do_test_fail(struct Stats & stats, char* stored_test_name)
+{
+   //test failed
+   set_color(text_red);
+
+   if (find_test_expected_to_fail(stored_test_name))
+   {
+      //test is not a regression
+      printf("FAIL");
+      set_color(text_green);
+      printf(" (Not a regression)\n");
+      stats.expected_failures++;
+   }
+   else
+   {
+      //test is a regression
+      printf("FAIL\n");
+      stats.regressions++;
+   }
+
+   set_color(text_white);
+}
+
 int main(int argc, char *argv[])
 {
    yabauseinit_struct yinit = { 0 };
@@ -159,13 +316,7 @@ int main(int argc, char *argv[])
    char stored_test_name[256] = { 0 };
    char * filename = argv[1];
 
-   struct Stats
-   {
-      int regressions;
-      int total_tests;
-      int tests_passed;
-      int expected_failures;
-   }stats = { 0 };
+   struct Stats stats = { 0 };
 
    if (!filename)
    {
@@ -177,7 +328,7 @@ int main(int argc, char *argv[])
 
    yinit.percoretype = PERCORE_DUMMY;
    yinit.sh2coretype = SH2CORE_INTERPRETER;
-   yinit.vidcoretype = VIDCORE_DUMMY;
+   yinit.vidcoretype = VIDCORE_SOFT;
    yinit.m68kcoretype = M68KCORE_DUMMY;
    yinit.sndcoretype = SNDCORE_DUMMY;
    yinit.cdcoretype = CDCORE_DUMMY;
@@ -200,10 +351,17 @@ int main(int argc, char *argv[])
    MappedMemoryLoadExec(filename, 0);
    MappedMemoryWriteByte(VDP2_VRAM + AUTO_TEST_SELECT_ADDRESS, current_test);
 
+   bool write_images = true;
+
+   std::string screenshot_filename = "";
+
+   int screenshot_preset = 0;
+
    for (;;)
    {
       int status = 0;
 
+      //emulate a frame
       PERCore->HandleEvents();
 
       status = MappedMemoryReadByte(VDP2_VRAM + AUTO_TEST_STATUS_ADDRESS);
@@ -219,6 +377,28 @@ int main(int argc, char *argv[])
             //print a debug message
             print_basic(message);
          }
+         else if (!strcmp(message, "SCREENSHOT"))
+         {
+            if (handle_screenshot(write_images, stored_test_name, screenshot_preset))
+            {
+               //test passed
+               if (!write_images)
+               {
+                  do_test_pass(stats);
+               }
+            }
+            else
+            {
+               //failed
+               if (!write_images)
+               {
+                  do_test_fail(stats, stored_test_name);
+               }
+            }
+
+            screenshot_preset++;
+
+         }
          else if (!strcmp(message, "SECTION_START"))
          {
             //print the name of the test section
@@ -228,63 +408,40 @@ int main(int argc, char *argv[])
          {
             //all sub-tests finished, proceed to next main test
             printf("\n");
-            current_test++;
-
-            YabauseDeInit();
-
-            if (YabauseInit(&yinit) != 0)
-               return -1;
-
-            MappedMemoryLoadExec(filename, 0);
-            MappedMemoryWriteByte(VDP2_VRAM + AUTO_TEST_SELECT_ADDRESS, current_test);
+            go_to_next_test(current_test, filename, yinit);
          }
          else if (!strcmp(message, "SUB_TEST_START"))
          {
+            screenshot_preset = 0;
             //keep the test name for checking if it is a regression or not
             read_second_part(message, stored_test_name);
-            printf("%-32s ", stored_test_name);
+
+            if (!write_images)
+            {
+               printf("%-32s ", stored_test_name);
+            }
+
+            screenshot_filename = make_screenshot_filename(stored_test_name, screenshot_preset);
          }
          else if (!strcmp(message, "RESULT"))
          {
             char result_prefix[64] = { 0 };
 
-            read_second_part(message,message);
+            read_second_part(message, message);
 
             strncpy(result_prefix, message, 4);
 
             if (!strcmp(result_prefix, "PASS"))
             {
-               //test was passed
-               set_color(text_green);
-               printf("PASS\n");
-               set_color(text_white);
-               stats.tests_passed++;
+               do_test_pass(stats);
             }
             else if (!strcmp(result_prefix, "FAIL"))
             {
-               //test failed
-               set_color(text_red);
-
-               if (find_test_expected_to_fail(stored_test_name))
-               {
-                  //test is not a regression
-                  printf("FAIL");
-                  set_color(text_green);
-                  printf(" (Not a regression)\n");
-                  stats.expected_failures++;
-               }
-               else
-               {
-                  //test is a regression
-                  printf("FAIL\n");
-                  stats.regressions++;
-               }
-               
-               set_color(text_white);
+               do_test_fail(stats, stored_test_name);
             }
             else
             {
-               printf("Unrecognized result prefix: %s\n",result_prefix);
+               printf("Unrecognized result prefix: %s\n", result_prefix);
             }
 
             stats.total_tests++;

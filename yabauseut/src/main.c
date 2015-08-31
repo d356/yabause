@@ -157,6 +157,7 @@ void (*auto_tests[])() =
    //smpc
    //vdp1
    //vdp2
+   vdp2_auto_tests,
    auto_test_all_finished
 };
 
@@ -188,6 +189,11 @@ int main()
    int auto_test_selection = auto_test_get_selection();
 
    yabauseut_init();
+#ifndef BUILD_AUTOMATED_TESTING
+   //playnote();
+   //scsp_dsp_multiply_test();
+   vdp2_line_scroll_test();
+#endif
 
    auto_test_do_selected_test(auto_test_selection);
 

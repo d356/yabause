@@ -2,7 +2,7 @@ project(yabause-runner)
 
 yab_port_start()
 
-set (CMAKE_CXX_STANDARD 11)
+set_property(TARGET yabause-runner PROPERTY CXX_STANDARD 11)
 
 include_directories(${PORT_INCLUDE_DIRS})
 

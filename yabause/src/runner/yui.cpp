@@ -171,7 +171,9 @@ int find_test_expected_to_fail(char* test_name)
 
 std::string make_screenshot_filename(std::string test_name, std::string path, int preset)
 {
-   return path + test_name + " " + std::to_string(preset) + ".png";
+   char preset_str[64] = { 0 };
+   sprintf(preset_str, "%d", preset);
+   return path + test_name + " " + preset_str + ".png";
 }
 
 bool handle_screenshot(bool write_images, std::string test_name, std::string path, int preset)
@@ -287,7 +289,7 @@ struct Stats
    int tests_passed;
    int expected_failures;
    int screenshot_matches;
-   int screenshot_regressions;
+   int screenshot_diffs;
    int screenshot_total;
 };
 
@@ -413,21 +415,20 @@ int main(int argc, char *argv[])
 
             if (handle_screenshot(write_images, stored_test_name, screenshot_path, screenshot_preset))
             {
-               //test passed
+               //screenshot matches
                if (!write_images)
                {
                   printf("Preset %-25d ", screenshot_preset);
-                  do_test_pass(stats, "No regression");
+                  do_test_pass(stats, "Match");
                   stats.screenshot_matches++;
                }
             }
             else
             {
-               //failed
+               //doesn't match
                if (!write_images)
                {
-                //  do_test_fail(stats, stored_test_name);
-                  stats.screenshot_regressions++;
+                  stats.screenshot_diffs++;
                }
             }
 
@@ -447,8 +448,6 @@ int main(int argc, char *argv[])
          {
             //all sub-tests finished, proceed to next main test
             printf("\n");
-
-            current_test++;
 
             YabauseDeInit();
 
@@ -484,7 +483,10 @@ int main(int argc, char *argv[])
                }
             }
 
-            screenshot_filename = make_screenshot_filename(stored_test_name, screenshot_path, screenshot_preset);
+            if (is_screenshot)
+            {
+               screenshot_filename = make_screenshot_filename(stored_test_name, screenshot_path, screenshot_preset);
+            }
          }
          else if (!strcmp(message, "RESULT"))
          {
@@ -517,8 +519,8 @@ int main(int argc, char *argv[])
             do_regression_color(stats.regressions);
             printf("%d of %d tests passed. %d regressions. %d failures that are not regressions. \n", stats.tests_passed, stats.total_tests, stats.regressions, stats.expected_failures);
             
-            do_regression_color(stats.screenshot_regressions);
-            printf("%d of %d screenshots matched. %d regressions. \n", stats.screenshot_matches, stats.screenshot_total, stats.screenshot_regressions);
+            do_regression_color(stats.screenshot_diffs);
+            printf("%d of %d screenshots matched. %d did not match. \n", stats.screenshot_matches, stats.screenshot_total, stats.screenshot_diffs);
 
             set_color(text_white);
 
@@ -533,5 +535,5 @@ int main(int argc, char *argv[])
       }
    }
 
-   return stats.regressions || stats.screenshot_regressions;
+   return stats.regressions || stats.screenshot_diffs;
 }

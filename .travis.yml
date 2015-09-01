@@ -57,6 +57,9 @@ matrix:
         - git clone git://github.com/d356/yabauseut-bin.git
         - git clone git://github.com/lvandeve/lodepng.git
         - ls
+        - cd lodepng
+        - ls
+        - cd ..
         - cd yabauseut-bin
         - git reset --hard 9875a6f113bc796b68bd484245e709a04548d7cc
         - cd ..

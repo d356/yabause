@@ -122,7 +122,7 @@ void YuiSwapBuffers(void)
 }
 
 //add tests that currently don't work in yabause here
-char* tests_expected_to_fail[] =
+const char* tests_expected_to_fail[] =
 {
    //slave sh2
    "SCU Mask Cache Quirk",

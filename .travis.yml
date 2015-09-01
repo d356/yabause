@@ -50,14 +50,23 @@ matrix:
     - compiler: gcc
       env: testenv="compile runner and run yabauseut tests"
       script:
+        - ls
+        - cd ..
+        - ls
+        - cd yabause/src/runner
+        - git clone git://github.com/lvandeve/lodepng.git
+        - ls
+        - cd lodepng
+        - ls
+        - cd ..
+        - ls
+        - cd ..
+        - ls
         - cmake -DYAB_PORTS=runner -DSH2_DYNAREC=OFF -DYAB_WANT_C68K=OFF -DYAB_WANT_Q68=OFF -DYAB_WANT_OPENGL=OFF ..
         - make
         - cd src/runner
         #todo compile this instead
         - git clone git://github.com/d356/yabauseut-bin.git
-        - git clone git://github.com/lvandeve/lodepng.git
-        - ls
-        - cd lodepng
         - ls
         - cd ..
         - cd yabauseut-bin

@@ -34,8 +34,8 @@ extern "C"
 #endif
 }
 
-#include "lodepng\lodepng.h"
-#include "lodepng\lodepng.cpp"
+#include "lodepng/lodepng.h"
+#include "lodepng/lodepng.cpp"
 
 #include <string>
 

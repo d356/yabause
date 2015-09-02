@@ -64,6 +64,23 @@ matrix:
         - cd ..
         - ./yabause yabauseut-bin/YabauseUT.elf yabauseut-bin/vdp2_screenshots/
 
+    # coverity scan
+    - env:
+        global:
+          # The next declaration is the encrypted COVERITY_SCAN_TOKEN, created
+          # via the "travis encrypt" command using the project repo's public key
+          - secure: "ACqDxwFJr0wwvAjyrHMyknxot9OJ4wg6F8pE+aEi6C1pL+VVlHfOUs0b+jREm+Icd2jZanv4UzPi3EIJxsIL82sbGkgFe0kILaE8UfycxYso7y10k+gwefI0cS3el+WcpyHX5rMablPE9FaDd4Cug8FsvJjwTsW88/JosCepn2IZ6HtMAheuNZnDi5D2nCEvJHkE1vXzGZrfgu6rfY2hXOv/wUqegx2XMJq0vGdOn9JE92UqRaLkfNZXlRsCLWre0isy/AO0QdRwmV9668aYrRFDtfEdoMy2xWuCNpeWWenxz5ZniPJrPaCOQlOtlPBgTzuu6HZoR0JLJKApa0IflkPByKdOLWXwOA7W4RWbonfHR5LCm2z3SO0MhkTk/c7UE3+a6GtfwH+0KAl+V6WQ0MfVhVwlY/UG+KhQbpJSLLP70H3zjGU+4Dbmm9Ogt3Je2AmxzHtmsuyyJUI7Z6gDmu3aUDYuLrPVSlIA96i/YoZkEdXJLUphwGHvDzT+vK8H1IBgXMVKumD3I0PHY1AonQaOaCJ5ihFPecGqqRiETQndNKkVYdNDLdCnEYKgLQFppqgfcainyAhyyK9wmqracPEoq09GTnv+je82hoj8Dm68xqLbWMKQAhm1ArPClNCOU43KR03gve6Cr6ebLq2rSQqEiaeQfIwULhKvdUxLYb4="
+
+      addons:
+        coverity_scan:
+        project:
+          name: "d356/yabause"
+          description: "Build submitted via Travis CI"
+        notification_email: username@example.com
+        build_command_prepend: "cd yabause; mkdir build; cd build; cmake ..;"
+        build_command:   "make"
+        branch_pattern: coverity_scan
+
 language: cpp
 
 before_install:

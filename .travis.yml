@@ -74,7 +74,7 @@ addons:
     notification_email: username@example.com
     build_command_prepend: "cd yabause; mkdir build; cd build; cmake ..;"
     build_command:   "make"
-    branch_pattern: coverity_scan
+    branch_pattern: coverity
 
 env:
   global:

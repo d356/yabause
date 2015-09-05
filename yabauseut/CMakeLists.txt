@@ -20,6 +20,7 @@ find_path(IAPETUS_INCLUDE_DIR
 if (IAPETUS_INCLUDE_DIR STREQUAL "IAPETUS_INCLUDE_DIR-NOTFOUND")
    ExternalProject_Add(iapetus
       GIT_REPOSITORY "https://github.com/d356/iapetus.git"
+      GIT_TAG "build-fix"
       LOG_DOWNLOAD 1
       LOG_CONFIGURE 1
       LOG_BUILD 1

@@ -597,8 +597,8 @@ if (MSVC)
 	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /wd4244")
 endif ()
 
-add_definitions(-DPACKAGE=\"${YAB_PACKAGE}\")
-add_definitions(-DVERSION=\"${YAB_VERSION}\")
+add_definitions(-DPACKAGE=\${YAB_PACKAGE}\)
+add_definitions(-DVERSION=\${YAB_VERSION}\)
 
 add_library(yabause ${yabause_SOURCES} ${yabause_HEADERS})
 

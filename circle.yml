@@ -5,6 +5,11 @@ machine:
 checkout:
   post:
     - git clone https://github.com/d356/yabauseut-docker.git
+
+test:
+  override:
+    - ls
     - cd yabauseut-docker
     - ls
+    - pwd
     - docker build -t yabauseut-tests .

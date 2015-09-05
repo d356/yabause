@@ -2,7 +2,9 @@ machine:
   services:
     - docker
 
-dependencies:
-  override:
+checkout:
+  post:
+    - git clone https://github.com/d356/yabauseut-docker.git
+    - cd yabauseut-docker
     - docker info
-    - docker build -t d356/yabauseut-docker .
+    - docker build -t yabauseut-tests .

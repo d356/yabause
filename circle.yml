@@ -6,5 +6,5 @@ checkout:
   post:
     - git clone https://github.com/d356/yabauseut-docker.git
     - cd yabauseut-docker
-    - docker info
+    - ls
     - docker build -t yabauseut-tests .

@@ -11,10 +11,6 @@ if(WANT_AUTOMATED_TESTING)
   add_definitions(-DBUILD_AUTOMATED_TESTING)
 endif()
 
-# Specify the cross compiler.
-CMAKE_FORCE_C_COMPILER("C:/Program Files (x86)/KPIT Cummins/GNUSHv10.02-ELF/sh-elf/bin/sh-elf-gcc.exe" GNU)
-CMAKE_FORCE_CXX_COMPILER("C:/Program Files (x86)/KPIT Cummins/GNUSHv10.02-ELF/sh-elf/bin/sh-elf-g++.exe" GNU)
-SET(CMAKE_FIND_ROOT_PATH "C:/Program Files (x86)/KPIT Cummins/GNUSHv10.02-ELF/sh-elf/bin/" "C:/Program Files (x86)/KPIT Cummins/GNUSHv10.02-ELF/Other Utilities/")
 
 find_path(IAPETUS_INCLUDE_DIR 
           NAMES iapetus.h
@@ -23,18 +19,19 @@ find_path(IAPETUS_INCLUDE_DIR
 
 if (IAPETUS_INCLUDE_DIR STREQUAL "IAPETUS_INCLUDE_DIR-NOTFOUND")
    ExternalProject_Add(iapetus
-      GIT_REPOSITORY "https://github.com/cyberwarriorx/iapetus.git"
+      GIT_REPOSITORY "https://github.com/d356/iapetus.git"
       LOG_DOWNLOAD 1
       LOG_CONFIGURE 1
       LOG_BUILD 1
-      INSTALL_COMMAND "" 
+      INSTALL_COMMAND ""
+      CMAKE_ARGS -DCMAKE_TOOLCHAIN_FILE=Platform/SegaSaturn -DCMAKE_C_COMPILER=${CMAKE_C_COMPILER} -DCMAKE_FIND_ROOT_PATH=${CMAKE_FIND_ROOT_PATH} -DCMAKE_MAKE_PROGRAM=${CMAKE_MAKE_PROGRAM}
    )
 
    ExternalProject_Get_Property(iapetus source_dir)
    set(IAPETUS_INCLUDE_DIR ${source_dir}/src)
 endif(IAPETUS_INCLUDE_DIR STREQUAL "IAPETUS_INCLUDE_DIR-NOTFOUND")
 
-PROJECT(YabauseUT)
+PROJECT(YabauseUT C)
 
 include_directories(${IAPETUS_INCLUDE_DIR})
 

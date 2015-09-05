@@ -8,8 +8,4 @@ checkout:
 
 test:
   override:
-    - ls
-    - cd yabauseut-docker
-    - ls
-    - pwd
-    - docker build -t yabauseut-tests .
+    - cd yabauseut-docker && docker build -t yabauseut-tests .

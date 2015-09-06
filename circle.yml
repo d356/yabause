@@ -4,8 +4,8 @@ machine:
 
 checkout:
   post:
-    - git clone https://github.com/d356/yabauseut-docker.git
+    - cd .. && git clone https://github.com/d356/yabauseut-docker.git
 
 test:
   override:
-    - ls && pwd && cp -r . yabauseut-docker && cd yabauseut-docker && ls && pwd && cd .. && cd yabauseut-docker && docker build -t yabauseut-tests .
+    - cd .. && ls && pwd && cp -r yabause yabauseut-docker && cd yabauseut-docker && ls && pwd && cd .. && cd yabauseut-docker && docker build -t yabauseut-tests .

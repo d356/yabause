@@ -8,4 +8,4 @@ checkout:
 
 test:
   override:
-    - cd .. && ls && pwd && cp -r yabause yabauseut-docker && cd yabauseut-docker && ls && pwd && cd .. && cd yabauseut-docker && docker build -t yabauseut-tests .
+    - cd .. && cp -r yabause yabauseut-docker && cd yabauseut-docker && docker build .

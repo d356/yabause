@@ -1,52 +1,11 @@
-general:
-  artifacts:
-    - "../artifacts/"
-
 machine:
   services:
     - docker
 
 checkout:
   post:
-    - cd .. && git clone https://github.com/d356/yabause-mingw-w64.git
     - cd .. && git clone https://github.com/d356/yabauseut-docker.git
 
 test:
   override:
-    - cd .. && cp -r yabause yabause-mingw-w64 && cd yabause-mingw-w64 && docker build -t mingw .
-    - cd .. && mkdir $PWD/artifacts
-    - cd .. && mkdir $PWD/artifacts/platforms
-    - docker run -v $PWD:/mounted -t mingw /bin/sh -c '
-            DLL_DIR=/mxe/usr/x86_64-w64-mingw32.shared/bin
-            QT_DLL_DIR=/mxe/usr/x86_64-w64-mingw32.shared/qt5/bin
-            OUT_DIR=/mounted/artifacts
-            PLATFORMS_DIR=/mxe/usr/x86_64-w64-mingw32.shared/qt5/plugins/platforms/
-            EXE_DIR=/yabause/yabause/build/src/qt/
-
-            cp $EXE_DIR/yabause.exe          $OUT_DIR/yabause.exe && 
-                                                
-            cp $DLL_DIR/libgcc_s_seh-1.dll   $OUT_DIR/libgcc_s_seh-1.dll &&
-            cp $DLL_DIR/libstdc++-6.dll      $OUT_DIR/libstdc++-6.dll &&
-            cp $DLL_DIR/SDL2.dll             $OUT_DIR/SDL2.dll &&
-            cp $DLL_DIR/libpcre16-0.dll      $OUT_DIR/libpcre16-0.dll &&
-            cp $DLL_DIR/zlib1.dll            $OUT_DIR/zlib1.dll &&
-            cp $DLL_DIR/libharfbuzz-0.dll    $OUT_DIR/libharfbuzz-0.dll &&
-            cp $DLL_DIR/libpng16-16.dll      $OUT_DIR/libpng16-16.dll &&
-            cp $DLL_DIR/libfreetype-6.dll    $OUT_DIR/libfreetype-6.dll &&
-            cp $DLL_DIR/libglib-2.0-0.dll    $OUT_DIR/libglib-2.0-0.dll &&
-            cp $DLL_DIR/libeay32.dll         $OUT_DIR/libeay32.dll &&
-            cp $DLL_DIR/ssleay32.dll         $OUT_DIR/ssleay32.dll &&
-            cp $DLL_DIR/libbz2.dll           $OUT_DIR/libbz2.dll &&
-            cp $DLL_DIR/libintl-8.dll        $OUT_DIR/libintl-8.dll &&
-            cp $DLL_DIR/libpcre-1.dll        $OUT_DIR/libpcre-1.dll &&
-            cp $DLL_DIR/libiconv-2.dll       $OUT_DIR/libiconv-2.dll &&
-
-            cp $QT_DLL_DIR/Qt5Core.dll       $OUT_DIR/Qt5Core.dll &&
-            cp $QT_DLL_DIR/Qt5Gui.dll        $OUT_DIR/Qt5Gui.dll &&
-            cp $QT_DLL_DIR/Qt5Multimedia.dll $OUT_DIR/Qt5Multimedia.dll &&
-            cp $QT_DLL_DIR/Qt5OpenGL.dll     $OUT_DIR/Qt5OpenGL.dll &&
-            cp $QT_DLL_DIR/Qt5Widgets.dll    $OUT_DIR/Qt5Widgets.dll &&
-            cp $QT_DLL_DIR/Qt5Network.dll    $OUT_DIR/Qt5Network.dll &&
-
-            cp $PLATFORMS_DIR/qwindows.dll   $OUT_DIR/platforms/qwindows.dll '
     - cd .. && cp -r yabause yabauseut-docker && cd yabauseut-docker && docker build .

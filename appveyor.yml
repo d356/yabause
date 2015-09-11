@@ -42,6 +42,13 @@ before_build:
   - cd c:\
   - appveyor DownloadFile https://www.libsdl.org/release/%sdl_filename%
 
+  # download and install msys2
+  - appveyor DownloadFile http://sourceforge.net/projects/msys2/files/Base/x86_64/msys2-base-x86_64-20150512.tar.xz
+  - 7z x msys2-base-x86_64-20150512.tar.xz  | FIND /V "ing  "
+  - 7z x msys2-base-x86_64-20150512.tar  | FIND /V "ing  "
+  - call msys64\usr\bin\sh --login -c ""
+  - call msys64\usr\bin\sh --login -c --login -c pacman --needed --noconfirm -Suy bash pacman pacman-mirrors msys2-runtime mingw-w64-x86_64-{qt5,cmake,sdl2}
+
   # decompress it, shorten 7z output with FIND
   - 7z x %sdl_filename%  | FIND /V "ing  "
 

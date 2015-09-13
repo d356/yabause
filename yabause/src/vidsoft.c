@@ -3306,6 +3306,8 @@ void VIDSoftVdp2DrawEnd(void)
 
 void VIDSoftVdp2DrawScreens(void)
 {
+   int draw_priority_0[6] = { 0 };
+
    VIDSoftVdp2SetResolution(Vdp2Regs->TVMD);
    VIDSoftVdp2SetPriorityNBG0(Vdp2Regs->PRINA & 0x7);
    VIDSoftVdp2SetPriorityNBG1((Vdp2Regs->PRINA >> 8) & 0x7);
@@ -3314,8 +3316,6 @@ void VIDSoftVdp2DrawScreens(void)
    VIDSoftVdp2SetPriorityRBG0(Vdp2Regs->PRIR & 0x7);
 
    TitanErase();
-
-   int draw_priority_0[6] = { 0 };
 
    if (Vdp2Regs->SFPRMD & 0x3FF)
    {

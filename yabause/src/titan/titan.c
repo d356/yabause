@@ -153,8 +153,10 @@ static u32 TitanDigPixel(int priority, int pos, int y)
 
    int pixel_stack_pos = 0;
 
+   int priority = 0;
+
    //sort the pixels from highest to lowest priority
-   for (int priority = 7; priority > 0; priority--)
+   for (priority = 7; priority > 0; priority--)
    {
       for (int which_layer = TITAN_SPRITE; which_layer >= 0; which_layer--)
       {

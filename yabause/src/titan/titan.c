@@ -153,12 +153,14 @@ static u32 TitanDigPixel(int pos, int y)
 
    int pixel_stack_pos = 0;
 
-   int priority = 0;
+   int priority;
 
    //sort the pixels from highest to lowest priority
    for (priority = 7; priority > 0; priority--)
    {
-      for (int which_layer = TITAN_SPRITE; which_layer >= 0; which_layer--)
+      int which_layer;
+
+      for (which_layer = TITAN_SPRITE; which_layer >= 0; which_layer--)
       {
          if (tt_context.vdp2framebuffer[which_layer][pos].priority == priority)
          {

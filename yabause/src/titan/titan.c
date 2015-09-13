@@ -147,7 +147,7 @@ static INLINE int FASTCALL TitanTransBit(u32 pixel)
    return pixel & 0x80000000;
 }
 
-static u32 TitanDigPixel(int priority, int pos, int y)
+static u32 TitanDigPixel(int pos, int y)
 {
    struct PixelData pixel_stack[8] = { 0 };
 
@@ -380,7 +380,7 @@ void TitanRender(pixel_t * dispbuffer)
 
          dispbuffer[i] = 0;
 
-         dot = TitanDigPixel(7, i, y);
+         dot = TitanDigPixel(i, y);
 
          if (dot)
          {

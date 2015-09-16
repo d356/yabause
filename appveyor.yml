@@ -47,6 +47,8 @@ before_build:
 #  - 7z x msys2-base-x86_64-20150512.tar.xz  | FIND /V "ing  "
 #  - 7z x msys2-base-x86_64-20150512.tar  | FIND /V "ing  "
   - call msys64\usr\bin\sh --login -c ""
+  - call msys64\usr\bin\sh --login -c "pacman --needed --noconfirm -Sy pacman-mirrors"
+  - call msys64\usr\bin\sh --login -c "pacman --noconfirm -Sy"
   - call msys64\usr\bin\sh --login -c "pacman --needed --noconfirm -Suy bash pacman pacman-mirrors make gcc msys2-runtime mingw-w64-x86_64-{qt5,cmake,SDL2}"
   - call msys64\usr\bin\sh --login -c "pacman --needed --noconfirm -Suy bash pacman pacman-mirrors make gcc msys2-runtime mingw-w64-x86_64-{qt5,cmake,SDL2}"
   - call msys64\usr\bin\sh --login -c "cd C:/projects/yabause/yabause; PATH=$PATH:/mingw64/bin; exec 0</dev/null; mkdir build; cd build; cmake .. ; make"

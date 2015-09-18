@@ -30,6 +30,7 @@
 #include "debug.h"
 #include "vdp2.h"
 #include "titan/titan.h"
+#include "threads.h"
 
 #ifdef HAVE_LIBGL
 #define USE_OPENGL
@@ -1791,8 +1792,56 @@ static void LoadLineParamsSprite(vdp2draw_struct * info, int line)
 
 //////////////////////////////////////////////////////////////////////////////
 
+struct {
+   volatile int need_draw[6];
+   volatile int draw_finished[6];
+}vidsoft_thread_context;
+
+#ifdef WANT_VIDSOFT_NBG0_THREADING
+
+void VidsoftNbg0Thread(void* data)
+{
+   for (;;)
+   {
+      if (vidsoft_thread_context.need_draw[TITAN_NBG0])
+      {
+         vidsoft_thread_context.need_draw[TITAN_NBG0] = 0;
+         vidsoft_thread_context.draw_finished[TITAN_NBG0] = 0;
+         Vdp2DrawNBG0();
+         vidsoft_thread_context.draw_finished[TITAN_NBG0] = 1;
+      }
+
+      YabThreadYield();
+   }
+}
+#endif
+
+#ifdef WANT_VIDSOFT_RBG0_THREADING
+
+void VidsoftRbg0Thread(void * data)
+{
+   for (;;)
+   {
+      if (vidsoft_thread_context.need_draw[TITAN_RBG0])
+      {
+         vidsoft_thread_context.need_draw[TITAN_RBG0] = 0;
+         vidsoft_thread_context.draw_finished[TITAN_RBG0] = 0;
+         Vdp2DrawRBG0();
+         vidsoft_thread_context.draw_finished[TITAN_RBG0] = 1;
+      }
+
+      YabThreadYield();
+   }
+}
+
+#endif
+
+//////////////////////////////////////////////////////////////////////////////
+
 int VIDSoftInit(void)
 {
+   int i;
+
    if (TitanInit() == -1)
       return -1;
 
@@ -1815,6 +1864,19 @@ int VIDSoftInit(void)
 #ifdef USE_OPENGL
    VIDSoftSetupGL();
 #endif
+
+#ifdef WANT_VIDSOFT_NBG0_THREADING
+   YabThreadStart(YAB_THREAD_TITAN_RENDER_0, VidsoftNbg0Thread, 0);
+#endif
+#ifdef WANT_VIDSOFT_RBG0_THREADING
+   YabThreadStart(YAB_THREAD_TITAN_RENDER_1, VidsoftRbg0Thread, 0);
+#endif
+
+   for (i = 0; i < 6; i++)
+   {
+      vidsoft_thread_context.draw_finished[i] = 1;
+      vidsoft_thread_context.need_draw[i] = 0;
+   }
 
    return 0;
 }
@@ -3038,9 +3100,6 @@ void VIDSoftVdp2DrawStart(void)
 
 //////////////////////////////////////////////////////////////////////////////
 
-static volatile int need_draw[6] = { 0 };
-static volatile int draw_finished[6] = { 1, 1, 1, 1, 1, 1 };
-
 void VIDSoftVdp2DrawEnd(void)
 {
    int i, i2;
@@ -3286,7 +3345,13 @@ void VIDSoftVdp2DrawEnd(void)
       }
    }
 
-   while (!draw_finished[TITAN_NBG1] || !draw_finished[TITAN_NBG0] || !draw_finished[TITAN_RBG0]){}
+#ifdef WANT_VIDSOFT_NBG0_THREADING
+   while (!vidsoft_thread_context.draw_finished[TITAN_NBG0]){}
+#endif
+
+#ifdef WANT_VIDSOFT_RBG0_THREADING
+   while (!vidsoft_thread_context.draw_finished[TITAN_RBG0]){}
+#endif
 
    TitanRender(dispbuffer);
 
@@ -3310,92 +3375,9 @@ void VIDSoftVdp2DrawEnd(void)
 
 //////////////////////////////////////////////////////////////////////////////
 
-//do not compile this with openmp enabled
-
-//threads are spinlocked so don't enable more threads than physical cores (hyperthreading doesn't count)
-//on a quad core enabling 2 threads seems to be optimal, maybe 3 depending on the game
-
-//on a dual core probably enabling only one is best
-
-#define RBG0_THREAD
-#define NBG0_THREAD
-//#define NBG1_THREAD
-
-#include "threads.h"
-
-static int started = 0;
-
-#ifdef NBG0_THREAD
-
-void render_nbg0(void* data)
-{
-   for (;;)
-   {
-      if (need_draw[TITAN_NBG0])
-      {
-         need_draw[TITAN_NBG0] = 0;
-         draw_finished[TITAN_NBG0] = 0;
-         Vdp2DrawNBG0();
-         draw_finished[TITAN_NBG0] = 1;
-      }
-   }
-}
-#endif
-
-#ifdef RBG0_THREAD
-
-void render_rbg0(void * data)
-{
-   for (;;)
-   {
-      if (need_draw[TITAN_RBG0])
-      {
-         need_draw[TITAN_RBG0] = 0;
-         draw_finished[TITAN_RBG0] = 0;
-         Vdp2DrawRBG0();
-         draw_finished[TITAN_RBG0] = 1;
-      }
-   }
-}
-
-#endif
-
-#ifdef NBG1_THREAD
-
-void render_nbg1(void* data)
-{
-   for (;;)
-   {
-      if (need_draw[TITAN_NBG1])
-      {
-         need_draw[TITAN_NBG1] = 0;
-         draw_finished[TITAN_NBG1] = 0;
-         Vdp2DrawNBG1();
-         draw_finished[TITAN_NBG1] = 1;
-      }
-   }
-}
-
-#endif
-
-
 void VIDSoftVdp2DrawScreens(void)
 {
    int draw_priority_0[6] = { 0 };
-
-   if (!started)
-   {
-      started = 1;
-#ifdef NBG0_THREAD
-      YabThreadStart(YAB_THREAD_TITAN_RENDER_0, render_nbg0, 0);
-#endif
-#ifdef RBG0_THREAD
-      YabThreadStart(YAB_THREAD_TITAN_RENDER_1, render_rbg0, 0);
-#endif
-#ifdef NBG1_THREAD
-      YabThreadStart(YAB_THREAD_TITAN_RENDER_2, render_nbg1, 0);
-#endif
-   }
 
    VIDSoftVdp2SetResolution(Vdp2Regs->TVMD);
    VIDSoftVdp2SetPriorityNBG0(Vdp2Regs->PRINA & 0x7);
@@ -3462,27 +3444,23 @@ void VIDSoftVdp2DrawScreens(void)
 #else
    if (nbg0priority > 0 || draw_priority_0[TITAN_NBG0])
    {
-#ifdef NBG0_THREAD
-      need_draw[TITAN_NBG0] = 1;
+#ifdef WANT_VIDSOFT_NBG0_THREADING
+      vidsoft_thread_context.need_draw[TITAN_NBG0] = 1;
 #else
       Vdp2DrawNBG0();
 #endif
    }
    if (rbg0priority > 0 || draw_priority_0[TITAN_RBG0])
    {
-#ifdef RBG0_THREAD
-      need_draw[TITAN_RBG0] = 1;
+#ifdef WANT_VIDSOFT_RBG0_THREADING
+      vidsoft_thread_context.need_draw[TITAN_RBG0] = 1;
 #else
       Vdp2DrawRBG0();
 #endif
    }
    if (nbg1priority > 0 || draw_priority_0[TITAN_NBG1])
    {
-#ifdef NBG1_THREAD
-      need_draw[TITAN_NBG1] = 1;
-#else
       Vdp2DrawNBG1();
-#endif
    }
    if (nbg3priority > 0 || draw_priority_0[TITAN_NBG3])
    { 

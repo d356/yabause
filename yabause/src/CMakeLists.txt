@@ -597,8 +597,8 @@ if (MSVC)
 endif ()
 
 if (NOT ANDROID)
-    option(YAB_WANT_VIDSOFT_RENDER_THREADING "Use threads for vidsoft render" ON)
-    option(YAB_WANT_VIDSOFT_LAYER_THREADING "Use threads for vidsoft layer" ON)
+    option(YAB_WANT_VIDSOFT_RENDER_THREADING "Use threads for vidsoft render" OFF)
+    option(YAB_WANT_VIDSOFT_LAYER_THREADING "Use threads for vidsoft layer" OFF)
     if (YAB_WANT_VIDSOFT_RENDER_THREADING OR YAB_WANT_VIDSOFT_LAYER_THREADING)
 
         find_package(OpenMP)
@@ -617,8 +617,8 @@ if (NOT ANDROID)
         endif()
     endif()
 
-    option(YAB_WANT_VIDSOFT_RBG0_THREADING "Use threads for RBG0" OFF)
-    option(YAB_WANT_VIDSOFT_NBG0_THREADING "Use threads for NBG0" OFF)
+    option(YAB_WANT_VIDSOFT_RBG0_THREADING "Use threads for RBG0" ON)
+    option(YAB_WANT_VIDSOFT_NBG0_THREADING "Use threads for NBG0" ON)
 
     if (YAB_WANT_VIDSOFT_RBG0_THREADING)
         if(YAB_WANT_VIDSOFT_RENDER_THREADING OR YAB_WANT_VIDSOFT_LAYER_THREADING)

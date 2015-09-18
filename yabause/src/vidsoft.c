@@ -3038,6 +3038,9 @@ void VIDSoftVdp2DrawStart(void)
 
 //////////////////////////////////////////////////////////////////////////////
 
+static volatile int need_draw[6] = { 0 };
+static volatile int draw_finished[6] = { 1, 1, 1, 1, 1, 1 };
+
 void VIDSoftVdp2DrawEnd(void)
 {
    int i, i2;
@@ -3282,6 +3285,9 @@ void VIDSoftVdp2DrawEnd(void)
          }
       }
    }
+
+   while (!draw_finished[TITAN_NBG1] || !draw_finished[TITAN_NBG0] || !draw_finished[TITAN_RBG0]){}
+
    TitanRender(dispbuffer);
 
    VIDSoftVdp1SwapFrameBuffer();
@@ -3304,9 +3310,92 @@ void VIDSoftVdp2DrawEnd(void)
 
 //////////////////////////////////////////////////////////////////////////////
 
+//do not compile this with openmp enabled
+
+//threads are spinlocked so don't enable more threads than physical cores (hyperthreading doesn't count)
+//on a quad core enabling 2 threads seems to be optimal, maybe 3 depending on the game
+
+//on a dual core probably enabling only one is best
+
+#define RBG0_THREAD
+#define NBG0_THREAD
+//#define NBG1_THREAD
+
+#include "threads.h"
+
+static int started = 0;
+
+#ifdef NBG0_THREAD
+
+void render_nbg0(void* data)
+{
+   for (;;)
+   {
+      if (need_draw[TITAN_NBG0])
+      {
+         need_draw[TITAN_NBG0] = 0;
+         draw_finished[TITAN_NBG0] = 0;
+         Vdp2DrawNBG0();
+         draw_finished[TITAN_NBG0] = 1;
+      }
+   }
+}
+#endif
+
+#ifdef RBG0_THREAD
+
+void render_rbg0(void * data)
+{
+   for (;;)
+   {
+      if (need_draw[TITAN_RBG0])
+      {
+         need_draw[TITAN_RBG0] = 0;
+         draw_finished[TITAN_RBG0] = 0;
+         Vdp2DrawRBG0();
+         draw_finished[TITAN_RBG0] = 1;
+      }
+   }
+}
+
+#endif
+
+#ifdef NBG1_THREAD
+
+void render_nbg1(void* data)
+{
+   for (;;)
+   {
+      if (need_draw[TITAN_NBG1])
+      {
+         need_draw[TITAN_NBG1] = 0;
+         draw_finished[TITAN_NBG1] = 0;
+         Vdp2DrawNBG1();
+         draw_finished[TITAN_NBG1] = 1;
+      }
+   }
+}
+
+#endif
+
+
 void VIDSoftVdp2DrawScreens(void)
 {
    int draw_priority_0[6] = { 0 };
+
+   if (!started)
+   {
+      started = 1;
+#ifdef NBG0_THREAD
+      YabThreadStart(YAB_THREAD_TITAN_RENDER_0, render_nbg0, 0);
+#endif
+#ifdef RBG0_THREAD
+      YabThreadStart(YAB_THREAD_TITAN_RENDER_1, render_rbg0, 0);
+#endif
+#ifdef NBG1_THREAD
+      YabThreadStart(YAB_THREAD_TITAN_RENDER_2, render_nbg1, 0);
+#endif
+   }
 
    VIDSoftVdp2SetResolution(Vdp2Regs->TVMD);
    VIDSoftVdp2SetPriorityNBG0(Vdp2Regs->PRINA & 0x7);
@@ -3371,26 +3460,40 @@ void VIDSoftVdp2DrawScreens(void)
       }
    }
 #else
-   if (nbg3priority > 0 || draw_priority_0[TITAN_NBG3])
+   if (nbg0priority > 0 || draw_priority_0[TITAN_NBG0])
    {
+#ifdef NBG0_THREAD
+      need_draw[TITAN_NBG0] = 1;
+#else
+      Vdp2DrawNBG0();
+#endif
+   }
+   if (rbg0priority > 0 || draw_priority_0[TITAN_RBG0])
+   {
+#ifdef RBG0_THREAD
+      need_draw[TITAN_RBG0] = 1;
+#else
+      Vdp2DrawRBG0();
+#endif
+   }
+   if (nbg1priority > 0 || draw_priority_0[TITAN_NBG1])
+   {
+#ifdef NBG1_THREAD
+      need_draw[TITAN_NBG1] = 1;
+#else
+      Vdp2DrawNBG1();
+#endif
+   }
+   if (nbg3priority > 0 || draw_priority_0[TITAN_NBG3])
+   { 
       Vdp2DrawNBG3();
    }
    if (nbg2priority > 0 || draw_priority_0[TITAN_NBG2])
    {
       Vdp2DrawNBG2();
    }
-   if (nbg1priority > 0 || draw_priority_0[TITAN_NBG1])
-   {
-      Vdp2DrawNBG1();
-   }
-   if (nbg0priority > 0 || draw_priority_0[TITAN_NBG0])
-   {
-      Vdp2DrawNBG0();
-   }
-   if (rbg0priority > 0 || draw_priority_0[TITAN_RBG0])
-   {
-      Vdp2DrawRBG0();
-   }
+
+   
 #endif
 }
 

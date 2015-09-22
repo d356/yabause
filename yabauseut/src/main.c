@@ -191,6 +191,14 @@ int main()
 
    yabauseut_init();
 
+#ifndef BUILD_AUTOMATED_TESTING
+   //vdp2_line_scroll_test();
+   vdp2_line_window_test();
+   //vdp2_sprite_priority_shadow_test();
+   //vdp2_special_priority_test();
+ //  vdp2_extended_color_calculation_test();
+#endif
+
    auto_test_do_selected_test(auto_test_selection);
 
    // Display Main Menu

@@ -334,17 +334,41 @@ void TitanPutLineHLine(int linescreen, s32 y, u32 color)
    }
 }
 
+void TitanWritePixel(int priority, s32 x, s32 y, u32 color, int linescreen, vdp2draw_struct* info)
+{
+   int pos = (y * tt_context.vdp2width) + x;
+   struct PixelData * p = &tt_context.vdp2framebuffer[info->titan_which_layer][pos];
+   p->pixel = color;
+   p->priority = priority;
+   p->linescreen = linescreen;
+   p->shadow_enabled = info->titan_shadow_enabled;
+   p->shadow_type = info->titan_shadow_type;
+}
+
+extern int vdp2_x_hires;
+extern int vdp2_interlace;
 void TitanPutPixel(int priority, s32 x, s32 y, u32 color, int linescreen, vdp2draw_struct* info)
 {
    if (priority == 0) return;
 
    {
-      int pos = (y * tt_context.vdp2width) + x;
-      tt_context.vdp2framebuffer[info->titan_which_layer][pos].pixel = color;
-      tt_context.vdp2framebuffer[info->titan_which_layer][pos].priority = priority;
-      tt_context.vdp2framebuffer[info->titan_which_layer][pos].linescreen = linescreen;
-      tt_context.vdp2framebuffer[info->titan_which_layer][pos].shadow_enabled = info->titan_shadow_enabled;
-      tt_context.vdp2framebuffer[info->titan_which_layer][pos].shadow_type = info->titan_shadow_type;
+      if (info->titan_which_layer == TITAN_RBG0)
+      {
+         if (vdp2_interlace)
+         {
+            y *= 2;
+         }
+         if (vdp2_x_hires)
+         {
+            x *= 2;
+         }
+         TitanWritePixel(priority, x, y, color, linescreen, info);
+         TitanWritePixel(priority, x, y + 1, color, linescreen, info);
+         TitanWritePixel(priority, x + 1, y, color, linescreen, info);
+         TitanWritePixel(priority, x + 1, y + 1, color, linescreen, info);
+      }
+      else
+         TitanWritePixel(priority, x, y, color, linescreen, info);
    }
 }
 
@@ -361,20 +385,28 @@ void TitanPutHLine(int priority, s32 x, s32 y, s32 width, u32 color)
    }
 }
 
+extern int vdp2_interlace;
+extern int odd_frame;
+
+void Vdp2GetInterlaceInfo(int * start_line, int * line_increment);
+
 void TitanRender(pixel_t * dispbuffer)
 {
    u32 dot;
    int x, y;
+   int start_line, line_increment;
 
    if (!tt_context.inited || (!tt_context.trans))
    {
       return;
    }
+
+   Vdp2GetInterlaceInfo(&start_line, &line_increment);
    
 #ifdef WANT_VIDSOFT_RENDER_THREADING
 #pragma omp parallel for private(x,y,dot)
 #endif
-   for (y = 0; y < tt_context.vdp2height; y++)
+   for (y = start_line; y < tt_context.vdp2height; y += line_increment)
    {
       for (x = 0; x < tt_context.vdp2width; x++)
       {

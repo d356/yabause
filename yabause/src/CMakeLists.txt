@@ -596,6 +596,28 @@ if (MSVC)
 	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /wd4244")
 endif ()
 
+if (NOT ANDROID)
+    option(YAB_WANT_VIDSOFT_RENDER_THREADING "Use threads for vidsoft render" ON)
+    option(YAB_WANT_VIDSOFT_LAYER_THREADING "Use threads for vidsoft layer" ON)
+    if (YAB_WANT_VIDSOFT_RENDER_THREADING OR YAB_WANT_VIDSOFT_LAYER_THREADING)
+
+        find_package(OpenMP)
+
+        if (OPENMP_FOUND)
+            set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
+            set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
+            if (YAB_WANT_VIDSOFT_RENDER_THREADING)
+                add_definitions(-DWANT_VIDSOFT_RENDER_THREADING)
+                message(STATUS "Using vidsoft render threading")
+            endif()
+            if (YAB_WANT_VIDSOFT_LAYER_THREADING)
+                add_definitions(-DWANT_VIDSOFT_LAYER_THREADING)
+                message(STATUS "Using vidsoft layer threading")
+            endif()
+        endif()
+    endif()
+endif()
+
 add_definitions(-DPACKAGE=\"${YAB_PACKAGE}\")
 add_definitions(-DVERSION=\"${YAB_VERSION}\")
 
@@ -647,6 +669,7 @@ endif()
 if (YAB_WANT_OPENSL)
     set(HAVE_OPENSL ON)
 endif()
+
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/config.h.in ${CMAKE_CURRENT_BINARY_DIR}/config.h)
 
 if (YAB_NETWORK AND UNIX)

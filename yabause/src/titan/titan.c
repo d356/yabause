@@ -361,6 +361,46 @@ void TitanPutHLine(int priority, s32 x, s32 y, s32 width, u32 color)
    }
 }
 
+int do_main();
+
+struct PixelData vdp2framebuffer[6 * 704 * 512];
+//struct PixelData vdp2framebuffer_out[6 * 704 * 512] = { 0 };
+struct PixelData pixel_stack_out[2 * 704 * 512] = { 0 };
+
+u32 flat_dig(int pos)
+{
+   struct PixelData pixel_stack[2] = { 0 };
+
+   int pixel_stack_pos = 0;
+
+   int priority;
+
+   //sort the pixels from highest to lowest priority
+   for (priority = 7; priority > 0; priority--)
+   {
+      int which_layer;
+
+      for (which_layer = TITAN_SPRITE; which_layer >= 0; which_layer--)
+      {
+         int flat_pos = pos + which_layer * tt_context.vdp2width * tt_context.vdp2height;
+         if (vdp2framebuffer[flat_pos].priority == priority)
+         {
+            pixel_stack[pixel_stack_pos] = vdp2framebuffer[flat_pos];
+            pixel_stack_pos++;
+
+            if (pixel_stack_pos == 2)
+               goto finished;//backscreen is unnecessary in this case
+         }
+      }
+   }
+finished:
+
+   return pixel_stack[0].pixel;
+//   pixel_stack[pixel_stack_pos] = tt_context.backscreen[pos];
+}
+
+#define WANT_OPENCL
+
 void TitanRender(pixel_t * dispbuffer)
 {
    u32 dot;
@@ -370,6 +410,47 @@ void TitanRender(pixel_t * dispbuffer)
    {
       return;
    }
+
+#ifdef WANT_OPENCL
+
+   int layer;
+   for (layer = 0; layer < 6; layer++)
+   {
+      for (y = 0; y < tt_context.vdp2height; y++)
+      {
+         for (x = 0; x < tt_context.vdp2width; x++)
+         {
+            int pos = (y * tt_context.vdp2width) + x;
+            int flat_pos = x + (y * tt_context.vdp2width) + (layer * tt_context.vdp2width * tt_context.vdp2height);
+            vdp2framebuffer[flat_pos] = tt_context.vdp2framebuffer[layer][pos];
+         }
+      }
+   }
+
+   //memset(pixel_stack_out, 0, sizeof(pixel_stack_out));
+
+   opencl_exec(dispbuffer);
+
+   //for (y = 0; y < tt_context.vdp2height; y++)
+   //{
+   //   for (x = 0; x < tt_context.vdp2width; x++)
+   //   {
+   //      int i = (y * tt_context.vdp2width) + x;
+
+   //      dispbuffer[i] = 0;
+
+   //      dot = pixel_stack_out[i].pixel;//flat_dig(i);
+
+   //      if (dot)
+   //      {
+   //         dispbuffer[i] = TitanFixAlpha(dot);
+   //      }
+   //   }
+   //}
+
+   return;
+
+#else
    
 #ifdef WANT_VIDSOFT_RENDER_THREADING
 #pragma omp parallel for private(x,y,dot)
@@ -390,6 +471,8 @@ void TitanRender(pixel_t * dispbuffer)
          }
       }
    }
+
+#endif
 }
 
 #ifdef WORDS_BIGENDIAN
@@ -407,3 +490,163 @@ void TitanWriteColor(pixel_t * dispbuffer, s32 bufwidth, s32 x, s32 y, u32 color
    *buffer = color;
 }
 #endif
+
+
+#include <stdio.h>
+#include <stdlib.h>
+
+#ifdef __APPLE__
+#include <OpenCL/opencl.h>
+#else
+#include <CL/cl.h>
+#endif
+
+#define MEM_SIZE (128)
+#define MAX_SOURCE_SIZE (0x100000)
+
+struct
+{
+   cl_device_id device_id;
+   cl_context context;
+   cl_command_queue command_queue;
+   cl_mem memobj;
+   cl_mem framebuffer;
+   cl_mem pix_stack;
+   cl_mem output;
+   cl_program program;
+   cl_kernel kernel;
+   cl_platform_id platform_id;
+   cl_uint ret_num_devices;
+   cl_uint ret_num_platforms;
+   cl_int ret;
+   char *source_str;
+}opencl_cxt;
+
+void init_opencl()
+{
+   FILE *fp;
+   char fileName[] = "C:/yabause-cl/yabause/yabause/src/titan/hello.cl";
+   
+   size_t source_size;
+
+   /* Load the source code containing the kernel*/
+   fp = fopen(fileName, "r");
+   if (!fp) {
+      fprintf(stderr, "Failed to load kernel.\n");
+      exit(1);
+   }
+   opencl_cxt.source_str = (char*)malloc(MAX_SOURCE_SIZE);
+   source_size = fread(opencl_cxt.source_str, 1, MAX_SOURCE_SIZE, fp);
+   fclose(fp);
+
+   /* Get Platform and Device Info */
+   opencl_cxt.ret = clGetPlatformIDs(1, &opencl_cxt.platform_id, &opencl_cxt.ret_num_platforms);
+   opencl_cxt.ret = clGetDeviceIDs(opencl_cxt.platform_id, CL_DEVICE_TYPE_DEFAULT, 1, &opencl_cxt.device_id, &opencl_cxt.ret_num_devices);
+
+   /* Create OpenCL context */
+   opencl_cxt.context = clCreateContext(NULL, 1, &opencl_cxt.device_id, NULL, NULL, &opencl_cxt.ret);
+
+   /* Create Command Queue */
+   opencl_cxt.command_queue = clCreateCommandQueue(opencl_cxt.context, opencl_cxt.device_id, 0, &opencl_cxt.ret);
+
+   /* Create Memory Buffer */
+   opencl_cxt.memobj = clCreateBuffer(opencl_cxt.context, CL_MEM_READ_WRITE, MEM_SIZE * sizeof(char), NULL, &opencl_cxt.ret);
+
+   opencl_cxt.framebuffer = clCreateBuffer(opencl_cxt.context, CL_MEM_READ_WRITE, sizeof(vdp2framebuffer), NULL, &opencl_cxt.ret);
+
+   opencl_cxt.pix_stack = clCreateBuffer(opencl_cxt.context, CL_MEM_READ_WRITE, sizeof(pixel_stack_out), NULL, &opencl_cxt.ret);
+
+   opencl_cxt.output = clCreateBuffer(opencl_cxt.context, CL_MEM_READ_WRITE, sizeof(unsigned int) * 704 * 512, NULL, &opencl_cxt.ret);
+
+   /* Create Kernel Program from the source */
+   opencl_cxt.program = clCreateProgramWithSource(opencl_cxt.context, 1, (const char **)&opencl_cxt.source_str,
+      (const size_t *)&source_size, &opencl_cxt.ret);
+
+   /* Build Kernel Program */
+   opencl_cxt.ret = clBuildProgram(opencl_cxt.program, 1, &opencl_cxt.device_id, NULL, NULL, NULL);
+
+   size_t log_size;
+   clGetProgramBuildInfo(opencl_cxt.program, opencl_cxt.device_id, CL_PROGRAM_BUILD_LOG, 0, NULL, &log_size);
+
+   // Allocate memory for the log
+   char *log = (char *)malloc(log_size);
+
+   // Get the log
+   clGetProgramBuildInfo(opencl_cxt.program, opencl_cxt.device_id, CL_PROGRAM_BUILD_LOG, log_size, log, NULL);
+
+   /* Create OpenCL Kernel */
+   opencl_cxt.kernel = clCreateKernel(opencl_cxt.program, "hello", &opencl_cxt.ret);
+}
+
+int inited = 0;
+
+int opencl_exec(pixel_t * dispbuffer)
+{
+
+
+   if (!inited)
+   {
+      init_opencl();
+      inited = 1;
+   }
+
+   char string[MEM_SIZE];
+
+   int output[256] = { 0 };
+
+#if 1
+
+   opencl_cxt.ret = clEnqueueWriteBuffer(opencl_cxt.command_queue, opencl_cxt.framebuffer, CL_TRUE, 0, sizeof(vdp2framebuffer), vdp2framebuffer, 0, NULL, NULL);
+   
+   int zero = 0;
+
+ //  opencl_cxt.ret = clEnqueueFillBuffer(opencl_cxt.command_queue, opencl_cxt.pix_stack, &zero, sizeof(zero), NULL, sizeof(opencl_cxt.pix_stack), 0, NULL, NULL);
+
+   opencl_cxt.ret = clSetKernelArg(opencl_cxt.kernel, 0, sizeof(cl_mem), (void *)&opencl_cxt.framebuffer);
+   opencl_cxt.ret = clSetKernelArg(opencl_cxt.kernel, 1, sizeof(cl_mem), (void *)&opencl_cxt.pix_stack);
+   opencl_cxt.ret = clSetKernelArg(opencl_cxt.kernel, 2, sizeof(cl_mem), (void *)&opencl_cxt.output);
+   opencl_cxt.ret = clSetKernelArg(opencl_cxt.kernel, 3, sizeof(int), (void *)&tt_context.vdp2width);
+   opencl_cxt.ret = clSetKernelArg(opencl_cxt.kernel, 4, sizeof(int), (void *)&tt_context.vdp2width);
+
+   size_t global_item_size = sizeof(vdp2framebuffer)/64;
+   size_t local_item_size = sizeof(struct PixelData);
+   size_t offset = (sizeof(vdp2framebuffer) / 64) * 2;
+
+   opencl_cxt.ret = clEnqueueNDRangeKernel(opencl_cxt.command_queue, opencl_cxt.kernel, 1, NULL, &global_item_size, &local_item_size, 0, NULL, NULL);
+
+   //opencl_cxt.ret = clEnqueueReadBuffer(opencl_cxt.command_queue, opencl_cxt.pix_stack, CL_TRUE, 0, sizeof(pixel_stack_out), pixel_stack_out, 0, NULL, NULL);
+
+   opencl_cxt.ret = clEnqueueReadBuffer(opencl_cxt.command_queue, opencl_cxt.output, CL_TRUE, 0, sizeof(u32) * tt_context.vdp2width * tt_context.vdp2height, dispbuffer, 0, NULL, NULL);
+
+#else
+
+   /* Set OpenCL Kernel Parameters */
+   opencl_cxt.ret = clSetKernelArg(opencl_cxt.kernel, 0, sizeof(cl_mem), (void *)&opencl_cxt.memobj);
+
+   /* Execute OpenCL Kernel */
+   opencl_cxt.ret = clEnqueueTask(opencl_cxt.command_queue, opencl_cxt.kernel, 0, NULL, NULL);
+
+   /* Copy results from the memory buffer */
+   opencl_cxt.ret = clEnqueueReadBuffer(opencl_cxt.command_queue, opencl_cxt.memobj, CL_TRUE, 0, MEM_SIZE * sizeof(char), string, 0, NULL, NULL);
+
+   /* Display Result */
+   puts(string);
+
+#endif
+
+   return 0;
+}
+
+void opencl_close()
+{
+   /* Finalization */
+   opencl_cxt.ret = clFlush(opencl_cxt.command_queue);
+   opencl_cxt.ret = clFinish(opencl_cxt.command_queue);
+   opencl_cxt.ret = clReleaseKernel(opencl_cxt.kernel);
+   opencl_cxt.ret = clReleaseProgram(opencl_cxt.program);
+   opencl_cxt.ret = clReleaseMemObject(opencl_cxt.memobj);
+   opencl_cxt.ret = clReleaseCommandQueue(opencl_cxt.command_queue);
+   opencl_cxt.ret = clReleaseContext(opencl_cxt.context);
+
+   free(opencl_cxt.source_str);
+}

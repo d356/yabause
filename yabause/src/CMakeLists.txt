@@ -155,6 +155,16 @@ elseif (YAB_RGB STREQUAL "565")
     add_definitions(-DUSE_16BPP=1 -DUSE_RGB_565=1)
 endif ()
 
+include( FindOpenCL )
+
+message(STATUS "OpenCL include dirs ${OPENCL_INCLUDE_DIRS}")
+
+
+include_directories( "C:/Program Files/NVIDIA GPU Computing Toolkit/CUDA/v7.5/include" )
+set(YABAUSE_LIBRARIES ${YABAUSE_LIBRARIES} "C:/Program Files/NVIDIA GPU Computing Toolkit/CUDA/v7.5/lib/x64/OpenCL.lib")
+message(STATUS "libraries: ${YABAUSE_LIBRARIES}") 
+
+
 # OpenGL
 option(YAB_WANT_OPENGL "use OpenGL for video output (most ports require it)" ON)
 if (YAB_WANT_OPENGL AND (YAB_RGB STREQUAL ""))

@@ -19,6 +19,7 @@
 
 #include "titan.h"
 #include "../vidshared.h"
+#include "../yui.h"
 
 #include <stdlib.h>
 
@@ -26,7 +27,7 @@
 typedef u32 (*TitanBlendFunc)(u32 top, u32 bottom);
 typedef int FASTCALL (*TitanTransFunc)(u32 pixel);
 
-struct PixelData
+struct OnePixel
 {
    u32 pixel;
    u8 priority;
@@ -35,18 +36,48 @@ struct PixelData
    u8 shadow_enabled;
 };
 
+struct StackPixel
+{
+   u32 pixel[2];
+   u8 priority[2];
+   u8 linescreen[2];
+   u8 shadow_type[2];
+   u8 shadow_enabled[2];
+};
+
+struct PixelData
+{
+   u32 pixel[6];
+   u8 priority[6];
+   u8 linescreen[6];
+   u8 shadow_type[6];
+   u8 shadow_enabled[6];
+};
+
+struct OnePixel PixelDataToOnePixel(int layer, struct PixelData * p)
+{
+   struct OnePixel pp = { 0 };
+   pp.pixel = p->pixel[layer];
+   pp.priority = p->priority[layer];
+   pp.linescreen = p->linescreen[layer];
+   pp.shadow_type = p->shadow_type[layer];
+   pp.shadow_enabled = p->shadow_enabled[layer];
+
+   return pp;
+}
+
 static struct TitanContext {
    int inited;
-   struct PixelData * vdp2framebuffer[6];
+   struct PixelData vdp2framebuffer[704*512];
    u32 * linescreen[4];
    int vdp2width;
    int vdp2height;
    TitanBlendFunc blend;
    TitanTransFunc trans;
-   struct PixelData * backscreen;
+   struct OnePixel * backscreen;
 } tt_context = {
    0,
-   { NULL, NULL, NULL, NULL, NULL, NULL },
+   { NULL },
    { NULL, NULL, NULL, NULL },
    320,
    224,
@@ -147,9 +178,18 @@ static INLINE int FASTCALL TitanTransBit(u32 pixel)
    return pixel & 0x80000000;
 }
 
+void DoStack(int pixel_stack_pos, int pos, int which_layer, struct StackPixel* pixel_stack)
+{
+   pixel_stack->pixel[pixel_stack_pos] = tt_context.vdp2framebuffer[pos].pixel[which_layer];
+   pixel_stack->priority[pixel_stack_pos] = tt_context.vdp2framebuffer[pos].pixel[which_layer];
+   pixel_stack->linescreen[pixel_stack_pos] = tt_context.vdp2framebuffer[pos].pixel[which_layer];
+   pixel_stack->shadow_type[pixel_stack_pos] = tt_context.vdp2framebuffer[pos].pixel[which_layer];
+   pixel_stack->shadow_enabled[pixel_stack_pos] = tt_context.vdp2framebuffer[pos].pixel[which_layer];
+}
+
 static u32 TitanDigPixel(int pos, int y)
 {
-   struct PixelData pixel_stack[2] = { 0 };
+   struct StackPixel pixel_stack = { 0 };
 
    int pixel_stack_pos = 0;
 
@@ -162,9 +202,17 @@ static u32 TitanDigPixel(int pos, int y)
 
       for (which_layer = TITAN_SPRITE; which_layer >= 0; which_layer--)
       {
-         if (tt_context.vdp2framebuffer[which_layer][pos].priority == priority)
+         if (tt_context.vdp2framebuffer[pos].priority[which_layer] == priority)
          {
-            pixel_stack[pixel_stack_pos] = tt_context.vdp2framebuffer[which_layer][pos];
+#if 1
+            pixel_stack.pixel[pixel_stack_pos] = tt_context.vdp2framebuffer[pos].pixel[which_layer];
+            pixel_stack.priority[pixel_stack_pos] = tt_context.vdp2framebuffer[pos].pixel[which_layer];
+            pixel_stack.linescreen[pixel_stack_pos] = tt_context.vdp2framebuffer[pos].pixel[which_layer];
+            pixel_stack.shadow_type[pixel_stack_pos] = tt_context.vdp2framebuffer[pos].pixel[which_layer];
+            pixel_stack.shadow_enabled[pixel_stack_pos] = tt_context.vdp2framebuffer[pos].pixel[which_layer];
+#endif
+          //  DoStack(pixel_stack_pos, pos, which_layer, &pixel_stack);
+            //pixel_stack[pixel_stack_pos] = PixelDataToOnePixel(which_layer, &tt_context.vdp2framebuffer[pos]);
             pixel_stack_pos++;
 
             if (pixel_stack_pos == 2)
@@ -173,59 +221,65 @@ static u32 TitanDigPixel(int pos, int y)
       }
    }
 
-   pixel_stack[pixel_stack_pos] = tt_context.backscreen[pos];
+   pixel_stack.pixel[pixel_stack_pos] = tt_context.backscreen[pos].pixel;
+   pixel_stack.priority[pixel_stack_pos] = tt_context.backscreen[pos].pixel;
+   pixel_stack.linescreen[pixel_stack_pos] = tt_context.backscreen[pos].pixel;
+   pixel_stack.shadow_type[pixel_stack_pos] = tt_context.backscreen[pos].pixel;
+   pixel_stack.shadow_enabled[pixel_stack_pos] = tt_context.backscreen[pos].pixel;
+
+  // pixel_stack[pixel_stack_pos] = tt_context.backscreen[pos];
 
 finished:
 
-   if (pixel_stack[0].linescreen)
+   if (pixel_stack.linescreen[0])
    {
-      pixel_stack[0].pixel = tt_context.blend(pixel_stack[0].pixel, tt_context.linescreen[pixel_stack[0].linescreen][y]);
+    //  pixel_stack.pixel[0] = tt_context.blend(pixel_stack.pixel[0], tt_context.linescreen[pixel_stack.linescreen[0]][y]);
    }
 
-   if ((pixel_stack[0].shadow_type == TITAN_MSB_SHADOW) && ((pixel_stack[0].pixel & 0xFFFFFF) == 0))
+   if ((pixel_stack.shadow_type[0] == TITAN_MSB_SHADOW) && ((pixel_stack.pixel[0] & 0xFFFFFF) == 0))
    {
       //transparent sprite shadow
-      if (pixel_stack[1].shadow_enabled)
+      if (pixel_stack.shadow_enabled[1])
       {
-         pixel_stack[0].pixel = TitanBlendPixelsTop(0x20000000, pixel_stack[1].pixel);
+         pixel_stack.pixel[0] = TitanBlendPixelsTop(0x20000000, pixel_stack.pixel[1]);
       }
       else
       {
-         pixel_stack[0].pixel = pixel_stack[1].pixel;
+         pixel_stack.pixel[0] = pixel_stack.pixel[1];
       }
    }
-   else if (pixel_stack[0].shadow_type == TITAN_MSB_SHADOW && ((pixel_stack[0].pixel & 0xFFFFFF) != 0))
+   else if (pixel_stack.shadow_type[0] == TITAN_MSB_SHADOW && ((pixel_stack.pixel[0] & 0xFFFFFF) != 0))
    {
-      if (tt_context.trans(pixel_stack[0].pixel))
+      if (tt_context.trans(pixel_stack.pixel[0]))
       {
-         u32 bottom = pixel_stack[1].pixel;
-         pixel_stack[0].pixel = tt_context.blend(pixel_stack[0].pixel, bottom);
+         u32 bottom = pixel_stack.pixel[1];
+         pixel_stack.pixel[0] = tt_context.blend(pixel_stack.pixel[0], bottom);
       }
 
       //sprite self-shadowing
-      pixel_stack[0].pixel = TitanBlendPixelsTop(0x20000000, pixel_stack[0].pixel);
+      pixel_stack.pixel[0] = TitanBlendPixelsTop(0x20000000, pixel_stack.pixel[0]);
    }
-   else if (pixel_stack[0].shadow_type == TITAN_NORMAL_SHADOW)
+   else if (pixel_stack.shadow_type[0] == TITAN_NORMAL_SHADOW)
    {
-      if (pixel_stack[1].shadow_enabled)
+      if (pixel_stack.shadow_enabled[1])
       {
-         pixel_stack[0].pixel = TitanBlendPixelsTop(0x20000000, pixel_stack[1].pixel);
+         pixel_stack.pixel[0] = TitanBlendPixelsTop(0x20000000, pixel_stack.pixel[1]);
       }
       else
       {
-         pixel_stack[0].pixel = pixel_stack[1].pixel;
+         pixel_stack.pixel[0] = pixel_stack.pixel[1];
       }
    }
    else
    {
-      if (tt_context.trans(pixel_stack[0].pixel))
+      if (tt_context.trans(pixel_stack.pixel[0]))
       {
-         u32 bottom = pixel_stack[1].pixel;
-         pixel_stack[0].pixel = tt_context.blend(pixel_stack[0].pixel, bottom);
+         u32 bottom = pixel_stack.pixel[1];
+         pixel_stack.pixel[0] = tt_context.blend(pixel_stack.pixel[0], bottom);
       }
    }
 
-   return pixel_stack[0].pixel;
+   return pixel_stack.pixel[0];
 }
 
 /* public */
@@ -235,11 +289,9 @@ int TitanInit()
 
    if (! tt_context.inited)
    {
-      for(i = 0;i < 6;i++)
-      {
-         if ((tt_context.vdp2framebuffer[i] = (struct PixelData *)calloc(sizeof(struct PixelData), 704 * 512)) == NULL)
-            return -1;
-      }
+
+ //        if ((tt_context.vdp2framebuffer = (struct PixelData *)calloc(sizeof(struct PixelData), 704 * 512)) == NULL)
+ //           return -1;
 
       /* linescreen 0 is not initialized as it's not used... */
       for(i = 1;i < 4;i++)
@@ -248,14 +300,13 @@ int TitanInit()
             return -1;
       }
 
-      if ((tt_context.backscreen = (struct PixelData  *)calloc(sizeof(struct PixelData), 704 * 512)) == NULL)
+      if ((tt_context.backscreen = (struct OnePixel  *)calloc(sizeof(struct OnePixel), 704 * 512)) == NULL)
          return -1;
 
       tt_context.inited = 1;
    }
 
-   for(i = 0;i < 6;i++)
-      memset(tt_context.vdp2framebuffer[i], 0, sizeof(u32) * 704 * 512);
+      memset(tt_context.vdp2framebuffer, 0, sizeof(struct PixelData) * 704 * 512);
 
    for(i = 1;i < 4;i++)
       memset(tt_context.linescreen[i], 0, sizeof(u32) * 512);
@@ -267,16 +318,14 @@ void TitanErase()
 {
    int i = 0;
 
-   for (i = 0; i < 6; i++)
-      memset(tt_context.vdp2framebuffer[i], 0, sizeof(struct PixelData) * tt_context.vdp2width * tt_context.vdp2height);
+   memset(tt_context.vdp2framebuffer, 0, sizeof(struct PixelData) * tt_context.vdp2width * tt_context.vdp2height);
 }
 
 int TitanDeInit()
 {
    int i;
 
-   for(i = 0;i < 6;i++)
-      free(tt_context.vdp2framebuffer[i]);
+   free(tt_context.vdp2framebuffer);
 
    for(i = 1;i < 4;i++)
       free(tt_context.linescreen[i]);
@@ -296,8 +345,12 @@ void TitanGetResolution(int * width, int * height)
    *height = tt_context.vdp2height;
 }
 
+int titan_blend_mode = 0;
+
 void TitanSetBlendingMode(int blend_mode)
 {
+   titan_blend_mode = blend_mode;
+
    if (blend_mode == TITAN_BLEND_BOTTOM)
    {
       tt_context.blend = TitanBlendPixelsBottom;
@@ -317,7 +370,7 @@ void TitanSetBlendingMode(int blend_mode)
 
 void TitanPutBackHLine(s32 y, u32 color)
 {
-   struct PixelData* buffer = &tt_context.backscreen[(y * tt_context.vdp2width)];
+   struct OnePixel* buffer = &tt_context.backscreen[(y * tt_context.vdp2width)];
    int i;
 
    for (i = 0; i < tt_context.vdp2width; i++)
@@ -340,14 +393,14 @@ void TitanPutPixel(int priority, s32 x, s32 y, u32 color, int linescreen, vdp2dr
 
    {
       int pos = (y * tt_context.vdp2width) + x;
-      tt_context.vdp2framebuffer[info->titan_which_layer][pos].pixel = color;
-      tt_context.vdp2framebuffer[info->titan_which_layer][pos].priority = priority;
-      tt_context.vdp2framebuffer[info->titan_which_layer][pos].linescreen = linescreen;
-      tt_context.vdp2framebuffer[info->titan_which_layer][pos].shadow_enabled = info->titan_shadow_enabled;
-      tt_context.vdp2framebuffer[info->titan_which_layer][pos].shadow_type = info->titan_shadow_type;
+      tt_context.vdp2framebuffer[pos].pixel[info->titan_which_layer] = color;
+      tt_context.vdp2framebuffer[pos].priority[info->titan_which_layer] = priority;
+      tt_context.vdp2framebuffer[pos].linescreen[info->titan_which_layer] = linescreen;
+      tt_context.vdp2framebuffer[pos].shadow_enabled[info->titan_which_layer] = info->titan_shadow_enabled;
+      tt_context.vdp2framebuffer[pos].shadow_type[info->titan_which_layer] = info->titan_shadow_type;
    }
 }
-
+#if 0
 void TitanPutHLine(int priority, s32 x, s32 y, s32 width, u32 color)
 {
    if (priority == 0) return;
@@ -360,16 +413,14 @@ void TitanPutHLine(int priority, s32 x, s32 y, s32 width, u32 color)
          buffer[i].pixel = color;
    }
 }
-
+#endif
 int do_main();
 
-struct PixelData vdp2framebuffer[6 * 704 * 512];
-//struct PixelData vdp2framebuffer_out[6 * 704 * 512] = { 0 };
-struct PixelData pixel_stack_out[2 * 704 * 512] = { 0 };
-
+struct StackPixel pixel_stack_out[704 * 512] = { 0 };
+#if 0
 u32 flat_dig(int pos)
 {
-   struct PixelData pixel_stack[2] = { 0 };
+   struct OnePixel pixel_stack[2] = { 0 };
 
    int pixel_stack_pos = 0;
 
@@ -383,9 +434,9 @@ u32 flat_dig(int pos)
       for (which_layer = TITAN_SPRITE; which_layer >= 0; which_layer--)
       {
          int flat_pos = pos + which_layer * tt_context.vdp2width * tt_context.vdp2height;
-         if (vdp2framebuffer[flat_pos].priority == priority)
+         if (vdp2framebuffer[flat_pos].priority[which_layer] == priority)
          {
-            pixel_stack[pixel_stack_pos] = vdp2framebuffer[flat_pos];
+            pixel_stack[pixel_stack_pos] = PixelDatavdp2framebuffer[flat_pos];
             pixel_stack_pos++;
 
             if (pixel_stack_pos == 2)
@@ -398,7 +449,7 @@ finished:
    return pixel_stack[0].pixel;
 //   pixel_stack[pixel_stack_pos] = tt_context.backscreen[pos];
 }
-
+#endif
 #define WANT_OPENCL
 
 void TitanRender(pixel_t * dispbuffer)
@@ -412,7 +463,7 @@ void TitanRender(pixel_t * dispbuffer)
    }
 
 #ifdef WANT_OPENCL
-
+#if 0
    int layer;
    for (layer = 0; layer < 6; layer++)
    {
@@ -426,7 +477,7 @@ void TitanRender(pixel_t * dispbuffer)
          }
       }
    }
-
+#endif
    //memset(pixel_stack_out, 0, sizeof(pixel_stack_out));
 
    opencl_exec(dispbuffer);
@@ -509,7 +560,6 @@ struct
    cl_device_id device_id;
    cl_context context;
    cl_command_queue command_queue;
-   cl_mem memobj;
    cl_mem framebuffer;
    cl_mem pix_stack;
    cl_mem output;
@@ -518,14 +568,95 @@ struct
    cl_platform_id platform_id;
    cl_uint ret_num_devices;
    cl_uint ret_num_platforms;
-   cl_int ret;
    char *source_str;
 }opencl_cxt;
+
+const char* opencl_get_error(int error_code)
+{
+   switch (error_code)
+   {
+      case 0: return "CL_SUCCESS";
+      case -1: return "CL_DEVICE_NOT_FOUND";
+      case -2: return "CL_DEVICE_NOT_AVAILABLE";
+      case -3: return "CL_COMPILER_NOT_AVAILABLE";
+      case -4: return "CL_MEM_OBJECT_ALLOCATION_FAILURE";
+      case -5: return "CL_OUT_OF_RESOURCES";
+      case -6: return "CL_OUT_OF_HOST_MEMORY";
+      case -7: return "CL_PROFILING_INFO_NOT_AVAILABLE";
+      case -8: return "CL_MEM_COPY_OVERLAP";
+      case -9: return "CL_IMAGE_FORMAT_MISMATCH";
+      case -10: return "CL_IMAGE_FORMAT_NOT_SUPPORTED";
+      case -11: return "CL_BUILD_PROGRAM_FAILURE";
+      case -12: return "CL_MAP_FAILURE";
+      case -13: return "CL_MISALIGNED_SUB_BUFFER_OFFSET";
+      case -14: return "CL_EXEC_STATUS_ERROR_FOR_EVENTS_IN_WAIT_LIST";
+      case -15: return "CL_COMPILE_PROGRAM_FAILURE";
+      case -16: return "CL_LINKER_NOT_AVAILABLE";
+      case -17: return "CL_LINK_PROGRAM_FAILURE";
+      case -18: return "CL_DEVICE_PARTITION_FAILED";
+      case -19: return "CL_KERNEL_ARG_INFO_NOT_AVAILABLE";
+
+      case -30: return "CL_INVALID_VALUE";
+      case -31: return "CL_INVALID_DEVICE_TYPE";
+      case -32: return "CL_INVALID_PLATFORM";
+      case -33: return "CL_INVALID_DEVICE";
+      case -34: return "CL_INVALID_CONTEXT";
+      case -35: return "CL_INVALID_QUEUE_PROPERTIES";
+      case -36: return "CL_INVALID_COMMAND_QUEUE";
+      case -37: return "CL_INVALID_HOST_PTR";
+      case -38: return "CL_INVALID_MEM_OBJECT";
+      case -39: return "CL_INVALID_IMAGE_FORMAT_DESCRIPTOR";
+      case -40: return "CL_INVALID_IMAGE_SIZE";
+      case -41: return "CL_INVALID_SAMPLER";
+      case -42: return "CL_INVALID_BINARY";
+      case -43: return "CL_INVALID_BUILD_OPTIONS";
+      case -44: return "CL_INVALID_PROGRAM";
+      case -45: return "CL_INVALID_PROGRAM_EXECUTABLE";
+      case -46: return "CL_INVALID_KERNEL_NAME";
+      case -47: return "CL_INVALID_KERNEL_DEFINITION";
+      case -48: return "CL_INVALID_KERNEL";
+      case -49: return "CL_INVALID_ARG_INDEX";
+      case -50: return "CL_INVALID_ARG_VALUE";
+      case -51: return "CL_INVALID_ARG_SIZE";
+      case -52: return "CL_INVALID_KERNEL_ARGS";
+      case -53: return "CL_INVALID_WORK_DIMENSION";
+      case -54: return "CL_INVALID_WORK_GROUP_SIZE";
+      case -55: return "CL_INVALID_WORK_ITEM_SIZE";
+      case -56: return "CL_INVALID_GLOBAL_OFFSET";
+      case -57: return "CL_INVALID_EVENT_WAIT_LIST";
+      case -58: return "CL_INVALID_EVENT";
+      case -59: return "CL_INVALID_OPERATION";
+      case -60: return "CL_INVALID_GL_OBJECT";
+      case -61: return "CL_INVALID_BUFFER_SIZE";
+      case -62: return "CL_INVALID_MIP_LEVEL";
+      case -63: return "CL_INVALID_GLOBAL_WORK_SIZE";
+      case -64: return "CL_INVALID_PROPERTY";
+      case -65: return "CL_INVALID_IMAGE_DESCRIPTOR";
+      case -66: return "CL_INVALID_COMPILER_OPTIONS";
+      case -67: return "CL_INVALID_LINKER_OPTIONS";
+      case -68: return "CL_INVALID_DEVICE_PARTITION_COUNT";
+      default: return "Unknown OpenCL error";
+   }
+
+   return "Unknown OpenCL error";
+}
+
+void opencl_check_error(int ret, const char* call)
+{
+   if (ret != CL_SUCCESS)
+   {
+      char error_string[2048] = { 0 };
+      const char* error = opencl_get_error(ret);
+      sprintf(error_string, "OpenCL error calling %s: %s", call, error);
+      YuiErrorMsg(error_string);
+   }
+}
 
 void init_opencl()
 {
    FILE *fp;
    char fileName[] = "C:/yabause-cl/yabause/yabause/src/titan/hello.cl";
+   cl_int return_val = 0;
    
    size_t source_size;
 
@@ -540,49 +671,66 @@ void init_opencl()
    fclose(fp);
 
    /* Get Platform and Device Info */
-   opencl_cxt.ret = clGetPlatformIDs(1, &opencl_cxt.platform_id, &opencl_cxt.ret_num_platforms);
-   opencl_cxt.ret = clGetDeviceIDs(opencl_cxt.platform_id, CL_DEVICE_TYPE_DEFAULT, 1, &opencl_cxt.device_id, &opencl_cxt.ret_num_devices);
+   return_val = clGetPlatformIDs(1, &opencl_cxt.platform_id, &opencl_cxt.ret_num_platforms);
+   opencl_check_error(return_val, "clGetPlatformIDs");
+
+   return_val = clGetDeviceIDs(opencl_cxt.platform_id, CL_DEVICE_TYPE_DEFAULT, 1, &opencl_cxt.device_id, &opencl_cxt.ret_num_devices);
+   opencl_check_error(return_val, "clGetDeviceIDs");
 
    /* Create OpenCL context */
-   opencl_cxt.context = clCreateContext(NULL, 1, &opencl_cxt.device_id, NULL, NULL, &opencl_cxt.ret);
+   opencl_cxt.context = clCreateContext(NULL, 1, &opencl_cxt.device_id, NULL, NULL, &return_val);
+   opencl_check_error(return_val, "clCreateContext");
 
    /* Create Command Queue */
-   opencl_cxt.command_queue = clCreateCommandQueue(opencl_cxt.context, opencl_cxt.device_id, 0, &opencl_cxt.ret);
+   opencl_cxt.command_queue = clCreateCommandQueue(opencl_cxt.context, opencl_cxt.device_id, 0, &return_val);
+   opencl_check_error(return_val, "clCreateCommandQueue");
 
-   /* Create Memory Buffer */
-   opencl_cxt.memobj = clCreateBuffer(opencl_cxt.context, CL_MEM_READ_WRITE, MEM_SIZE * sizeof(char), NULL, &opencl_cxt.ret);
+   opencl_cxt.framebuffer = clCreateBuffer(opencl_cxt.context, CL_MEM_READ_ONLY, sizeof(tt_context.vdp2framebuffer), NULL, &return_val);
+   opencl_check_error(return_val, "clCreateBuffer");
 
-   opencl_cxt.framebuffer = clCreateBuffer(opencl_cxt.context, CL_MEM_READ_WRITE, sizeof(vdp2framebuffer), NULL, &opencl_cxt.ret);
+   opencl_cxt.pix_stack = clCreateBuffer(opencl_cxt.context, CL_MEM_READ_WRITE, sizeof(pixel_stack_out), NULL, &return_val);
+   opencl_check_error(return_val, "clCreateBuffer");
 
-   opencl_cxt.pix_stack = clCreateBuffer(opencl_cxt.context, CL_MEM_READ_WRITE, sizeof(pixel_stack_out), NULL, &opencl_cxt.ret);
-
-   opencl_cxt.output = clCreateBuffer(opencl_cxt.context, CL_MEM_READ_WRITE, sizeof(unsigned int) * 704 * 512, NULL, &opencl_cxt.ret);
+   opencl_cxt.output = clCreateBuffer(opencl_cxt.context, CL_MEM_WRITE_ONLY, sizeof(unsigned int) * 704 * 512, NULL, &return_val);
+   opencl_check_error(return_val, "clCreateBuffer");
 
    /* Create Kernel Program from the source */
    opencl_cxt.program = clCreateProgramWithSource(opencl_cxt.context, 1, (const char **)&opencl_cxt.source_str,
-      (const size_t *)&source_size, &opencl_cxt.ret);
+      (const size_t *)&source_size, &return_val);
+   opencl_check_error(return_val, "clCreateProgramWithSource");
 
    /* Build Kernel Program */
-   opencl_cxt.ret = clBuildProgram(opencl_cxt.program, 1, &opencl_cxt.device_id, NULL, NULL, NULL);
+   return_val = clBuildProgram(opencl_cxt.program, 1, &opencl_cxt.device_id, NULL, NULL, NULL);
+   opencl_check_error(return_val, "clBuildProgram");
 
-   size_t log_size;
-   clGetProgramBuildInfo(opencl_cxt.program, opencl_cxt.device_id, CL_PROGRAM_BUILD_LOG, 0, NULL, &log_size);
+   if (return_val < 0)
+   {
+      size_t log_size;
+      return_val = clGetProgramBuildInfo(opencl_cxt.program, opencl_cxt.device_id, CL_PROGRAM_BUILD_LOG, 0, NULL, &log_size);
+      opencl_check_error(return_val, "clGetProgramBuildInfo");
 
-   // Allocate memory for the log
-   char *log = (char *)malloc(log_size);
+      // Allocate memory for the log
+      char *log = (char *)malloc(log_size);
 
-   // Get the log
-   clGetProgramBuildInfo(opencl_cxt.program, opencl_cxt.device_id, CL_PROGRAM_BUILD_LOG, log_size, log, NULL);
+      // Get the log
+      return_val = clGetProgramBuildInfo(opencl_cxt.program, opencl_cxt.device_id, CL_PROGRAM_BUILD_LOG, log_size, log, NULL);
+      opencl_check_error(return_val, "clGetProgramBuildInfo");
+
+      YuiErrorMsg(log);
+
+      free(log);
+   }
 
    /* Create OpenCL Kernel */
-   opencl_cxt.kernel = clCreateKernel(opencl_cxt.program, "hello", &opencl_cxt.ret);
+   opencl_cxt.kernel = clCreateKernel(opencl_cxt.program, "hello", &return_val);
+   opencl_check_error(return_val, "clCreateKernel");
 }
 
 int inited = 0;
 
 int opencl_exec(pixel_t * dispbuffer)
 {
-
+   cl_int return_val = 0;
 
    if (!inited)
    {
@@ -590,63 +738,63 @@ int opencl_exec(pixel_t * dispbuffer)
       inited = 1;
    }
 
-   char string[MEM_SIZE];
+   return_val = clEnqueueWriteBuffer(opencl_cxt.command_queue, opencl_cxt.framebuffer, CL_TRUE, 0, 
+      sizeof(struct PixelData) * tt_context.vdp2width * tt_context.vdp2height, tt_context.vdp2framebuffer, 0, NULL, NULL);
+   opencl_check_error(return_val, "clEnqueueWriteBuffer");
 
-   int output[256] = { 0 };
+   return_val = clSetKernelArg(opencl_cxt.kernel, 0, sizeof(cl_mem), (void *)&opencl_cxt.framebuffer);
+   opencl_check_error(return_val, "clSetKernelArg");
 
-#if 1
+   return_val = clSetKernelArg(opencl_cxt.kernel, 1, sizeof(cl_mem), (void *)&opencl_cxt.pix_stack);
+   opencl_check_error(return_val, "clSetKernelArg");
 
-   opencl_cxt.ret = clEnqueueWriteBuffer(opencl_cxt.command_queue, opencl_cxt.framebuffer, CL_TRUE, 0, sizeof(vdp2framebuffer), vdp2framebuffer, 0, NULL, NULL);
-   
-   int zero = 0;
+   return_val = clSetKernelArg(opencl_cxt.kernel, 2, sizeof(cl_mem), (void *)&opencl_cxt.output);
+   opencl_check_error(return_val, "clSetKernelArg");
 
- //  opencl_cxt.ret = clEnqueueFillBuffer(opencl_cxt.command_queue, opencl_cxt.pix_stack, &zero, sizeof(zero), NULL, sizeof(opencl_cxt.pix_stack), 0, NULL, NULL);
+   return_val = clSetKernelArg(opencl_cxt.kernel, 3, sizeof(int), (void *)&tt_context.vdp2width);
+   opencl_check_error(return_val, "clSetKernelArg");
 
-   opencl_cxt.ret = clSetKernelArg(opencl_cxt.kernel, 0, sizeof(cl_mem), (void *)&opencl_cxt.framebuffer);
-   opencl_cxt.ret = clSetKernelArg(opencl_cxt.kernel, 1, sizeof(cl_mem), (void *)&opencl_cxt.pix_stack);
-   opencl_cxt.ret = clSetKernelArg(opencl_cxt.kernel, 2, sizeof(cl_mem), (void *)&opencl_cxt.output);
-   opencl_cxt.ret = clSetKernelArg(opencl_cxt.kernel, 3, sizeof(int), (void *)&tt_context.vdp2width);
-   opencl_cxt.ret = clSetKernelArg(opencl_cxt.kernel, 4, sizeof(int), (void *)&tt_context.vdp2width);
+   return_val = clSetKernelArg(opencl_cxt.kernel, 4, sizeof(int), (void *)&tt_context.vdp2width);
+   opencl_check_error(return_val, "clSetKernelArg");
 
-   size_t global_item_size = sizeof(vdp2framebuffer)/64;
+   return_val = clSetKernelArg(opencl_cxt.kernel, 5, sizeof(int), (void *)&titan_blend_mode);
+   opencl_check_error(return_val, "clSetKernelArg");
+
+   size_t global_item_size = sizeof(tt_context.vdp2framebuffer) / 64;
    size_t local_item_size = sizeof(struct PixelData);
-   size_t offset = (sizeof(vdp2framebuffer) / 64) * 2;
 
-   opencl_cxt.ret = clEnqueueNDRangeKernel(opencl_cxt.command_queue, opencl_cxt.kernel, 1, NULL, &global_item_size, &local_item_size, 0, NULL, NULL);
+   return_val = clEnqueueNDRangeKernel(opencl_cxt.command_queue, opencl_cxt.kernel, 1, NULL, &global_item_size, &local_item_size, 0, NULL, NULL);
+   opencl_check_error(return_val, "clEnqueueNDRangeKernel");
 
-   //opencl_cxt.ret = clEnqueueReadBuffer(opencl_cxt.command_queue, opencl_cxt.pix_stack, CL_TRUE, 0, sizeof(pixel_stack_out), pixel_stack_out, 0, NULL, NULL);
-
-   opencl_cxt.ret = clEnqueueReadBuffer(opencl_cxt.command_queue, opencl_cxt.output, CL_TRUE, 0, sizeof(u32) * tt_context.vdp2width * tt_context.vdp2height, dispbuffer, 0, NULL, NULL);
-
-#else
-
-   /* Set OpenCL Kernel Parameters */
-   opencl_cxt.ret = clSetKernelArg(opencl_cxt.kernel, 0, sizeof(cl_mem), (void *)&opencl_cxt.memobj);
-
-   /* Execute OpenCL Kernel */
-   opencl_cxt.ret = clEnqueueTask(opencl_cxt.command_queue, opencl_cxt.kernel, 0, NULL, NULL);
-
-   /* Copy results from the memory buffer */
-   opencl_cxt.ret = clEnqueueReadBuffer(opencl_cxt.command_queue, opencl_cxt.memobj, CL_TRUE, 0, MEM_SIZE * sizeof(char), string, 0, NULL, NULL);
-
-   /* Display Result */
-   puts(string);
-
-#endif
+   return_val = clEnqueueReadBuffer(opencl_cxt.command_queue, opencl_cxt.output, CL_TRUE, 0, sizeof(u32) * tt_context.vdp2width * tt_context.vdp2height, dispbuffer, 0, NULL, NULL);
+   opencl_check_error(return_val, "clEnqueueReadBuffer");
 
    return 0;
 }
 
 void opencl_close()
 {
+   cl_int return_val = 0;
+
    /* Finalization */
-   opencl_cxt.ret = clFlush(opencl_cxt.command_queue);
-   opencl_cxt.ret = clFinish(opencl_cxt.command_queue);
-   opencl_cxt.ret = clReleaseKernel(opencl_cxt.kernel);
-   opencl_cxt.ret = clReleaseProgram(opencl_cxt.program);
-   opencl_cxt.ret = clReleaseMemObject(opencl_cxt.memobj);
-   opencl_cxt.ret = clReleaseCommandQueue(opencl_cxt.command_queue);
-   opencl_cxt.ret = clReleaseContext(opencl_cxt.context);
+   return_val = clFlush(opencl_cxt.command_queue);
+   opencl_check_error(return_val, "clFlush");
+
+   return_val = clFinish(opencl_cxt.command_queue);
+   opencl_check_error(return_val, "clFinish");
+
+   return_val = clReleaseKernel(opencl_cxt.kernel);
+   opencl_check_error(return_val, "clReleaseKernel");
+
+   return_val = clReleaseProgram(opencl_cxt.program);
+   opencl_check_error(return_val, "clReleaseProgram");
+
+   //return_val = clReleaseMemObject(opencl_cxt.memobj);
+   return_val = clReleaseCommandQueue(opencl_cxt.command_queue);
+   opencl_check_error(return_val, "clReleaseCommandQueue");
+
+   return_val = clReleaseContext(opencl_cxt.context);
+   opencl_check_error(return_val, "clReleaseContext");
 
    free(opencl_cxt.source_str);
 }

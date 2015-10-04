@@ -24,6 +24,17 @@
 
 #define VIDCORE_SOFT   2
 
+struct VidsoftVdp1ThreadContext
+{
+   volatile int draw_finished;
+   volatile int need_draw;
+   Vdp1 regs;
+   u8 ram[0x80000];
+   u8 back_framebuffer[0x40000];
+};
+
+extern struct VidsoftVdp1ThreadContext vidsoft_vdp1_thread_context;
+
 extern pixel_t *dispbuffer;
 
 extern VideoInterface_struct VIDSoft;

@@ -3174,7 +3174,7 @@ void VIDOGLVdp1NormalSpriteDraw(void)
    short CMDYA;
 
    
-   Vdp1ReadCommand(&cmd, Vdp1Regs->addr);
+   Vdp1ReadCommand(&cmd, Vdp1Regs->addr, Vdp1Ram);
    sprite.dst=0;
    sprite.blendmode=0;
    sprite.linescreen = 0;
@@ -3283,7 +3283,7 @@ void VIDOGLVdp1ScaledSpriteDraw(void)
    float col[4*4];
    int i;
 
-   Vdp1ReadCommand(&cmd, Vdp1Regs->addr);
+   Vdp1ReadCommand(&cmd, Vdp1Regs->addr, Vdp1Ram);
    sprite.dst=0;
    sprite.blendmode=0;
    sprite.linescreen = 0;
@@ -3468,7 +3468,7 @@ void VIDOGLVdp1DistortedSpriteDraw(void)
    int isSquare;
    
 
-   Vdp1ReadCommand(&cmd, Vdp1Regs->addr);
+   Vdp1ReadCommand(&cmd, Vdp1Regs->addr, Vdp1Ram);
    sprite.blendmode=0;
    sprite.linescreen = 0; 
    sprite.dst = 1;
@@ -3657,7 +3657,7 @@ void VIDOGLVdp1PolygonDraw(void)
 
    sprite.linescreen = 0;
 
-   Vdp1ReadCommand(&cmd, Vdp1Regs->addr);
+   Vdp1ReadCommand(&cmd, Vdp1Regs->addr, Vdp1Ram);
 
    CMDYA = T1ReadWord(Vdp1Ram, Vdp1Regs->addr + 0xE);
    CMDYB = T1ReadWord(Vdp1Ram, Vdp1Regs->addr + 0x12);
@@ -4056,7 +4056,7 @@ void VIDOGLVdp1PolylineDraw(void)
    if (color & 0x8000)
 	   *texture.textdata = SAT2YAB1(alpha, color);
    else{
-	   Vdp1ReadCommand(&cmd, Vdp1Regs->addr);
+      Vdp1ReadCommand(&cmd, Vdp1Regs->addr, Vdp1Ram);
 	   *texture.textdata = Vdp1ReadPolygonColor(&cmd);
    }
 
@@ -4273,7 +4273,7 @@ void VIDOGLVdp1LineDraw(void)
    if (color & 0x8000)
       *texture.textdata = SAT2YAB1(alpha,color);
    else{
-	   Vdp1ReadCommand(&cmd, Vdp1Regs->addr);
+      Vdp1ReadCommand(&cmd, Vdp1Regs->addr, Vdp1Ram);
 	   *texture.textdata = Vdp1ReadPolygonColor(&cmd);
    }
 }

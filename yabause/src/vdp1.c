@@ -29,9 +29,13 @@
 #include "debug.h"
 #include "scu.h"
 #include "vdp2.h"
+#include "vidsoft.h"
+#include "threads.h"
 
 u8 * Vdp1Ram;
 u8 * Vdp1FrameBuffer;
+
+extern struct VidsoftVdp1ThreadContext vidsoft_vdp1_thread_context;
 
 VideoInterface_struct *VIDCore=NULL;
 extern VideoInterface_struct *VIDCoreList[];
@@ -87,6 +91,7 @@ u8 FASTCALL Vdp1FrameBufferReadByte(u32 addr) {
      VIDCore->Vdp1ReadFrameBuffer(0, addr, &val);
      return val;
    }
+   while (!vidsoft_vdp1_thread_context.draw_finished){}
    return T1ReadByte(Vdp1FrameBuffer, addr);
 }
 
@@ -99,6 +104,7 @@ u16 FASTCALL Vdp1FrameBufferReadWord(u32 addr) {
      VIDCore->Vdp1ReadFrameBuffer(1, addr, &val);
      return val;
    }
+   while (!vidsoft_vdp1_thread_context.draw_finished){}
    return T1ReadWord(Vdp1FrameBuffer, addr);
 }
 
@@ -111,28 +117,82 @@ u32 FASTCALL Vdp1FrameBufferReadLong(u32 addr) {
      VIDCore->Vdp1ReadFrameBuffer(2, addr, &val);
      return val;
    }
+   while (!vidsoft_vdp1_thread_context.draw_finished){}
    return T1ReadLong(Vdp1FrameBuffer, addr);
+}
+
+#define saved_size 2048
+
+struct VidsoftVdp1SavedFramebufferWrites saved[saved_size];
+int save_count = 0;
+
+void DoWrite(u32 addr, u32 val, u32 size)
+{
+   switch (size)
+   {
+   case 0:
+      T1WriteByte(Vdp1FrameBuffer, addr, val);
+      break;
+   case 1:
+      T1WriteWord(Vdp1FrameBuffer, addr, val);
+      break;
+   case 2:
+      T1WriteLong(Vdp1FrameBuffer, addr, val);
+      break;
+   default:
+      break;
+   }
+}
+
+void DoWrites()
+{
+   int i;
+   for (i = 0; i < save_count; i++)
+   {
+      DoWrite(saved[i].addr, saved[i].val, saved[i].size);
+   }
+}
+
+void SaveWrite(u32 addr, u32 val, u32 size)
+{
+//   if (!vidsoft_vdp1_thread_context.draw_finished)
+//   {
+      saved[save_count].addr = addr;
+      saved[save_count].val = val;
+      saved[save_count].size = size;
+      save_count++;
+//   }
+   //else
+   //{
+   //   DoWrite(addr, val, size);
+   //}
 }
 
 //////////////////////////////////////////////////////////////////////////////
 
 void FASTCALL Vdp1FrameBufferWriteByte(u32 addr, u8 val) {
    addr &= 0x3FFFF;
+   while (!vidsoft_vdp1_thread_context.draw_finished){}
    T1WriteByte(Vdp1FrameBuffer, addr, val);
+   //SaveWrite(addr, val, 0);
 }
 
 //////////////////////////////////////////////////////////////////////////////
 
 void FASTCALL Vdp1FrameBufferWriteWord(u32 addr, u16 val) {
    addr &= 0x3FFFF;
+   while (!vidsoft_vdp1_thread_context.draw_finished){}
    T1WriteWord(Vdp1FrameBuffer, addr, val);
+   //SaveWrite(addr, val, 1);
 }
 
 //////////////////////////////////////////////////////////////////////////////
 
 void FASTCALL Vdp1FrameBufferWriteLong(u32 addr, u32 val) {
    addr &= 0x3FFFF;
+   while (!vidsoft_vdp1_thread_context.draw_finished){}
    T1WriteLong(Vdp1FrameBuffer, addr, val);
+   //SaveWrite(addr, val, 2);
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -328,12 +388,186 @@ void FASTCALL Vdp1WriteLong(u32 addr, UNUSED u32 val) {
 
 //////////////////////////////////////////////////////////////////////////////
 
-void Vdp1Draw(void) {
-   u32 returnAddr;
-   u32 commandCounter;
-   u16 command;
+void Vdp1DrawCommands(u8 * ram, Vdp1 * regs, u8* back_framebuffer)
+{
+   u16 command = T1ReadWord(ram, regs->addr);
+   u32 commandCounter = 0;
+   u32 returnAddr = 0xffffffff;
 
-   VIDCore->Vdp1DrawStart();
+   while (!(command & 0x8000) && commandCounter < 2000) { // fix me
+      // First, process the command
+      if (!(command & 0x4000)) { // if (!skip)
+         switch (command & 0x000F) {
+         case 0: // normal sprite draw
+            VIDCore->Vdp1NormalSpriteDraw(ram, regs, back_framebuffer);
+            break;
+         case 1: // scaled sprite draw
+            VIDCore->Vdp1ScaledSpriteDraw(ram, regs, back_framebuffer);
+            break;
+         case 2: // distorted sprite draw
+         case 3: /* this one should be invalid, but some games
+                 (Hardcore 4x4 for instance) use it instead of 2 */
+            VIDCore->Vdp1DistortedSpriteDraw(ram, regs, back_framebuffer);
+            break;
+         case 4: // polygon draw
+            VIDCore->Vdp1PolygonDraw(ram, regs, back_framebuffer);
+            break;
+         case 5: // polyline draw
+         case 7: // undocumented mirror
+            VIDCore->Vdp1PolylineDraw(ram, regs, back_framebuffer);
+            break;
+         case 6: // line draw
+            VIDCore->Vdp1LineDraw(ram, regs, back_framebuffer);
+            break;
+         case 8: // user clipping coordinates
+         case 11: // undocumented mirror
+            VIDCore->Vdp1UserClipping(ram, regs);
+            break;
+         case 9: // system clipping coordinates
+            VIDCore->Vdp1SystemClipping(ram, regs);
+            break;
+         case 10: // local coordinate
+            VIDCore->Vdp1LocalCoordinate(ram, regs);
+            break;
+         default: // Abort
+            VDP1LOG("vdp1\t: Bad command: %x\n", command);
+            regs->EDSR |= 2;
+            VIDCore->Vdp1DrawEnd();
+            regs->LOPR = regs->addr >> 3;
+            regs->COPR = regs->addr >> 3;
+            return;
+         }
+      }
+
+      // Next, determine where to go next
+      switch ((command & 0x3000) >> 12) {
+      case 0: // NEXT, jump to following table
+         regs->addr += 0x20;
+         break;
+      case 1: // ASSIGN, jump to CMDLINK
+         regs->addr = T1ReadWord(ram, regs->addr + 2) * 8;
+         break;
+      case 2: // CALL, call a subroutine
+         if (returnAddr == 0xFFFFFFFF)
+            returnAddr = regs->addr + 0x20;
+
+         regs->addr = T1ReadWord(ram, regs->addr + 2) * 8;
+         break;
+      case 3: // RETURN, return from subroutine
+         if (returnAddr != 0xFFFFFFFF) {
+            regs->addr = returnAddr;
+            returnAddr = 0xFFFFFFFF;
+         }
+         else
+            regs->addr += 0x20;
+         break;
+      }
+
+      command = T1ReadWord(ram, regs->addr);
+      commandCounter++;
+   }
+}
+
+void Vdp1FakeDrawCommands(u8 * ram, Vdp1 * regs)
+{
+   u16 command = T1ReadWord(ram, regs->addr);
+   u32 commandCounter = 0;
+   u32 returnAddr = 0xffffffff;
+
+   while (!(command & 0x8000) && commandCounter < 2000) { // fix me
+      // First, process the command
+      if (!(command & 0x4000)) { // if (!skip)
+         switch (command & 0x000F) {
+         case 0: // normal sprite draw
+         case 1: // scaled sprite draw
+         case 2: // distorted sprite draw
+         case 3: /* this one should be invalid, but some games
+                 (Hardcore 4x4 for instance) use it instead of 2 */
+         case 4: // polygon draw
+         case 5: // polyline draw
+         case 6: // line draw
+         case 7: // undocumented polyline draw mirror
+            break;
+         case 8: // user clipping coordinates
+         case 11: // undocumented mirror
+            VIDCore->Vdp1UserClipping(ram, regs);
+            break;
+         case 9: // system clipping coordinates
+            VIDCore->Vdp1SystemClipping(ram, regs);
+            break;
+         case 10: // local coordinate
+            VIDCore->Vdp1LocalCoordinate(ram, regs);
+            break;
+         default: // Abort
+            VDP1LOG("vdp1\t: Bad command: %x\n", command);
+            regs->EDSR |= 2;
+            VIDCore->Vdp1DrawEnd();
+            regs->LOPR = regs->addr >> 3;
+            regs->COPR = regs->addr >> 3;
+            return;
+         }
+      }
+
+      // Next, determine where to go next
+      switch ((command & 0x3000) >> 12) {
+      case 0: // NEXT, jump to following table
+         regs->addr += 0x20;
+         break;
+      case 1: // ASSIGN, jump to CMDLINK
+         regs->addr = T1ReadWord(ram, regs->addr + 2) * 8;
+         break;
+      case 2: // CALL, call a subroutine
+         if (returnAddr == 0xFFFFFFFF)
+            returnAddr = regs->addr + 0x20;
+
+         regs->addr = T1ReadWord(ram, regs->addr + 2) * 8;
+         break;
+      case 3: // RETURN, return from subroutine
+         if (returnAddr != 0xFFFFFFFF) {
+            regs->addr = returnAddr;
+            returnAddr = 0xFFFFFFFF;
+         }
+         else
+            regs->addr += 0x20;
+         break;
+      }
+
+      command = T1ReadWord(ram, regs->addr);
+      commandCounter++;
+   }
+}
+extern u8*vdp1backframebuffer;
+void VidsoftVdp1Thread(void* data)
+{
+   for (;;)
+   {
+      if (vidsoft_vdp1_thread_context.need_draw)
+      {
+         vidsoft_vdp1_thread_context.need_draw = 0;//vdp1backframebuffer
+         Vdp1DrawCommands(vidsoft_vdp1_thread_context.ram, &vidsoft_vdp1_thread_context.regs, vidsoft_vdp1_thread_context.back_framebuffer);
+         vidsoft_vdp1_thread_context.draw_finished = 1;
+      }
+
+      YabThreadSleep();
+   }
+}
+
+int started = 0;
+int thread = 1;
+
+
+
+void Vdp1Draw(void) 
+{
+
+   if (thread)
+   {
+      VIDCore->Vdp1DrawStart(vidsoft_vdp1_thread_context.back_framebuffer);  
+   }
+   else
+   {
+      VIDCore->Vdp1DrawStart(vdp1backframebuffer);
+   }
 
    if (!Vdp1External.disptoggle)
    {
@@ -342,8 +576,6 @@ void Vdp1Draw(void) {
    }
 
    Vdp1Regs->addr = 0;
-   returnAddr = 0xFFFFFFFF;
-   commandCounter = 0;
 
    // beginning of a frame
    // BEF <- CEF
@@ -352,79 +584,25 @@ void Vdp1Draw(void) {
    /* this should be done after a frame change or a plot trigger */
    Vdp1Regs->COPR = 0;
 
-   command = T1ReadWord(Vdp1Ram, Vdp1Regs->addr);
+   if (thread)
+   {
+      memset(saved, 0, sizeof(struct VidsoftVdp1SavedFramebufferWrites) * saved_size);
 
-   while (!(command & 0x8000) && commandCounter < 2000) { // fix me
-      // First, process the command
-      if (!(command & 0x4000)) { // if (!skip)
-         switch (command & 0x000F) {
-            case 0: // normal sprite draw
-               VIDCore->Vdp1NormalSpriteDraw();
-               break;
-            case 1: // scaled sprite draw
-               VIDCore->Vdp1ScaledSpriteDraw();
-               break;
-            case 2: // distorted sprite draw
-            case 3: /* this one should be invalid, but some games
-                    (Hardcore 4x4 for instance) use it instead of 2 */
-               VIDCore->Vdp1DistortedSpriteDraw();
-               break;
-            case 4: // polygon draw
-               VIDCore->Vdp1PolygonDraw();
-               break;
-            case 5: // polyline draw
-            case 7: // undocumented mirror
-               VIDCore->Vdp1PolylineDraw();
-               break;
-            case 6: // line draw
-               VIDCore->Vdp1LineDraw();
-               break;
-            case 8: // user clipping coordinates
-            case 11: // undocumented mirror
-               VIDCore->Vdp1UserClipping();
-               break;
-            case 9: // system clipping coordinates
-               VIDCore->Vdp1SystemClipping();
-               break;
-            case 10: // local coordinate
-               VIDCore->Vdp1LocalCoordinate();
-               break;
-            default: // Abort
-               VDP1LOG("vdp1\t: Bad command: %x\n",  command);
-               Vdp1Regs->EDSR |= 2;
-               VIDCore->Vdp1DrawEnd();
-               Vdp1Regs->LOPR = Vdp1Regs->addr >> 3;
-               Vdp1Regs->COPR = Vdp1Regs->addr >> 3;
-               return;
-         }
-      }
+      save_count = 0;
 
-      // Next, determine where to go next
-      switch ((command & 0x3000) >> 12) {
-         case 0: // NEXT, jump to following table
-            Vdp1Regs->addr += 0x20;
-            break;
-         case 1: // ASSIGN, jump to CMDLINK
-            Vdp1Regs->addr = T1ReadWord(Vdp1Ram, Vdp1Regs->addr + 2) * 8;
-            break;
-         case 2: // CALL, call a subroutine
-            if (returnAddr == 0xFFFFFFFF)
-               returnAddr = Vdp1Regs->addr + 0x20;
-	
-            Vdp1Regs->addr = T1ReadWord(Vdp1Ram, Vdp1Regs->addr + 2) * 8;
-            break;
-         case 3: // RETURN, return from subroutine
-            if (returnAddr != 0xFFFFFFFF) {
-               Vdp1Regs->addr = returnAddr;
-               returnAddr = 0xFFFFFFFF;
-            }
-            else
-               Vdp1Regs->addr += 0x20;
-            break;
-      }
+      memcpy(vidsoft_vdp1_thread_context.ram, Vdp1Ram, 0x80000);
+      memcpy(&vidsoft_vdp1_thread_context.regs, Vdp1Regs, sizeof(Vdp1));
 
-      command = T1ReadWord(Vdp1Ram, Vdp1Regs->addr);
-      commandCounter++;    
+      vidsoft_vdp1_thread_context.draw_finished = 0;
+      vidsoft_vdp1_thread_context.need_draw = 1;
+
+      YabThreadWake(YAB_THREAD_VIDSOFT_VDP1);
+
+      Vdp1FakeDrawCommands(Vdp1Ram, Vdp1Regs);
+   }
+   else
+   {
+      Vdp1DrawCommands(Vdp1Ram, Vdp1Regs, vdp1backframebuffer);
    }
 
    // we set two bits to 1
@@ -437,14 +615,6 @@ void Vdp1Draw(void) {
 //////////////////////////////////////////////////////////////////////////////
 
 void Vdp1NoDraw(void) {
-   u32 returnAddr;
-   u32 commandCounter;
-   u16 command;
-
-   Vdp1Regs->addr = 0;
-   returnAddr = 0xFFFFFFFF;
-   commandCounter = 0;
-
    // beginning of a frame (ST-013-R3-061694 page 53)
    // BEF <- CEF
    // CEF <- 0
@@ -452,69 +622,7 @@ void Vdp1NoDraw(void) {
    /* this should be done after a frame change or a plot trigger */
    Vdp1Regs->COPR = 0;
 
-   command = T1ReadWord(Vdp1Ram, Vdp1Regs->addr);
-
-   while (!(command & 0x8000) && commandCounter < 2000) { // fix me
-      // First, process the command
-      if (!(command & 0x4000)) { // if (!skip)
-         switch (command & 0x000F) {
-            case 0: // normal sprite draw
-            case 1: // scaled sprite draw
-            case 2: // distorted sprite draw
-            case 3: /* this one should be invalid, but some games
-                    (Hardcore 4x4 for instance) use it instead of 2 */
-            case 4: // polygon draw
-            case 5: // polyline draw
-            case 6: // line draw
-            case 7: // undocumented polyline draw mirror
-               break;
-            case 8: // user clipping coordinates
-            case 11: // undocumented mirror
-               VIDCore->Vdp1UserClipping();
-               break;
-            case 9: // system clipping coordinates
-               VIDCore->Vdp1SystemClipping();
-               break;
-            case 10: // local coordinate
-               VIDCore->Vdp1LocalCoordinate();
-               break;
-            default: // Abort
-               VDP1LOG("vdp1\t: Bad command: %x\n",  command);
-               Vdp1Regs->EDSR |= 2;
-               VIDCore->Vdp1DrawEnd();
-               Vdp1Regs->LOPR = Vdp1Regs->addr >> 3;
-               Vdp1Regs->COPR = Vdp1Regs->addr >> 3;
-               return;
-         }
-      }
-
-      // Next, determine where to go next
-      switch ((command & 0x3000) >> 12) {
-         case 0: // NEXT, jump to following table
-            Vdp1Regs->addr += 0x20;
-            break;
-         case 1: // ASSIGN, jump to CMDLINK
-            Vdp1Regs->addr = T1ReadWord(Vdp1Ram, Vdp1Regs->addr + 2) * 8;
-            break;
-         case 2: // CALL, call a subroutine
-            if (returnAddr == 0xFFFFFFFF)
-               returnAddr = Vdp1Regs->addr + 0x20;
-	
-            Vdp1Regs->addr = T1ReadWord(Vdp1Ram, Vdp1Regs->addr + 2) * 8;
-            break;
-         case 3: // RETURN, return from subroutine
-            if (returnAddr != 0xFFFFFFFF) {
-               Vdp1Regs->addr = returnAddr;
-               returnAddr = 0xFFFFFFFF;
-            }
-            else
-               Vdp1Regs->addr += 0x20;
-            break;
-      }
-
-      command = T1ReadWord(Vdp1Ram, Vdp1Regs->addr);
-      commandCounter++;    
-   }
+   Vdp1FakeDrawCommands(Vdp1Ram, Vdp1Regs);
 
    // we set two bits to 1
    Vdp1Regs->EDSR |= 2;
@@ -524,22 +632,22 @@ void Vdp1NoDraw(void) {
 
 //////////////////////////////////////////////////////////////////////////////
 
-void FASTCALL Vdp1ReadCommand(vdp1cmd_struct *cmd, u32 addr) {
-   cmd->CMDCTRL = T1ReadWord(Vdp1Ram, addr);
-   cmd->CMDLINK = T1ReadWord(Vdp1Ram, addr + 0x2);
-   cmd->CMDPMOD = T1ReadWord(Vdp1Ram, addr + 0x4);
-   cmd->CMDCOLR = T1ReadWord(Vdp1Ram, addr + 0x6);
-   cmd->CMDSRCA = T1ReadWord(Vdp1Ram, addr + 0x8);
-   cmd->CMDSIZE = T1ReadWord(Vdp1Ram, addr + 0xA);
-   cmd->CMDXA = T1ReadWord(Vdp1Ram, addr + 0xC);
-   cmd->CMDYA = T1ReadWord(Vdp1Ram, addr + 0xE);
-   cmd->CMDXB = T1ReadWord(Vdp1Ram, addr + 0x10);
-   cmd->CMDYB = T1ReadWord(Vdp1Ram, addr + 0x12);
-   cmd->CMDXC = T1ReadWord(Vdp1Ram, addr + 0x14);
-   cmd->CMDYC = T1ReadWord(Vdp1Ram, addr + 0x16);
-   cmd->CMDXD = T1ReadWord(Vdp1Ram, addr + 0x18);
-   cmd->CMDYD = T1ReadWord(Vdp1Ram, addr + 0x1A);
-   cmd->CMDGRDA = T1ReadWord(Vdp1Ram, addr + 0x1C);
+void FASTCALL Vdp1ReadCommand(vdp1cmd_struct *cmd, u32 addr, u8* ram) {
+   cmd->CMDCTRL = T1ReadWord(ram, addr);
+   cmd->CMDLINK = T1ReadWord(ram, addr + 0x2);
+   cmd->CMDPMOD = T1ReadWord(ram, addr + 0x4);
+   cmd->CMDCOLR = T1ReadWord(ram, addr + 0x6);
+   cmd->CMDSRCA = T1ReadWord(ram, addr + 0x8);
+   cmd->CMDSIZE = T1ReadWord(ram, addr + 0xA);
+   cmd->CMDXA = T1ReadWord(ram, addr + 0xC);
+   cmd->CMDYA = T1ReadWord(ram, addr + 0xE);
+   cmd->CMDXB = T1ReadWord(ram, addr + 0x10);
+   cmd->CMDYB = T1ReadWord(ram, addr + 0x12);
+   cmd->CMDXC = T1ReadWord(ram, addr + 0x14);
+   cmd->CMDYC = T1ReadWord(ram, addr + 0x16);
+   cmd->CMDXD = T1ReadWord(ram, addr + 0x18);
+   cmd->CMDYD = T1ReadWord(ram, addr + 0x1A);
+   cmd->CMDGRDA = T1ReadWord(ram, addr + 0x1C);
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -705,7 +813,7 @@ void Vdp1DebugCommand(u32 number, char *outstring)
       return;
    }
 
-   Vdp1ReadCommand(&cmd, addr);
+   Vdp1ReadCommand(&cmd, addr, Vdp1Ram);
 
    switch (cmd.CMDCTRL & 0x000F)
    {
@@ -1048,7 +1156,7 @@ u32 *Vdp1DebugTexture(u32 number, int *w, int *h)
       // Command Skipped
       return NULL;
 
-   Vdp1ReadCommand(&cmd, addr);
+   Vdp1ReadCommand(&cmd, addr, Vdp1Ram);
 
    switch (cmd.CMDCTRL & 0x000F)
    {

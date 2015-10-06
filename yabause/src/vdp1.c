@@ -1423,23 +1423,22 @@ void ToggleVDP1(void)
 //////////////////////////////////////////////////////////////////////////////
 // Dummy Video Interface
 //////////////////////////////////////////////////////////////////////////////
-
 int VIDDummyInit(void);
 void VIDDummyDeInit(void);
 void VIDDummyResize(unsigned int, unsigned int, int);
 int VIDDummyIsFullscreen(void);
 int VIDDummyVdp1Reset(void);
-void VIDDummyVdp1DrawStart(void);
+void VIDDummyVdp1DrawStart(Vdp1* regs, u8 * back_framebuffer);
 void VIDDummyVdp1DrawEnd(void);
-void VIDDummyVdp1NormalSpriteDraw(void);
-void VIDDummyVdp1ScaledSpriteDraw(void);
-void VIDDummyVdp1DistortedSpriteDraw(void);
-void VIDDummyVdp1PolygonDraw(void);
-void VIDDummyVdp1PolylineDraw(void);
-void VIDDummyVdp1LineDraw(void);
-void VIDDummyVdp1UserClipping(void);
-void VIDDummyVdp1SystemClipping(void);
-void VIDDummyVdp1LocalCoordinate(void);
+void VIDDummyVdp1NormalSpriteDraw(u8 * ram, Vdp1 * regs, u8* back_framebuffer);
+void VIDDummyVdp1ScaledSpriteDraw(u8 * ram, Vdp1 * regs, u8* back_framebuffer);
+void VIDDummyVdp1DistortedSpriteDraw(u8 * ram, Vdp1 * regs, u8* back_framebuffer);
+void VIDDummyVdp1PolygonDraw(u8 * ram, Vdp1 * regs, u8* back_framebuffer);
+void VIDDummyVdp1PolylineDraw(u8 * ram, Vdp1 * regs, u8* back_framebuffer);
+void VIDDummyVdp1LineDraw(u8 * ram, Vdp1 * regs, u8* back_framebuffer);
+void VIDDummyVdp1UserClipping(u8 * ram, Vdp1 * regs);
+void VIDDummyVdp1SystemClipping(u8 * ram, Vdp1 * regs);
+void VIDDummyVdp1LocalCoordinate(u8 * ram, Vdp1 * regs);
 int VIDDummyVdp2Reset(void);
 void VIDDummyVdp2DrawStart(void);
 void VIDDummyVdp2DrawEnd(void);
@@ -1509,7 +1508,7 @@ int VIDDummyVdp1Reset(void)
 
 //////////////////////////////////////////////////////////////////////////////
 
-void VIDDummyVdp1DrawStart(void)
+void VIDDummyVdp1DrawStart(Vdp1* regs, u8 * back_framebuffer)
 {
 }
 
@@ -1521,55 +1520,55 @@ void VIDDummyVdp1DrawEnd(void)
 
 //////////////////////////////////////////////////////////////////////////////
 
-void VIDDummyVdp1NormalSpriteDraw(void)
+void VIDDummyVdp1NormalSpriteDraw(u8 * ram, Vdp1 * regs, u8* back_framebuffer)
 {
 }
 
 //////////////////////////////////////////////////////////////////////////////
 
-void VIDDummyVdp1ScaledSpriteDraw(void)
+void VIDDummyVdp1ScaledSpriteDraw(u8 * ram, Vdp1 * regs, u8* back_framebuffer)
 {
 }
 
 //////////////////////////////////////////////////////////////////////////////
 
-void VIDDummyVdp1DistortedSpriteDraw(void)
+void VIDDummyVdp1DistortedSpriteDraw(u8 * ram, Vdp1 * regs, u8* back_framebuffer)
 {
 }
 
 //////////////////////////////////////////////////////////////////////////////
 
-void VIDDummyVdp1PolygonDraw(void)
+void VIDDummyVdp1PolygonDraw(u8 * ram, Vdp1 * regs, u8* back_framebuffer)
 {
 }
 
 //////////////////////////////////////////////////////////////////////////////
 
-void VIDDummyVdp1PolylineDraw(void)
+void VIDDummyVdp1PolylineDraw(u8 * ram, Vdp1 * regs, u8* back_framebuffer)
 {
 }
 
 //////////////////////////////////////////////////////////////////////////////
 
-void VIDDummyVdp1LineDraw(void)
+void VIDDummyVdp1LineDraw(u8 * ram, Vdp1 * regs, u8* back_framebuffer)
 {
 }
 
 //////////////////////////////////////////////////////////////////////////////
 
-void VIDDummyVdp1UserClipping(void)
+void VIDDummyVdp1UserClipping(u8 * ram, Vdp1 * regs)
 {
 }
 
 //////////////////////////////////////////////////////////////////////////////
 
-void VIDDummyVdp1SystemClipping(void)
+void VIDDummyVdp1SystemClipping(u8 * ram, Vdp1 * regs)
 {
 }
 
 //////////////////////////////////////////////////////////////////////////////
 
-void VIDDummyVdp1LocalCoordinate(void)
+void VIDDummyVdp1LocalCoordinate(u8 * ram, Vdp1 * regs)
 {
 }
 

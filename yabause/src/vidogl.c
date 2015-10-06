@@ -68,17 +68,17 @@ void VIDOGLDeInit(void);
 void VIDOGLResize(unsigned int, unsigned int, int);
 int VIDOGLIsFullscreen(void);
 int VIDOGLVdp1Reset(void);
-void VIDOGLVdp1DrawStart(void);
+void VIDOGLVdp1DrawStart(Vdp1* regs, u8 * back_framebuffer);
 void VIDOGLVdp1DrawEnd(void);
-void VIDOGLVdp1NormalSpriteDraw(void);
-void VIDOGLVdp1ScaledSpriteDraw(void);
-void VIDOGLVdp1DistortedSpriteDraw(void);
-void VIDOGLVdp1PolygonDraw(void);
-void VIDOGLVdp1PolylineDraw(void);
-void VIDOGLVdp1LineDraw(void);
-void VIDOGLVdp1UserClipping(void);
-void VIDOGLVdp1SystemClipping(void);
-void VIDOGLVdp1LocalCoordinate(void);
+void VIDOGLVdp1NormalSpriteDraw(u8 * ram, Vdp1 * regs, u8* back_framebuffer);
+void VIDOGLVdp1ScaledSpriteDraw(u8 * ram, Vdp1 * regs, u8* back_framebuffer);
+void VIDOGLVdp1DistortedSpriteDraw(u8 * ram, Vdp1 * regs, u8* back_framebuffer);
+void VIDOGLVdp1PolygonDraw(u8 * ram, Vdp1 * regs, u8* back_framebuffer);
+void VIDOGLVdp1PolylineDraw(u8 * ram, Vdp1 * regs, u8* back_framebuffer);
+void VIDOGLVdp1LineDraw(u8 * ram, Vdp1 * regs, u8* back_framebuffer);
+void VIDOGLVdp1UserClipping(u8 * ram, Vdp1 * regs);
+void VIDOGLVdp1SystemClipping(u8 * ram, Vdp1 * regs);
+void VIDOGLVdp1LocalCoordinate(u8 * ram, Vdp1 * regs);
 int VIDOGLVdp2Reset(void);
 void VIDOGLVdp2DrawStart(void);
 void VIDOGLVdp2DrawEnd(void);
@@ -3081,7 +3081,7 @@ int VIDOGLVdp1Reset(void)
 
 //////////////////////////////////////////////////////////////////////////////
 
-void VIDOGLVdp1DrawStart(void)
+void VIDOGLVdp1DrawStart(Vdp1* regs, u8 * back_framebuffer)
 {
    int i;
    int maxpri;
@@ -3158,7 +3158,7 @@ void VIDOGLVdp1DrawEnd(void)
 
 //////////////////////////////////////////////////////////////////////////////
 
-void VIDOGLVdp1NormalSpriteDraw(void)
+void VIDOGLVdp1NormalSpriteDraw(u8 * ram, Vdp1 * regs, u8* back_framebuffer)
 {
    vdp1cmd_struct cmd;
    YglSprite sprite;
@@ -3269,7 +3269,7 @@ void VIDOGLVdp1NormalSpriteDraw(void)
 
 //////////////////////////////////////////////////////////////////////////////
 
-void VIDOGLVdp1ScaledSpriteDraw(void)
+void VIDOGLVdp1ScaledSpriteDraw(u8 * ram, Vdp1 * regs, u8* back_framebuffer)
 {
    vdp1cmd_struct cmd;
    YglSprite sprite;
@@ -3454,7 +3454,7 @@ void VIDOGLVdp1ScaledSpriteDraw(void)
 
 //////////////////////////////////////////////////////////////////////////////
 
-void VIDOGLVdp1DistortedSpriteDraw(void)
+void VIDOGLVdp1DistortedSpriteDraw(u8 * ram, Vdp1 * regs, u8* back_framebuffer)
 {
    vdp1cmd_struct cmd;
    YglSprite sprite;
@@ -3633,7 +3633,7 @@ void VIDOGLVdp1DistortedSpriteDraw(void)
 #define IS_REPLACE_OR_HALF_TRANSPARENT(a) ((a&0x03)==0x03)
 
 
-void VIDOGLVdp1PolygonDraw(void)
+void VIDOGLVdp1PolygonDraw(u8 * ram, Vdp1 * regs, u8* back_framebuffer)
 {
    s16 X[4];
    s16 Y[4];
@@ -3931,7 +3931,7 @@ static void  makeLinePolygon(s16 *v1, s16 *v2, float *outv){
 
 }
 
-void VIDOGLVdp1PolylineDraw(void)
+void VIDOGLVdp1PolylineDraw(u8 * ram, Vdp1 * regs, u8* back_framebuffer)
 {
    s16 v[8];
    float line_poygon[8];
@@ -4168,7 +4168,7 @@ void VIDOGLVdp1PolylineDraw(void)
 
 //////////////////////////////////////////////////////////////////////////////
 
-void VIDOGLVdp1LineDraw(void)
+void VIDOGLVdp1LineDraw(u8 * ram, Vdp1 * regs, u8* back_framebuffer)
 {
    s16 v[4];
    u16 color;
@@ -4280,7 +4280,7 @@ void VIDOGLVdp1LineDraw(void)
 
 //////////////////////////////////////////////////////////////////////////////
 
-void VIDOGLVdp1UserClipping(void)
+void VIDOGLVdp1UserClipping(u8 * ram, Vdp1 * regs)
 {
    Vdp1Regs->userclipX1 = T1ReadWord(Vdp1Ram, Vdp1Regs->addr + 0xC);
    Vdp1Regs->userclipY1 = T1ReadWord(Vdp1Ram, Vdp1Regs->addr + 0xE);
@@ -4290,7 +4290,7 @@ void VIDOGLVdp1UserClipping(void)
 
 //////////////////////////////////////////////////////////////////////////////
 
-void VIDOGLVdp1SystemClipping(void)
+void VIDOGLVdp1SystemClipping(u8 * ram, Vdp1 * regs)
 {
    Vdp1Regs->systemclipX1 = 0;
    Vdp1Regs->systemclipY1 = 0;
@@ -4300,7 +4300,7 @@ void VIDOGLVdp1SystemClipping(void)
 
 //////////////////////////////////////////////////////////////////////////////
 
-void VIDOGLVdp1LocalCoordinate(void)
+void VIDOGLVdp1LocalCoordinate(u8 * ram, Vdp1 * regs)
 {
    Vdp1Regs->localX = T1ReadWord(Vdp1Ram, Vdp1Regs->addr + 0xC);
    Vdp1Regs->localY = T1ReadWord(Vdp1Ram, Vdp1Regs->addr + 0xE);

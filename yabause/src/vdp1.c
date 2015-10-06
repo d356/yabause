@@ -559,22 +559,6 @@ int thread = 1;
 
 void Vdp1Draw(void) 
 {
-
-   if (thread)
-   {
-      VIDCore->Vdp1DrawStart(vidsoft_vdp1_thread_context.back_framebuffer);  
-   }
-   else
-   {
-      VIDCore->Vdp1DrawStart(vdp1backframebuffer);
-   }
-
-   if (!Vdp1External.disptoggle)
-   {
-      Vdp1NoDraw();
-      return;
-   }
-
    Vdp1Regs->addr = 0;
 
    // beginning of a frame
@@ -586,12 +570,26 @@ void Vdp1Draw(void)
 
    if (thread)
    {
+      memcpy(vidsoft_vdp1_thread_context.ram, Vdp1Ram, 0x80000);
+      memcpy(&vidsoft_vdp1_thread_context.regs, Vdp1Regs, sizeof(Vdp1));
+      VIDCore->Vdp1DrawStart(&vidsoft_vdp1_thread_context.regs, vidsoft_vdp1_thread_context.back_framebuffer);
+   }
+   else
+   {
+      VIDCore->Vdp1DrawStart(Vdp1Regs, vdp1backframebuffer);
+   }
+
+   if (!Vdp1External.disptoggle)
+   {
+      Vdp1NoDraw();
+      return;
+   }
+
+   if (thread)
+   {
       memset(saved, 0, sizeof(struct VidsoftVdp1SavedFramebufferWrites) * saved_size);
 
       save_count = 0;
-
-      memcpy(vidsoft_vdp1_thread_context.ram, Vdp1Ram, 0x80000);
-      memcpy(&vidsoft_vdp1_thread_context.regs, Vdp1Regs, sizeof(Vdp1));
 
       vidsoft_vdp1_thread_context.draw_finished = 0;
       vidsoft_vdp1_thread_context.need_draw = 1;

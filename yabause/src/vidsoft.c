@@ -82,7 +82,7 @@ void VIDSoftDeInit(void);
 void VIDSoftResize(unsigned int, unsigned int, int);
 int VIDSoftIsFullscreen(void);
 int VIDSoftVdp1Reset(void);
-void VIDSoftVdp1DrawStart(u8 * back_framebuffer);
+void VIDSoftVdp1DrawStart(Vdp1* regs, u8 * back_framebuffer);
 void VIDSoftVdp1DrawEnd(void);
 void VIDSoftVdp1NormalSpriteDraw(u8 * ram, Vdp1 * regs, u8* back_framebuffer);
 void VIDSoftVdp1ScaledSpriteDraw(u8 * ram, Vdp1 * regs, u8* back_framebuffer);
@@ -2074,15 +2074,15 @@ int VIDSoftVdp1Reset(void)
 
 //////////////////////////////////////////////////////////////////////////////
 
-void VIDSoftVdp1DrawStart(u8 * back_framebuffer)
+void VIDSoftVdp1DrawStart(Vdp1* regs, u8 * back_framebuffer)
 {
-   if (Vdp1Regs->FBCR & 8)
+   if (regs->FBCR & 8)
       vdp1interlace = 2;
    else
       vdp1interlace = 1;
-   if (Vdp1Regs->TVMR & 0x1)
+   if (regs->TVMR & 0x1)
    {
-      if (Vdp1Regs->TVMR & 0x2)
+      if (regs->TVMR & 0x2)
       {
          // Rotation 8-bit
          vdp1width = 512;
@@ -2107,10 +2107,10 @@ void VIDSoftVdp1DrawStart(u8 * back_framebuffer)
 
    VIDSoftVdp1EraseFrameBuffer(back_framebuffer);
 
-   vdp1clipxstart = Vdp1Regs->userclipX1 = Vdp1Regs->systemclipX1 = 0;
-   vdp1clipystart = Vdp1Regs->userclipY1 = Vdp1Regs->systemclipY1 = 0;
-   vdp1clipxend = Vdp1Regs->userclipX2 = Vdp1Regs->systemclipX2 = vdp1width;
-   vdp1clipyend = Vdp1Regs->userclipY2 = Vdp1Regs->systemclipY2 = vdp1height;
+   vdp1clipxstart = regs->userclipX1 = regs->systemclipX1 = 0;
+   vdp1clipystart = regs->userclipY1 = regs->systemclipY1 = 0;
+   vdp1clipxend = regs->userclipX2 = regs->systemclipX2 = vdp1width;
+   vdp1clipyend = regs->userclipY2 = regs->systemclipY2 = vdp1height;
 }
 
 //////////////////////////////////////////////////////////////////////////////

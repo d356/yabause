@@ -74,17 +74,17 @@ void VIDGCDDeInit(void);
 void VIDGCDResize(unsigned int, unsigned int, int);
 int VIDGCDIsFullscreen(void);
 int VIDGCDVdp1Reset(void);
-void VIDGCDVdp1DrawStart(void);
+void VIDGCDVdp1DrawStart(Vdp1* regs, u8 * back_framebuffer);
 void VIDGCDVdp1DrawEnd(void);
-void VIDGCDVdp1NormalSpriteDraw(void);
-void VIDGCDVdp1ScaledSpriteDraw(void);
-void VIDGCDVdp1DistortedSpriteDraw(void);
-void VIDGCDVdp1PolygonDraw(void);
-void VIDGCDVdp1PolylineDraw(void);
-void VIDGCDVdp1LineDraw(void);
-void VIDGCDVdp1UserClipping(void);
-void VIDGCDVdp1SystemClipping(void);
-void VIDGCDVdp1LocalCoordinate(void);
+void VIDGCDVdp1NormalSpriteDraw(u8 * ram, Vdp1 * regs, u8* back_framebuffer);
+void VIDGCDVdp1ScaledSpriteDraw(u8 * ram, Vdp1 * regs, u8* back_framebuffer);
+void VIDGCDVdp1DistortedSpriteDraw(u8 * ram, Vdp1 * regs, u8* back_framebuffer);
+void VIDGCDVdp1PolygonDraw(u8 * ram, Vdp1 * regs, u8* back_framebuffer);
+void VIDGCDVdp1PolylineDraw(u8 * ram, Vdp1 * regs, u8* back_framebuffer);
+void VIDGCDVdp1LineDraw(u8 * ram, Vdp1 * regs, u8* back_framebuffer);
+void VIDGCDVdp1UserClipping(u8 * ram, Vdp1 * regs);
+void VIDGCDVdp1SystemClipping(u8 * ram, Vdp1 * regs);
+void VIDGCDVdp1LocalCoordinate(u8 * ram, Vdp1 * regs);
 int VIDGCDVdp2Reset(void);
 void VIDGCDVdp2DrawStart(void);
 void VIDGCDVdp2DrawEnd(void);
@@ -1624,7 +1624,7 @@ int VIDGCDVdp1Reset(void)
 
 //////////////////////////////////////////////////////////////////////////////
 
-void VIDGCDVdp1DrawStart(void)
+void VIDGCDVdp1DrawStart(Vdp1* regs, u8 * back_framebuffer)
 {
    if (Vdp1Regs->TVMR & 0x1)
    {
@@ -2349,7 +2349,7 @@ static void drawQuad(s32 tl_x, s32 tl_y, s32 bl_x, s32 bl_y, s32 tr_x, s32 tr_y,
 	}
 }
 
-void VIDGCDVdp1NormalSpriteDraw() {
+void VIDGCDVdp1NormalSpriteDraw(u8 * ram, Vdp1 * regs, u8* back_framebuffer) {
 
 	s16 topLeftx,topLefty,topRightx,topRighty,bottomRightx,bottomRighty,bottomLeftx,bottomLefty;
 	int spriteWidth;
@@ -2371,7 +2371,7 @@ void VIDGCDVdp1NormalSpriteDraw() {
 	drawQuad(topLeftx,topLefty,bottomLeftx,bottomLefty,topRightx,topRighty,bottomRightx,bottomRighty);
 }
 
-void VIDGCDVdp1ScaledSpriteDraw(){
+void VIDGCDVdp1ScaledSpriteDraw(u8 * ram, Vdp1 * regs, u8* back_framebuffer){
 
 	s32 topLeftx,topLefty,topRightx,topRighty,bottomRightx,bottomRighty,bottomLeftx,bottomLefty;
 	int spriteWidth;
@@ -2473,7 +2473,7 @@ void VIDGCDVdp1ScaledSpriteDraw(){
 	drawQuad(topLeftx,topLefty,bottomLeftx,bottomLefty,topRightx,topRighty,bottomRightx,bottomRighty);
 }
 
-void VIDGCDVdp1DistortedSpriteDraw() {
+void VIDGCDVdp1DistortedSpriteDraw(u8 * ram, Vdp1 * regs, u8* back_framebuffer) {
 
 	s32 xa,ya,xb,yb,xc,yc,xd,yd;
 
@@ -2507,7 +2507,7 @@ static void gouraudLineSetup(double * redstep, double * greenstep, double * blue
 	leftColumnColor.b = table1.b;
 }
 
-void VIDGCDVdp1PolylineDraw(void)
+void VIDGCDVdp1PolylineDraw(u8 * ram, Vdp1 * regs, u8* back_framebuffer)
 {
 	int X[4];
 	int Y[4];
@@ -2542,7 +2542,7 @@ void VIDGCDVdp1PolylineDraw(void)
 	DrawLine(X[0], Y[0], X[3], Y[3], 0,0,redstep,greenstep,bluestep);
 }
 
-void VIDGCDVdp1LineDraw(void)
+void VIDGCDVdp1LineDraw(u8 * ram, Vdp1 * regs, u8* back_framebuffer)
 {
 	int x1, y1, x2, y2;
 	double redstep = 0, greenstep = 0, bluestep = 0;
@@ -2562,7 +2562,7 @@ void VIDGCDVdp1LineDraw(void)
 
 //////////////////////////////////////////////////////////////////////////////
 
-void VIDGCDVdp1UserClipping(void)
+void VIDGCDVdp1UserClipping(u8 * ram, Vdp1 * regs)
 {
    Vdp1Regs->userclipX1 = T1ReadWord(Vdp1Ram, Vdp1Regs->addr + 0xC);
    Vdp1Regs->userclipY1 = T1ReadWord(Vdp1Ram, Vdp1Regs->addr + 0xE);
@@ -2647,7 +2647,7 @@ static void PopUserClipping(void)
 
 //////////////////////////////////////////////////////////////////////////////
 
-void VIDGCDVdp1SystemClipping(void)
+void VIDGCDVdp1SystemClipping(u8 * ram, Vdp1 * regs)
 {
    Vdp1Regs->systemclipX1 = 0;
    Vdp1Regs->systemclipY1 = 0;
@@ -2662,7 +2662,7 @@ void VIDGCDVdp1SystemClipping(void)
 
 //////////////////////////////////////////////////////////////////////////////
 
-void VIDGCDVdp1LocalCoordinate(void)
+void VIDGCDVdp1LocalCoordinate(u8 * ram, Vdp1 * regs)
 {
    Vdp1Regs->localX = T1ReadWord(Vdp1Ram, Vdp1Regs->addr + 0xC);
    Vdp1Regs->localY = T1ReadWord(Vdp1Ram, Vdp1Regs->addr + 0xE);

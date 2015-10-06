@@ -2213,7 +2213,7 @@ static void gouraudTable(void)
 {
 	int gouraudTableAddress;
 
-	Vdp1ReadCommand(&cmd, Vdp1Regs->addr);
+   Vdp1ReadCommand(&cmd, Vdp1Regs->addr, Vdp1Ram);
 
 	gouraudTableAddress = (((unsigned int)cmd.CMDGRDA) << 3);
 
@@ -2248,7 +2248,7 @@ static void drawQuad(s32 tl_x, s32 tl_y, s32 bl_x, s32 bl_y, s32 tr_x, s32 tr_y,
 	//a lookup table for the gouraud colors
 	COLOR colors[4];
 
-	Vdp1ReadCommand(&cmd, Vdp1Regs->addr);
+   Vdp1ReadCommand(&cmd, Vdp1Regs->addr, Vdp1Ram);
 	characterWidth = ((cmd.CMDSIZE >> 8) & 0x3F) * 8;
 	characterHeight = cmd.CMDSIZE & 0xFF;
 
@@ -2354,7 +2354,7 @@ void VIDGCDVdp1NormalSpriteDraw(u8 * ram, Vdp1 * regs, u8* back_framebuffer) {
 	s16 topLeftx,topLefty,topRightx,topRighty,bottomRightx,bottomRighty,bottomLeftx,bottomLefty;
 	int spriteWidth;
 	int spriteHeight;
-	Vdp1ReadCommand(&cmd, Vdp1Regs->addr);
+   Vdp1ReadCommand(&cmd, Vdp1Regs->addr, Vdp1Ram);
 
 	topLeftx = cmd.CMDXA + Vdp1Regs->localX;
 	topLefty = cmd.CMDYA + Vdp1Regs->localY;
@@ -2377,7 +2377,7 @@ void VIDGCDVdp1ScaledSpriteDraw(u8 * ram, Vdp1 * regs, u8* back_framebuffer){
 	int spriteWidth;
 	int spriteHeight;
 	int x0,y0,x1,y1;
-	Vdp1ReadCommand(&cmd, Vdp1Regs->addr);
+   Vdp1ReadCommand(&cmd, Vdp1Regs->addr, Vdp1Ram);
 
 	x0 = cmd.CMDXA + Vdp1Regs->localX;
 	y0 = cmd.CMDYA + Vdp1Regs->localY;
@@ -2477,7 +2477,7 @@ void VIDGCDVdp1DistortedSpriteDraw(u8 * ram, Vdp1 * regs, u8* back_framebuffer) 
 
 	s32 xa,ya,xb,yb,xc,yc,xd,yd;
 
-	Vdp1ReadCommand(&cmd, Vdp1Regs->addr);
+   Vdp1ReadCommand(&cmd, Vdp1Regs->addr, Vdp1Ram);
 
     xa = (s32)(cmd.CMDXA + Vdp1Regs->localX);
     ya = (s32)(cmd.CMDYA + Vdp1Regs->localY);
@@ -2514,7 +2514,7 @@ void VIDGCDVdp1PolylineDraw(u8 * ram, Vdp1 * regs, u8* back_framebuffer)
 	double redstep = 0, greenstep = 0, bluestep = 0;
 	int length;
 
-	Vdp1ReadCommand(&cmd, Vdp1Regs->addr);
+   Vdp1ReadCommand(&cmd, Vdp1Regs->addr, Vdp1Ram);
 
 	X[0] = (int)Vdp1Regs->localX + (int)((s16)T1ReadWord(Vdp1Ram, Vdp1Regs->addr + 0x0C));
 	Y[0] = (int)Vdp1Regs->localY + (int)((s16)T1ReadWord(Vdp1Ram, Vdp1Regs->addr + 0x0E));
@@ -2548,7 +2548,7 @@ void VIDGCDVdp1LineDraw(u8 * ram, Vdp1 * regs, u8* back_framebuffer)
 	double redstep = 0, greenstep = 0, bluestep = 0;
 	int length;
 
-	Vdp1ReadCommand(&cmd, Vdp1Regs->addr);
+   Vdp1ReadCommand(&cmd, Vdp1Regs->addr, Vdp1Ram);
 
 	x1 = (int)Vdp1Regs->localX + (int)((s16)T1ReadWord(Vdp1Ram, Vdp1Regs->addr + 0x0C));
 	y1 = (int)Vdp1Regs->localY + (int)((s16)T1ReadWord(Vdp1Ram, Vdp1Regs->addr + 0x0E));

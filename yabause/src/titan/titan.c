@@ -299,7 +299,7 @@ int TitanInit()
 
 #ifdef WANT_VIDSOFT_PRIORITY_THREADING
 
-      for (i = 0; i < 6; i++)
+      for (i = 0; i < 4; i++)
       {
          priority_thread_context.draw_finished[i] = 1;
          priority_thread_context.need_draw[i] = 0;

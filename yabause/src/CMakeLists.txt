@@ -597,8 +597,8 @@ if (MSVC)
 endif ()
 
 if (NOT ANDROID)
-    option(YAB_WANT_VIDSOFT_PRIORITY_THREADING "Use threads for vidsoft priority" ON)
-    option(YAB_WANT_VIDSOFT_LAYER_THREADING "Use threads for vidsoft layers" ON)
+    option(YAB_WANT_VIDSOFT_PRIORITY_THREADING "Use threads for vidsoft priority" OFF)
+    option(YAB_WANT_VIDSOFT_LAYER_THREADING "Use threads for vidsoft layers" OFF)
 
     if (YAB_WANT_VIDSOFT_PRIORITY_THREADING)
         add_definitions(-DWANT_VIDSOFT_PRIORITY_THREADING)

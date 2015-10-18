@@ -1191,7 +1191,7 @@ static void Vdp2DrawNBG0(void)
 
       info.rotatenum = 1;
       info.rotatemode = 0;
-      info.PlaneAddr = (void FASTCALL (*)(void *, int))&Vdp2ParameterBPlaneAddr;
+      info.PlaneAddr = (void FASTCALL(*)(void *, int, Vdp2*))&Vdp2ParameterBPlaneAddr;
    }
    else if (Vdp2Regs->BGON & 0x1)
    {
@@ -1225,7 +1225,7 @@ static void Vdp2DrawNBG0(void)
 
       info.coordincx = (Vdp2Regs->ZMXN0.all & 0x7FF00) / (float) 65536;
       info.coordincy = (Vdp2Regs->ZMYN0.all & 0x7FF00) / (float) 65536;
-      info.PlaneAddr = (void FASTCALL (*)(void *, int))&Vdp2NBG0PlaneAddr;
+      info.PlaneAddr = (void FASTCALL(*)(void *, int, Vdp2*))&Vdp2NBG0PlaneAddr;
    }
    else
       // Not enabled
@@ -1318,7 +1318,7 @@ static void Vdp2DrawNBG1(void)
    info.coordincy = (Vdp2Regs->ZMYN1.all & 0x7FF00) / (float) 65536;
 
    info.priority = nbg1priority;
-   info.PlaneAddr = (void FASTCALL (*)(void *, int))&Vdp2NBG1PlaneAddr;
+   info.PlaneAddr = (void FASTCALL(*)(void *, int, Vdp2*))&Vdp2NBG1PlaneAddr;
 
    if (!(info.enable & Vdp2External.disptoggle))
       return;
@@ -1372,12 +1372,12 @@ static void Vdp2DrawNBG2(void)
    info.coordincx = info.coordincy = 1;
 
    info.priority = nbg2priority;
-   info.PlaneAddr = (void FASTCALL (*)(void *, int))&Vdp2NBG2PlaneAddr;
+   info.PlaneAddr = (void FASTCALL (*)(void *, int, Vdp2*))&Vdp2NBG2PlaneAddr;
 
    if (!(info.enable & Vdp2External.disptoggle))
       return;
 
-   ReadMosaicData(&info, 0x4);
+   ReadMosaicData(&info, 0x4, Vdp2Regs);
    info.islinescroll = 0;
    info.isverticalscroll = 0;
    info.wctl = Vdp2Regs->WCTLB;
@@ -1413,7 +1413,7 @@ static void Vdp2DrawNBG3(void)
    info.coordincx = info.coordincy = 1;
 
    info.priority = nbg3priority;
-   info.PlaneAddr = (void FASTCALL (*)(void *, int))&Vdp2NBG3PlaneAddr;
+   info.PlaneAddr = (void FASTCALL (*)(void *, int, Vdp2*))&Vdp2NBG3PlaneAddr;
 
    if (!(info.enable & Vdp2External.disptoggle))
       return;
@@ -1450,13 +1450,13 @@ static void Vdp2DrawRBG0(void)
          // Parameter A
          info.rotatenum = 0;
          info.rotatemode = 0;
-         info.PlaneAddr = (void FASTCALL (*)(void *, int))&Vdp2ParameterAPlaneAddr;
+         info.PlaneAddr = (void FASTCALL (*)(void *, int, Vdp2*))&Vdp2ParameterAPlaneAddr;
          break;
       case 1:
          // Parameter B
          info.rotatenum = 1;
          info.rotatemode = 0;
-         info.PlaneAddr = (void FASTCALL (*)(void *, int))&Vdp2ParameterBPlaneAddr;
+         info.PlaneAddr = (void FASTCALL(*)(void *, int, Vdp2*))&Vdp2ParameterBPlaneAddr;
          break;
       case 2:
          // Parameter A+B switched via coefficients
@@ -1465,7 +1465,7 @@ static void Vdp2DrawRBG0(void)
       default:
          info.rotatenum = 0;
          info.rotatemode = 1 + (Vdp2Regs->RPMD & 0x1);
-         info.PlaneAddr = (void FASTCALL (*)(void *, int))&Vdp2ParameterAPlaneAddr;
+         info.PlaneAddr = (void FASTCALL(*)(void *, int, Vdp2*))&Vdp2ParameterAPlaneAddr;
          break;
    }
 
@@ -2753,7 +2753,7 @@ void VIDGCDVdp2DrawStart(void)
     vdp1draw_info.clip[1].xend = vdp1draw_info.clip[1].yend = 0;
     ReadWindowData(wctl, vdp1draw_info.clip, Vdp2Regs);
     vdp1draw_info.linewnd0addr = vdp1draw_info.linewnd1addr = 0;
-    ReadLineWindowData(&vdp1draw_info.islinewindow, wctl, &vdp1draw_info.linewnd0addr, &vdp1draw_info.linewnd1addr);
+    ReadLineWindowData(&vdp1draw_info.islinewindow, wctl, &vdp1draw_info.linewnd0addr, &vdp1draw_info.linewnd1addr, Vdp2Regs);
 }
 
 //////////////////////////////////////////////////////////////////////////////

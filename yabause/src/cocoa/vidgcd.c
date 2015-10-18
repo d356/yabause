@@ -1169,7 +1169,7 @@ static void Vdp2DrawNBG0(void)
       info.enable = Vdp2Regs->BGON & 0x20;
 
       // Read in Parameter B
-      Vdp2ReadRotationTableFP(1, &parameter[1]);
+      Vdp2ReadRotationTableFP(1, &parameter[1], Vdp2Regs, Vdp2Ram);
 
       if((info.isbitmap = Vdp2Regs->CHCTLA & 0x2) != 0)
       {
@@ -1323,7 +1323,7 @@ static void Vdp2DrawNBG1(void)
    if (!(info.enable & Vdp2External.disptoggle))
       return;
 
-   ReadMosaicData(&info, 0x2);
+   ReadMosaicData(&info, 0x2, Vdp2Regs);
    ReadLineScrollData(&info, Vdp2Regs->SCRCTL >> 8, Vdp2Regs->LSTA1.all);
    if (Vdp2Regs->SCRCTL & 0x100)
    {
@@ -1418,7 +1418,7 @@ static void Vdp2DrawNBG3(void)
    if (!(info.enable & Vdp2External.disptoggle))
       return;
 
-   ReadMosaicData(&info, 0x8);
+   ReadMosaicData(&info, 0x8, Vdp2Regs);
    info.islinescroll = 0;
    info.isverticalscroll = 0;
    info.wctl = Vdp2Regs->WCTLB >> 8;

@@ -2421,7 +2421,7 @@ static void Vdp2DrawMapPerLine(vdp2draw_struct *info, YglTexture *texture){
 		if (info->coordincx < info->maxzoom) info->coordincx = info->maxzoom;
 		info->draww = (int)((float)vdp2width / info->coordincx);
 
-		regs = Vdp2RestoreRegs(v);
+		regs = Vdp2RestoreRegs(v, Vdp2Lines);
 		if (regs) ReadVdp2ColorOffset(regs, info, info->linecheck_mask);
 
 		// determine which chara shoud be used.
@@ -2780,7 +2780,7 @@ static void FASTCALL Vdp2DrawRotation(vdp2draw_struct *info, vdp2rotationparamet
       patternshift = 0;      
    }
    
-   regs = Vdp2RestoreRegs(3);
+   regs = Vdp2RestoreRegs(3, Vdp2Lines);
    if (regs) ReadVdp2ColorOffset(regs, info, info->linecheck_mask);
 
    line_texture.textdata = NULL;

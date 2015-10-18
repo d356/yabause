@@ -138,10 +138,10 @@ static INLINE char *AddBitmapInfoString(char *outstring, int wh, int palnum, int
 
 //////////////////////////////////////////////////////////////////////////////
 
-static void CalcWindowCoordinates(int num, int *hstart, int *vstart, int *hend, int *vend)
+static void CalcWindowCoordinates(int num, int *hstart, int *vstart, int *hend, int *vend, Vdp2* regs)
 {
    clipping_struct clip;
-   ReadWindowCoordinates(num, &clip);
+   ReadWindowCoordinates(num, &clip, regs);
    *hstart = clip.xstart;
    *vstart = clip.ystart;
    *hend = clip.xend;
@@ -167,7 +167,7 @@ static INLINE char *AddWindowInfoString(char *outstring, int wctl, int issprite)
       else
       {
          // Normal Window
-         CalcWindowCoordinates(0, &hstart, &vstart, &hend, &vend);
+         CalcWindowCoordinates(0, &hstart, &vstart, &hend, &vend, Vdp2Regs);
          AddString(outstring, "Horizontal start = %d\r\n", hstart);
          AddString(outstring, "Vertical start = %d\r\n", vstart);
          AddString(outstring, "Horizontal end = %d\r\n", hend);
@@ -192,7 +192,7 @@ static INLINE char *AddWindowInfoString(char *outstring, int wctl, int issprite)
       else
       {
          // Normal Window
-         CalcWindowCoordinates(1, &hstart, &vstart, &hend, &vend);
+         CalcWindowCoordinates(1, &hstart, &vstart, &hend, &vend, Vdp2Regs);
          AddString(outstring, "Horizontal start = %d\r\n", hstart);
          AddString(outstring, "Vertical start = %d\r\n", vstart);
          AddString(outstring, "Horizontal end = %d\r\n", hend);
@@ -437,7 +437,7 @@ void Vdp2DebugStatsRBG0(char *outstring, int *isenabled)
             if (Vdp2Regs->WCTLD & 0x2)
             {
                AddString(outstring, "Rotation Window 0 Enabled\r\n");
-               CalcWindowCoordinates(0, &hstart, &vstart, &hend, &vend);
+               CalcWindowCoordinates(0, &hstart, &vstart, &hend, &vend, Vdp2Regs);
                AddString(outstring, "Horizontal start = %d\r\n", hstart);
                AddString(outstring, "Vertical start = %d\r\n", vstart);
                AddString(outstring, "Horizontal end = %d\r\n", hend);
@@ -446,7 +446,7 @@ void Vdp2DebugStatsRBG0(char *outstring, int *isenabled)
             else if (Vdp2Regs->WCTLD & 0x4)
             {
                AddString(outstring, "Rotation Window 1 Enabled\r\n");
-               CalcWindowCoordinates(1, &hstart, &vstart, &hend, &vend);
+               CalcWindowCoordinates(1, &hstart, &vstart, &hend, &vend, Vdp2Regs);
                AddString(outstring, "Horizontal start = %d\r\n", hstart);
                AddString(outstring, "Vertical start = %d\r\n", vstart);
                AddString(outstring, "Horizontal end = %d\r\n", hend);

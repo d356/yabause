@@ -1469,7 +1469,7 @@ static void Vdp2DrawRBG0(void)
          break;
    }
 
-   Vdp2ReadRotationTableFP(info.rotatenum, &parameter[info.rotatenum]);
+   Vdp2ReadRotationTableFP(info.rotatenum, &parameter[info.rotatenum], Vdp2Regs, Vdp2Ram);
 
    if((info.isbitmap = Vdp2Regs->CHCTLB & 0x200) != 0)
    {
@@ -1510,7 +1510,7 @@ static void Vdp2DrawRBG0(void)
    ReadVdp2ColorOffset(&info, 0x10, 0x10);
    info.coordincx = info.coordincy = 1;
 
-   ReadMosaicData(&info, 0x10);
+   ReadMosaicData(&info, 0x10, Vdp2Regs);
    info.islinescroll = 0;
    info.isverticalscroll = 0;
    info.wctl = Vdp2Regs->WCTLC;
@@ -2751,7 +2751,7 @@ void VIDGCDVdp2DrawStart(void)
     vdp1draw_info.clip[0].xend = vdp1draw_info.clip[0].yend = 0;
     vdp1draw_info.clip[1].xstart = vdp1draw_info.clip[1].ystart = 0;
     vdp1draw_info.clip[1].xend = vdp1draw_info.clip[1].yend = 0;
-    ReadWindowData(wctl, vdp1draw_info.clip);
+    ReadWindowData(wctl, vdp1draw_info.clip, Vdp2Regs);
     vdp1draw_info.linewnd0addr = vdp1draw_info.linewnd1addr = 0;
     ReadLineWindowData(&vdp1draw_info.islinewindow, wctl, &vdp1draw_info.linewnd0addr, &vdp1draw_info.linewnd1addr);
 }
@@ -2850,13 +2850,13 @@ void VIDGCDVdp2DrawEnd(void)
       wctl = Vdp2Regs->WCTLC >> 8;
       clip[0].xstart = clip[0].ystart = clip[0].xend = clip[0].yend = 0;
       clip[1].xstart = clip[1].ystart = clip[1].xend = clip[1].yend = 0;
-      ReadWindowData(wctl, clip);
+      ReadWindowData(wctl, clip, Vdp2Regs);
       linewnd0addr = linewnd1addr = 0;
-      ReadLineWindowData(&islinewindow, wctl, &linewnd0addr, &linewnd1addr);
+      ReadLineWindowData(&islinewindow, wctl, &linewnd0addr, &linewnd1addr, Vdp2Regs);
 
       for (i2 = 0; i2 < vdp2height; i2++)
       {
-         ReadLineWindowClip(islinewindow, clip, &linewnd0addr, &linewnd1addr);
+         ReadLineWindowClip(islinewindow, clip, &linewnd0addr, &linewnd1addr, Vdp2Ram, Vdp2Regs);
 
          for (i = 0; i < vdp2width; i++)
          {
@@ -2984,7 +2984,7 @@ static void Vdp1DrawPriority(int prio) {
             u32 linewnd0addr = vdp1draw_info.linewnd0addr;
             u32 linewnd1addr = vdp1draw_info.linewnd1addr;
 
-            ReadLineWindowClip(islinewindow, vdp1draw_info.clip, &linewnd0addr, &linewnd1addr);
+            ReadLineWindowClip(islinewindow, vdp1draw_info.clip, &linewnd0addr, &linewnd1addr, Vdp2Ram, Vdp2Regs);
             
             for(i = 0; i < vdp2width; ++i, ++fb16, ++fb) {
                 // See if screen position is clipped, if it isn't, continue

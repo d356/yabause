@@ -313,3 +313,46 @@ void slavesh2_test()
 	do_tests("Slave SH2 Tests", 0, 0);
 	slavesh2_deinit();
 }
+
+
+#define SH2REG_SMR (*(volatile u8 *)0xFFFFFE00)//serial mode register
+#define SH2REG_BRR (*(volatile u8 *)0xFFFFFE01)//bit rate register
+#define SH2REG_SCR (*(volatile u8 *)0xFFFFFE02)//serial control register
+#define SH2REG_TDR (*(volatile u8 *)0xFFFFFE03)//transmit data register
+#define SH2REG_SSR (*(volatile u8 *)0xFFFFFE04)//serial status register
+#define SH2REG_RDR (*(volatile u8 *)0xFFFFFE05)//receive data register
+
+//clear te and re bits in scr to 0
+//select transmit/receive format in smr
+//set value in brr
+//set cke1 and cke0 bits in scr (te and re bits are 0)
+//has a 1-bit interval elapsed? if not, wait
+//set te and re bits in scr to 1 and set rie,teie and mpie bits
+//end
+
+void test()
+{
+   volatile int i;
+
+   SH2REG_SCR = 0;
+
+   //start, 8 bit data, stop (10 bits)
+   //n = 0, phi/4 : cks1 = 0, cks0 = 0
+   SH2REG_SMR = 0;
+
+   //1200 baud
+   SH2REG_BRR = 186;
+
+   //wait for a while
+   for (i = 0; i < 1200; i++) {}
+
+   //enable receive interrupt
+   //enable trasmit end interrupt
+   //enable multiprocessor interrupt
+   SH2REG_SCR = (1 << 6) | (1 << 5) | (1 << 4) | (1 << 3) | (1 << 2);
+
+
+
+
+
+}

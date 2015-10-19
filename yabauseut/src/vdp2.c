@@ -872,6 +872,7 @@ void vdp2_extended_color_write_regs(struct ExtendedColorRegs v, u32 line_table_a
 void vdp2_extended_color_calculation_test()
 {
    const u32 tile_address = 0x40000;
+
    const u32 line_table_address = 0x10000;
    int zero[] = { 1, 1, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 1, 1 };
    int one[] = { 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0 };
@@ -1225,7 +1226,7 @@ void write_tiles_4x(int x, int y, char * str, u32 vdp2_tile_address, u32 base)
 
 //////////////////////////////////////////////////////////////////////////////
 
-void draw_normal_shadow_sprite(int x, int y, const char * str)
+void draw_normal_shadow_sprite(int x, int y, const char * str, u16 bank)
 {
    sprite_struct quad = { 0 };
 
@@ -1241,12 +1242,183 @@ void draw_normal_shadow_sprite(int x, int y, const char * str)
    quad.y3 = top_right_y + size;
    quad.x4 = top_right_x;
    quad.y4 = top_right_y;
-   quad.bank = 0x0ffe;
+   quad.bank = bank;// 0x0ffe;
 
    vdp_draw_polygon(&quad);
 }
 
 //////////////////////////////////////////////////////////////////////////////
+
+void sprite_set_default_boilerplate()
+{
+   vdp_start_draw_list();
+
+   sprite_struct quad = { 0 };
+
+   //system clipping
+   quad.x = 320;
+   quad.y = 224;
+
+   vdp_system_clipping(&quad);
+
+   //user clipping
+   quad.x = 0;
+   quad.y = 0;
+   quad.x2 = 320;
+   quad.y2 = 224;
+
+   vdp_user_clipping(&quad);
+
+   quad.x = 0;
+   quad.y = 0;
+
+   vdp_local_coordinate(&quad);
+}
+
+void draw_sprites(u16 color)
+{
+   char* str = "\n\n\n\n";
+
+   sprite_set_default_boilerplate();
+
+   draw_normal_shadow_sprite(1, 0, str, color);
+
+   vdp_end_draw_list();
+}
+
+void transparent_sprite_test()
+{
+   const u32 vdp1_tile_address = 0x10000;
+   load_font_8x8_to_vram_1bpp_to_4bpp(vdp1_tile_address, VDP1_RAM);
+   volatile u16* framebuffer_ptr = (volatile u16*)0x25C80000;
+   volatile u32* framebuffer_ptr_32 = (volatile u32*)0x25C80000;
+   volatile u16* nbg0_ptr = (volatile u16*)0x25E20000;
+   volatile u32* nbg0_ptr_32 = (volatile u32*)0x25E20000;
+
+   volatile u32* ram_buffer = (volatile u32*)0x26000000 + 0x13000;
+   char* str = "\n\n\n\n";
+
+   screen_settings_struct settings;
+
+   settings.is_bitmap = TRUE;
+   settings.bitmap_size = BG_BITMAP512x256;
+   settings.transparent_bit = 0;
+   settings.color = BG_32786COLOR;
+   settings.special_priority = 0;
+   settings.special_color_calc = 0;
+   settings.extra_palette_num = 0;
+   settings.map_offset = (0x20000 >> 17);
+   vdp_nbg0_init(&settings);
+
+   VDP2_REG_CYCA0L = 0x44ee;
+   VDP2_REG_CYCA0U = 0xeeee;
+   //VDP2_REG_CYCB0L = 0x0255;
+   //VDP2_REG_CYCB0U = 0x565e; 
+   VDP2_REG_CYCB0L = 0xeeee;
+   VDP2_REG_CYCB0U = 0xeeee;
+
+   vdp_set_default_palette();
+
+   int x, y;
+
+   int i;
+
+   VDP2_REG_PRINA = 7;
+   VDP2_REG_PRISA = 6;
+
+   VDP2_REG_BGON = 0x0107;
+#if 0
+   VDP2_REG_CHCTLA = 0x3211;
+   VDP2_REG_CHCTLB = 0x1000;
+
+   VDP2_REG_PNCN0 = 0xc000;
+   VDP2_REG_PNCN1 = 0;
+   VDP2_REG_PNCN2 = 0x800a;
+   VDP2_REG_PNCN3 = 0x8048;
+   VDP2_REG_PNCN3 = 0xc008;
+
+   VDP2_REG_MPOFN = 0xc008;
+#endif
+
+
+
+   vdp_disp_on();
+   vdp_set_priority(SCREEN_NBG0, 7);
+
+   VDP2_REG_CCCTL = 1 | (1 << 8);
+
+   VDP2_REG_CCRNA = 7;
+
+   vdp_set_font(SCREEN_NBG0, &test_disp_font, 1);
+   test_disp_font.out = (u8 *)0x25E20000;
+   for (i = 5; i < 24; i += 2)
+      vdp_printf(&test_disp_font, 0 * 8, i * 8, 0xB, "NBG0 NBG0 NBG0 NBG0 NBG0 NBG0 NBG0");
+
+   for (;;)
+   {
+      //draw transparent sprites
+      vdp_vsync();
+
+      if (per[0].but_push_once & PAD_Y)
+      {
+         reset_system();
+      }
+
+
+      sprite_set_default_boilerplate();
+      vpd2_priority_shadow_draw_sprites(0, 0, vdp1_tile_address, 4);
+      vdp_end_draw_list();
+
+   //   draw_sprites(0xF777);
+
+      while (((VDP1_REG_EDSR >> 1) & 1) == 0) {}
+
+      //copy the previous frame's sprites
+      //and draw a regular frame
+      //vdp_vsync();
+
+      //if (per[0].but_push_once & PAD_Y)
+      //{
+      //   reset_system();
+      //}
+
+      //draw_sprites(0xf0f0);
+
+//# define BSWAP16(x)  (((u32)(x)>>8 & 0x00FF00FF) | ((u32)(x) & 0x00FF00FF) << 8)
+      while (((VDP1_REG_EDSR >> 1) & 1) == 0) {}
+      for (y = 0; y < 32; y++)
+      {
+         for (x = 0; x < 32; x++)
+         {
+            int readpos = ((y * 512) + x);
+            //int out_pos = (((y+16) * 512) + x + 16);
+           // nbg0_ptr[pos] = 0x7fff;//framebuffer_ptr[pos];
+
+            ram_buffer[readpos] = framebuffer_ptr_32[readpos];
+
+          //  nbg0_ptr[pos] = 0x7fff;//
+
+            //int pos_32 = ((y + 16) * 256) + x + 16;
+            //nbg0_ptr_32[pos_32] = 0x7fff7fff;
+         }
+      }
+
+      
+
+      for (y = 0; y < 32; y++)
+      {
+         volatile u8 *nbg0_ptr_8 = (volatile u8 *)(0x25E20000 + (y * 512));
+
+         for (x = 0; x < 32; x++)
+         {
+            nbg0_ptr_8[x] = 0xff;
+            //int width = 512 / 4;
+            //int readpos = ((y * width) + x);
+            //nbg0_ptr_32[readpos] = 0x7fff7ffff;//ram_buffer[readpos];
+         }
+      }
+   }
+}
 
 void vdp2_sprite_priority_shadow_test()
 {
@@ -1340,33 +1512,13 @@ void vdp2_sprite_priority_shadow_test()
       VDP2_REG_CCRSC = (u16)(nbg_ratio[0] | (nbg_ratio[1] << 8));
       VDP2_REG_CCRSD = (u16)(nbg_ratio[2] | (nbg_ratio[3] << 8));
 
-      vdp_start_draw_list();
-      sprite_struct quad = { 0 };
-
-      //system clipping
-      quad.x = 320;
-      quad.y = 224;
-
-      vdp_system_clipping(&quad);
-
-      //user clipping
-      quad.x = 0;
-      quad.y = 0;
-      quad.x2 = 320;
-      quad.y2 = 224;
-
-      vdp_user_clipping(&quad);
-
-      quad.x = 0;
-      quad.y = 0;
-
-      vdp_local_coordinate(&quad);
+      sprite_set_default_boilerplate();
 
       for (x = 0; x < 4; x++)
       {
          int x_pos = 20 + (5 * x);
          //normal shadow
-         draw_normal_shadow_sprite(x_pos, 0, str);
+         draw_normal_shadow_sprite(x_pos, 0, str, 0x0ffe);
          //msb shadow
          vpd2_priority_shadow_draw_sprites(x_pos, 5, vdp1_tile_address, 2);
          //sprite priority
@@ -2421,6 +2573,74 @@ void vdp2_resolution_test ()
 }
 
 //////////////////////////////////////////////////////////////////////////////
+
+void vdp2_mytest()
+{
+   screen_settings_struct settings;
+   int counter = 320 - 1, counter2 = 224 - 1;
+
+   const u32 vdp1_tile_address = 0x10000;
+   load_font_8x8_to_vram_1bpp_to_4bpp(vdp1_tile_address, VDP1_RAM);
+
+   VDP2_REG_PRISA = 6;
+
+   VDP2_REG_BGON = (1 << 4);//0x0107;
+
+   volatile u16* framebuffer_ptr = (volatile u16*)0x25C80000;
+
+   vdp_set_font(SCREEN_RBG0, &test_disp_font, 0);
+   test_disp_font.out = (u8 *)0x25E00000;
+
+   vdp_set_priority(SCREEN_NBG0, 2);
+   vdp_set_priority(SCREEN_NBG1, 3);
+
+   vdp_disp_on();
+
+   //VDP2_REG_CHCTLB = (3 << 12) | (1 << 9);
+
+   //   WorkingQuerry("Is the above graphics displayed?");
+   for (;;)
+   {
+      vdp_vsync();
+
+      sprite_set_default_boilerplate();
+      vpd2_priority_shadow_draw_sprites(0, 0, vdp1_tile_address, 4);
+      vdp_end_draw_list();
+
+      while (((VDP1_REG_EDSR >> 1) & 1) == 0) {}
+
+      //for (y = 0; y < 32; y++)
+      //{
+      //   for (x = 0; x < 32; x++)
+      //   {
+      //      int readpos = ((y * 512) + x);
+      //      ram_buffer[readpos] = framebuffer_ptr_32[readpos];
+      //   }
+      //}
+
+      int x; int y;
+
+      for (y = 0; y < 32; y++)
+      {
+         volatile u32 *ptr = (volatile u32 *)(0x25E00000 + (y * 512));
+
+         for (x = 0; x < 32; x++)
+         {
+            ptr[x] = 0x7fff7fff;
+         }
+      }
+
+      vdp_printf(&test_disp_font, 0 * 8, 26 * 8, 0xC, "%03d %03d", counter, counter2);
+
+      if (per[0].but_push_once & PAD_START || per[0].but_push_once & PAD_B)
+         reset_system();
+   }
+
+   // Disable NBG0/NBG1
+   vdp_nbg0_deinit();
+   vdp_nbg1_deinit();
+   yabauseut_init();
+}
 
 void vdp2_window_test ()
 {

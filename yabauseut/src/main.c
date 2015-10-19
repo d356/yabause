@@ -183,6 +183,8 @@ void auto_test_do_selected_test(int selection)
 #endif
 }
 
+extern void cache_test();
+
 int main()
 {
    int choice;
@@ -190,6 +192,14 @@ int main()
    int auto_test_selection = auto_test_get_selection();
 
    yabauseut_init();
+
+   //cache_test();
+
+   //transparent_sprite_test();
+
+   vdp2_mytest();
+
+   //vdp2_window_test();
 
    auto_test_do_selected_test(auto_test_selection);
 

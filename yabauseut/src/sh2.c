@@ -270,6 +270,8 @@ void clear_framebuffer()
    }
 }
 
+//////////////////////////////////////////////////////////////////////////////
+
 //assuming the 28th bit is 0
 //0b0000 0x0 cache area
 //0b0010 0x2 cache through
@@ -282,6 +284,8 @@ volatile u32 *wram_cache = (volatile u32 *)(0x06000000);
 volatile u32 *wram_cache_through = (volatile u32 *)(0x26000000);
 volatile u32 *address_array = (volatile u32 *)(0x60000000);
 volatile u32 *data_array = (volatile u32 *)(0xC0000000);
+
+//////////////////////////////////////////////////////////////////////////////
 
 void print_addr_data(int x_start, int y_start, u32 addr_val)
 {
@@ -296,6 +300,8 @@ void print_addr_data(int x_start, int y_start, u32 addr_val)
 
    vdp_printf(&test_disp_font, x_pos * 8, y_pos * 8, 0xC, "tag: 0x%08x lru: 0x%02x v: 0x%01x", tag, lru, v);
 }
+
+//////////////////////////////////////////////////////////////////////////////
 
 void print_cache_for_way(int x_start, int y_start, int way, int index)
 {
@@ -339,6 +345,8 @@ void print_cache_for_way(int x_start, int y_start, int way, int index)
    print_addr_data(x_pos, y_pos, addr_val);
 }
 
+//////////////////////////////////////////////////////////////////////////////
+
 void print_cache_all_ways(int y_start, int index)
 {
    int y = y_start;
@@ -355,6 +363,8 @@ void print_cache_all_ways(int y_start, int index)
    }
 }
 
+//////////////////////////////////////////////////////////////////////////////
+
 void print_cache_at_index(int index)
 {
    clear_framebuffer();
@@ -363,6 +373,8 @@ void print_cache_at_index(int index)
 
    print_cache_all_ways(2, index);
 }
+
+//////////////////////////////////////////////////////////////////////////////
 
 void cache_print_and_wait()
 {
@@ -399,6 +411,8 @@ void cache_print_and_wait()
       }
    }
 }
+
+//////////////////////////////////////////////////////////////////////////////
 
 void cache_test()
 {

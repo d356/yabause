@@ -197,8 +197,13 @@ int main()
 
    //transparent_sprite_test();
 
-   vdp2_mytest();
+   //vdp2_mytest();
 
+ //  smpc_intback_issue_timing_test();
+
+   //smpc_intback_issue_timing_test();
+   vdp2_sprite_window_test();
+   //linecount_test();
    //vdp2_window_test();
 
    auto_test_do_selected_test(auto_test_selection);

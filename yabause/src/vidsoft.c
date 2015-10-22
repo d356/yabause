@@ -730,7 +730,7 @@ void Vdp2GetInterlaceInfo(int * start_line, int * line_increment)
 
 //////////////////////////////////////////////////////////////////////////////
 
-static void FASTCALL Vdp2DrawScroll(vdp2draw_struct *info, Vdp2* lines, Vdp2* regs, u8* ram)
+static void FASTCALL Vdp2DrawScroll(vdp2draw_struct *info, Vdp2* lines, Vdp2* regs, u8* ram, int draw_start_line, int draw_end_line)
 {
    int i, j;
    int x, y;
@@ -776,7 +776,7 @@ static void FASTCALL Vdp2DrawScroll(vdp2draw_struct *info, Vdp2* lines, Vdp2* re
 
    Vdp2GetInterlaceInfo(&start_line, &line_increment);
 
-   for (j = start_line; j < vdp2height; j+=1)
+   for (j = start_line + draw_start_line; j < draw_end_line; j += 1)
    {
       int Y;
       int linescrollx = 0;
@@ -864,11 +864,11 @@ static void FASTCALL Vdp2DrawScroll(vdp2draw_struct *info, Vdp2* lines, Vdp2* re
          This was added for Cotton Boomerang */
 			int priority;
 
-         // See if screen position is clipped, if it isn't, continue
-         if (!TestBothWindow(info->wctl, clip, i, j))
-         {
-            continue;
-         }
+         //// See if screen position is clipped, if it isn't, continue
+         //if (!TestBothWindow(info->wctl, clip, i, j))
+         //{
+         //   continue;
+         //}
 
          //x = info->x+((int)(info->coordincx*(float)((info->mosaicxmask > 1) ? (i / info->mosaicxmask * info->mosaicxmask) : i)));
 		 x = info->x + mosaic_x[i]*info->coordincx;
@@ -968,7 +968,7 @@ void Rbg0PutPixel(vdp2draw_struct *info, u32 color, u32 dot, int i, int j)
 
 //////////////////////////////////////////////////////////////////////////////
 
-static void FASTCALL Vdp2DrawRotationFP(vdp2draw_struct *info, vdp2rotationparameterfp_struct *parameter, Vdp2* lines, Vdp2* regs, u8* ram)
+static void FASTCALL Vdp2DrawRotationFP(vdp2draw_struct *info, vdp2rotationparameterfp_struct *parameter, Vdp2* lines, Vdp2* regs, u8* ram, int draw_start_line, int draw_end_line)
 {
    int i, j;
    int x, y;
@@ -1258,7 +1258,7 @@ static void FASTCALL Vdp2DrawRotationFP(vdp2draw_struct *info, vdp2rotationparam
       return;
    }
 
-   Vdp2DrawScroll(info, lines, regs, ram);
+   Vdp2DrawScroll(info, lines, regs, ram, draw_start_line, draw_end_line);
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -1364,140 +1364,143 @@ static void LoadLineParamsNBG0(vdp2draw_struct * info, int line, Vdp2* lines)
 
 //////////////////////////////////////////////////////////////////////////////
 
-static void Vdp2DrawNBG0(Vdp2* lines, Vdp2* regs, u8* ram)
+void Vdp2Nbg0Info(vdp2draw_struct * info, Vdp2* regs, vdp2rotationparameterfp_struct * parameter, u8* ram)
 {
-   vdp2draw_struct info = { 0 };
-   vdp2rotationparameterfp_struct parameter[2];
+   //vdp2draw_struct info = { 0 };
+   //vdp2rotationparameterfp_struct parameter[2];
 
-   info.titan_which_layer = TITAN_NBG0;
-   info.titan_shadow_enabled = (regs->SDCTL >> 0) & 1;
+   info->titan_which_layer = TITAN_NBG0;
+   info->titan_shadow_enabled = (regs->SDCTL >> 0) & 1;
 
-   parameter[0].PlaneAddr = (void FASTCALL (*)(void *, int, Vdp2*))&Vdp2ParameterAPlaneAddr;
+   parameter[0].PlaneAddr = (void FASTCALL(*)(void *, int, Vdp2*))&Vdp2ParameterAPlaneAddr;
    parameter[1].PlaneAddr = (void FASTCALL(*)(void *, int, Vdp2*))&Vdp2ParameterBPlaneAddr;
 
    if (regs->BGON & 0x20)
    {
       // RBG1 mode
-      info.enable = regs->BGON & 0x20;
+      info->enable = regs->BGON & 0x20;
 
       // Read in Parameter B
       Vdp2ReadRotationTableFP(1, &parameter[1], regs, ram);
 
-      if((info.isbitmap = regs->CHCTLA & 0x2) != 0)
+      if ((info->isbitmap = regs->CHCTLA & 0x2) != 0)
       {
          // Bitmap Mode
-         ReadBitmapSize(&info, regs->CHCTLA >> 2, 0x3);
+         ReadBitmapSize(info, regs->CHCTLA >> 2, 0x3);
 
-         info.charaddr = (regs->MPOFR & 0x70) * 0x2000;
-         info.paladdr = (regs->BMPNA & 0x7) << 8;
-         info.flipfunction = 0;
-         info.specialfunction = 0;
-         info.specialcolorfunction = (regs->BMPNA & 0x10) >> 4;
+         info->charaddr = (regs->MPOFR & 0x70) * 0x2000;
+         info->paladdr = (regs->BMPNA & 0x7) << 8;
+         info->flipfunction = 0;
+         info->specialfunction = 0;
+         info->specialcolorfunction = (regs->BMPNA & 0x10) >> 4;
       }
       else
       {
          // Tile Mode
-         info.mapwh = 4;
-         ReadPlaneSize(&info, regs->PLSZ >> 12);
-         ReadPatternData(&info, regs->PNCN0, regs->CHCTLA & 0x1);
+         info->mapwh = 4;
+         ReadPlaneSize(info, regs->PLSZ >> 12);
+         ReadPatternData(info, regs->PNCN0, regs->CHCTLA & 0x1);
       }
 
-      info.rotatenum = 1;
-      info.rotatemode = 0;
-      info.PlaneAddr = (void FASTCALL(*)(void *, int, Vdp2*))&Vdp2ParameterBPlaneAddr;
+      info->rotatenum = 1;
+      info->rotatemode = 0;
+      info->PlaneAddr = (void FASTCALL(*)(void *, int, Vdp2*))&Vdp2ParameterBPlaneAddr;
    }
    else if (regs->BGON & 0x1)
    {
       // NBG0 mode
-      info.enable = regs->BGON & 0x1;
+      info->enable = regs->BGON & 0x1;
 
-      if((info.isbitmap = regs->CHCTLA & 0x2) != 0)
+      if ((info->isbitmap = regs->CHCTLA & 0x2) != 0)
       {
          // Bitmap Mode
-         ReadBitmapSize(&info, regs->CHCTLA >> 2, 0x3);
+         ReadBitmapSize(info, regs->CHCTLA >> 2, 0x3);
 
-         info.x = regs->SCXIN0 & 0x7FF;
-         info.y = regs->SCYIN0 & 0x7FF;
+         info->x = regs->SCXIN0 & 0x7FF;
+         info->y = regs->SCYIN0 & 0x7FF;
 
-         info.charaddr = (regs->MPOFN & 0x7) * 0x20000;
-         info.paladdr = (regs->BMPNA & 0x7) << 8;
-         info.flipfunction = 0;
-         info.specialfunction = 0;
-         info.specialcolorfunction = (regs->BMPNA & 0x10) >> 4;
+         info->charaddr = (regs->MPOFN & 0x7) * 0x20000;
+         info->paladdr = (regs->BMPNA & 0x7) << 8;
+         info->flipfunction = 0;
+         info->specialfunction = 0;
+         info->specialcolorfunction = (regs->BMPNA & 0x10) >> 4;
       }
       else
       {
          // Tile Mode
-         info.mapwh = 2;
+         info->mapwh = 2;
 
-         ReadPlaneSize(&info, regs->PLSZ);
+         ReadPlaneSize(info, regs->PLSZ);
 
-         info.x = regs->SCXIN0 & 0x7FF;
-         info.y = regs->SCYIN0 & 0x7FF;
-         ReadPatternData(&info, regs->PNCN0, regs->CHCTLA & 0x1);
+         info->x = regs->SCXIN0 & 0x7FF;
+         info->y = regs->SCYIN0 & 0x7FF;
+         ReadPatternData(info, regs->PNCN0, regs->CHCTLA & 0x1);
       }
 
-      info.coordincx = (regs->ZMXN0.all & 0x7FF00) / (float) 65536;
-      info.coordincy = (regs->ZMYN0.all & 0x7FF00) / (float) 65536;
-      info.PlaneAddr = (void FASTCALL(*)(void *, int, Vdp2*))&Vdp2NBG0PlaneAddr;
+      info->coordincx = (regs->ZMXN0.all & 0x7FF00) / (float)65536;
+      info->coordincy = (regs->ZMYN0.all & 0x7FF00) / (float)65536;
+      info->PlaneAddr = (void FASTCALL(*)(void *, int, Vdp2*))&Vdp2NBG0PlaneAddr;
    }
    else
       // Not enabled
       return;
 
-   info.transparencyenable = !(regs->BGON & 0x100);
-   info.specialprimode = regs->SFPRMD & 0x3;
+   info->transparencyenable = !(regs->BGON & 0x100);
+   info->specialprimode = regs->SFPRMD & 0x3;
 
-   info.colornumber = (regs->CHCTLA & 0x70) >> 4;
+   info->colornumber = (regs->CHCTLA & 0x70) >> 4;
 
    if (regs->CCCTL & 0x201)
-      info.alpha = ((~regs->CCRNA & 0x1F) << 1) + 1;
+      info->alpha = ((~regs->CCRNA & 0x1F) << 1) + 1;
    else
-      info.alpha = 0x3F;
-   if ((regs->CCCTL & 0x201) == 0x201) info.alpha |= 0x80;
-   else if ((regs->CCCTL & 0x101) == 0x101) info.alpha |= 0x80;
-   info.specialcolormode = regs->SFCCMD & 0x3;
+      info->alpha = 0x3F;
+   if ((regs->CCCTL & 0x201) == 0x201) info->alpha |= 0x80;
+   else if ((regs->CCCTL & 0x101) == 0x101) info->alpha |= 0x80;
+   info->specialcolormode = regs->SFCCMD & 0x3;
    if (regs->SFSEL & 0x1)
-      info.specialcode = regs->SFCODE >> 8;
+      info->specialcode = regs->SFCODE >> 8;
    else
-      info.specialcode = regs->SFCODE & 0xFF;
-   info.linescreen = 0;
+      info->specialcode = regs->SFCODE & 0xFF;
+   info->linescreen = 0;
    if (regs->LNCLEN & 0x1)
-      info.linescreen = 1;
+      info->linescreen = 1;
 
-   info.coloroffset = (regs->CRAOFA & 0x7) << 8;
-   ReadVdp2ColorOffset(regs, &info, 0x1, 0x1);
-   info.priority = regs->PRINA & 0x7;
+   info->coloroffset = (regs->CRAOFA & 0x7) << 8;
+   ReadVdp2ColorOffset(regs, info, 0x1, 0x1);
+   info->priority = regs->PRINA & 0x7;
 
-   if (!(info.enable & Vdp2External.disptoggle))
+   if (!(info->enable & Vdp2External.disptoggle))
       return;
 
-   ReadMosaicData(&info, 0x1, regs);
-   ReadLineScrollData(&info, regs->SCRCTL & 0xFF, regs->LSTA0.all);
+   ReadMosaicData(info, 0x1, regs);
+   ReadLineScrollData(info, regs->SCRCTL & 0xFF, regs->LSTA0.all);
    if (regs->SCRCTL & 1)
    {
-      info.isverticalscroll = 1;
-      info.verticalscrolltbl = (regs->VCSTA.all & 0x7FFFE) << 1;
+      info->isverticalscroll = 1;
+      info->verticalscrolltbl = (regs->VCSTA.all & 0x7FFFE) << 1;
       if (regs->SCRCTL & 0x100)
-         info.verticalscrollinc = 8;
+         info->verticalscrollinc = 8;
       else
-         info.verticalscrollinc = 4;
+         info->verticalscrollinc = 4;
    }
    else
-      info.isverticalscroll = 0;
-   info.wctl = regs->WCTLA;
+      info->isverticalscroll = 0;
+   info->wctl = regs->WCTLA;
 
-   info.LoadLineParams = (void (*)(void *, int ,Vdp2*)) LoadLineParamsNBG0;
+   info->LoadLineParams = (void(*)(void *, int, Vdp2*)) LoadLineParamsNBG0;
+}
 
-   if (info.enable == 1)
+static void Vdp2DrawNBG0(Vdp2* lines, Vdp2* regs, u8* ram, int draw_start_line, int draw_end_line, vdp2draw_struct * info, vdp2rotationparameterfp_struct * parameter)
+{
+   if (info->enable == 1)
    {
       // NBG0 draw
-      Vdp2DrawScroll(&info, lines, regs, ram);
+      Vdp2DrawScroll(info, lines, regs, ram, draw_start_line, draw_end_line);
    }
    else
    {
       // RBG1 draw
-      Vdp2DrawRotationFP(&info, parameter, lines, regs, ram);
+      Vdp2DrawRotationFP(info, parameter, lines, regs, ram, draw_start_line, draw_end_line);
    }
 }
 
@@ -1515,94 +1518,96 @@ static void LoadLineParamsNBG1(vdp2draw_struct * info, int line, Vdp2* lines)
 
 //////////////////////////////////////////////////////////////////////////////
 
-static void Vdp2DrawNBG1(Vdp2* lines, Vdp2* regs, u8* ram)
+
+void Vdp2Nbg1Info(vdp2draw_struct * info, Vdp2* regs)
 {
-   vdp2draw_struct info = { 0 };
+   info->titan_which_layer = TITAN_NBG1;
+   info->titan_shadow_enabled = (regs->SDCTL >> 1) & 1;
 
-   info.titan_which_layer = TITAN_NBG1;
-   info.titan_shadow_enabled = (regs->SDCTL >> 1) & 1;
+   info->enable = regs->BGON & 0x2;
+   info->transparencyenable = !(regs->BGON & 0x200);
+   info->specialprimode = (regs->SFPRMD >> 2) & 0x3;
 
-   info.enable = regs->BGON & 0x2;
-   info.transparencyenable = !(regs->BGON & 0x200);
-   info.specialprimode = (regs->SFPRMD >> 2) & 0x3;
+   info->colornumber = (regs->CHCTLA & 0x3000) >> 12;
 
-   info.colornumber = (regs->CHCTLA & 0x3000) >> 12;
-
-   if((info.isbitmap = regs->CHCTLA & 0x200) != 0)
+   if ((info->isbitmap = regs->CHCTLA & 0x200) != 0)
    {
-      ReadBitmapSize(&info, regs->CHCTLA >> 10, 0x3);
+      ReadBitmapSize(info, regs->CHCTLA >> 10, 0x3);
 
-      info.x = regs->SCXIN1 & 0x7FF;
-      info.y = regs->SCYIN1 & 0x7FF;
+      info->x = regs->SCXIN1 & 0x7FF;
+      info->y = regs->SCYIN1 & 0x7FF;
 
-      info.charaddr = ((regs->MPOFN & 0x70) >> 4) * 0x20000;
-      info.paladdr = regs->BMPNA & 0x700;
-      info.flipfunction = 0;
-      info.specialfunction = 0;
-      info.specialcolorfunction = (regs->BMPNA & 0x1000) >> 12;
+      info->charaddr = ((regs->MPOFN & 0x70) >> 4) * 0x20000;
+      info->paladdr = regs->BMPNA & 0x700;
+      info->flipfunction = 0;
+      info->specialfunction = 0;
+      info->specialcolorfunction = (regs->BMPNA & 0x1000) >> 12;
    }
    else
    {
-      info.mapwh = 2;
+      info->mapwh = 2;
 
-      ReadPlaneSize(&info, regs->PLSZ >> 2);
+      ReadPlaneSize(info, regs->PLSZ >> 2);
 
-      info.x = regs->SCXIN1 & 0x7FF;
-      info.y = regs->SCYIN1 & 0x7FF;
+      info->x = regs->SCXIN1 & 0x7FF;
+      info->y = regs->SCYIN1 & 0x7FF;
 
-      ReadPatternData(&info, regs->PNCN1, regs->CHCTLA & 0x100);
+      ReadPatternData(info, regs->PNCN1, regs->CHCTLA & 0x100);
    }
 
    if (regs->CCCTL & 0x202)
-      info.alpha = ((~regs->CCRNA & 0x1F00) >> 7) + 1;
+      info->alpha = ((~regs->CCRNA & 0x1F00) >> 7) + 1;
    else
-      info.alpha = 0x3F;
-   if ((regs->CCCTL & 0x202) == 0x202) info.alpha |= 0x80;
-   else if ((regs->CCCTL & 0x102) == 0x102) info.alpha |= 0x80;
-   info.specialcolormode = (regs->SFCCMD >> 2) & 0x3;
+      info->alpha = 0x3F;
+   if ((regs->CCCTL & 0x202) == 0x202) info->alpha |= 0x80;
+   else if ((regs->CCCTL & 0x102) == 0x102) info->alpha |= 0x80;
+   info->specialcolormode = (regs->SFCCMD >> 2) & 0x3;
    if (regs->SFSEL & 0x2)
-      info.specialcode = regs->SFCODE >> 8;
+      info->specialcode = regs->SFCODE >> 8;
    else
-      info.specialcode = regs->SFCODE & 0xFF;
-   info.linescreen = 0;
+      info->specialcode = regs->SFCODE & 0xFF;
+   info->linescreen = 0;
    if (regs->LNCLEN & 0x2)
-      info.linescreen = 1;
+      info->linescreen = 1;
 
-   info.coloroffset = (regs->CRAOFA & 0x70) << 4;
-   ReadVdp2ColorOffset(regs, &info, 0x2, 0x2);
-   info.coordincx = (regs->ZMXN1.all & 0x7FF00) / (float) 65536;
-   info.coordincy = (regs->ZMYN1.all & 0x7FF00) / (float) 65536;
+   info->coloroffset = (regs->CRAOFA & 0x70) << 4;
+   ReadVdp2ColorOffset(regs, info, 0x2, 0x2);
+   info->coordincx = (regs->ZMXN1.all & 0x7FF00) / (float)65536;
+   info->coordincy = (regs->ZMYN1.all & 0x7FF00) / (float)65536;
 
-   info.priority = (regs->PRINA >> 8) & 0x7;
-   info.PlaneAddr = (void FASTCALL(*)(void *, int, Vdp2*))&Vdp2NBG1PlaneAddr;
+   info->priority = (regs->PRINA >> 8) & 0x7;
+   info->PlaneAddr = (void FASTCALL(*)(void *, int, Vdp2*))&Vdp2NBG1PlaneAddr;
 
-   if (!(info.enable & Vdp2External.disptoggle) ||
-       (regs->BGON & 0x1 && (regs->CHCTLA & 0x70) >> 4 == 4)) // If NBG0 16M mode is enabled, don't draw
+   if (!(info->enable & Vdp2External.disptoggle) ||
+      (regs->BGON & 0x1 && (regs->CHCTLA & 0x70) >> 4 == 4)) // If NBG0 16M mode is enabled, don't draw
       return;
 
-   ReadMosaicData(&info, 0x2, regs);
-   ReadLineScrollData(&info, regs->SCRCTL >> 8, regs->LSTA1.all);
+   ReadMosaicData(info, 0x2, regs);
+   ReadLineScrollData(info, regs->SCRCTL >> 8, regs->LSTA1.all);
    if (regs->SCRCTL & 0x100)
    {
-      info.isverticalscroll = 1;
+      info->isverticalscroll = 1;
       if (regs->SCRCTL & 0x1)
       {
-         info.verticalscrolltbl = 4 + ((regs->VCSTA.all & 0x7FFFE) << 1);
-         info.verticalscrollinc = 8;
+         info->verticalscrolltbl = 4 + ((regs->VCSTA.all & 0x7FFFE) << 1);
+         info->verticalscrollinc = 8;
       }
       else
       {
-         info.verticalscrolltbl = (regs->VCSTA.all & 0x7FFFE) << 1;
-         info.verticalscrollinc = 4;
+         info->verticalscrolltbl = (regs->VCSTA.all & 0x7FFFE) << 1;
+         info->verticalscrollinc = 4;
       }
    }
    else
-      info.isverticalscroll = 0;
-   info.wctl = regs->WCTLA >> 8;
+      info->isverticalscroll = 0;
+   info->wctl = regs->WCTLA >> 8;
 
-   info.LoadLineParams = (void(*)(void *, int, Vdp2*)) LoadLineParamsNBG1;
+   info->LoadLineParams = (void(*)(void *, int, Vdp2*)) LoadLineParamsNBG1;
+}
 
-   Vdp2DrawScroll(&info, lines, regs, ram);
+static void Vdp2DrawNBG1(Vdp2* lines, Vdp2* regs, u8* ram, int draw_start_line, int draw_end_line, vdp2draw_struct * info)
+{
+   Vdp2DrawScroll(info, lines, regs, ram, draw_start_line, draw_end_line);
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -1619,60 +1624,61 @@ static void LoadLineParamsNBG2(vdp2draw_struct * info, int line, Vdp2* lines)
 
 //////////////////////////////////////////////////////////////////////////////
 
-static void Vdp2DrawNBG2(Vdp2* lines, Vdp2* regs, u8* ram)
+void Vdp2Nbg2Info(vdp2draw_struct * info, Vdp2* regs)
 {
-   vdp2draw_struct info = { 0 };
+   info->titan_which_layer = TITAN_NBG2;
+   info->titan_shadow_enabled = (regs->SDCTL >> 2) & 1;
 
-   info.titan_which_layer = TITAN_NBG2;
-   info.titan_shadow_enabled = (regs->SDCTL >> 2) & 1;
+   info->enable = regs->BGON & 0x4;
+   info->transparencyenable = !(regs->BGON & 0x400);
+   info->specialprimode = (regs->SFPRMD >> 4) & 0x3;
 
-   info.enable = regs->BGON & 0x4;
-   info.transparencyenable = !(regs->BGON & 0x400);
-   info.specialprimode = (regs->SFPRMD >> 4) & 0x3;
+   info->colornumber = (regs->CHCTLB & 0x2) >> 1;
+   info->mapwh = 2;
 
-   info.colornumber = (regs->CHCTLB & 0x2) >> 1;	
-   info.mapwh = 2;
+   ReadPlaneSize(info, regs->PLSZ >> 4);
+   info->x = regs->SCXN2 & 0x7FF;
+   info->y = regs->SCYN2 & 0x7FF;
+   ReadPatternData(info, regs->PNCN2, regs->CHCTLB & 0x1);
 
-   ReadPlaneSize(&info, regs->PLSZ >> 4);
-   info.x = regs->SCXN2 & 0x7FF;
-   info.y = regs->SCYN2 & 0x7FF;
-   ReadPatternData(&info, regs->PNCN2, regs->CHCTLB & 0x1);
-    
    if (regs->CCCTL & 0x204)
-      info.alpha = ((~regs->CCRNB & 0x1F) << 1) + 1;
+      info->alpha = ((~regs->CCRNB & 0x1F) << 1) + 1;
    else
-      info.alpha = 0x3F;
-   if ((regs->CCCTL & 0x204) == 0x204) info.alpha |= 0x80;
-   else if ((regs->CCCTL & 0x104) == 0x104) info.alpha |= 0x80;
-   info.specialcolormode = (regs->SFCCMD >> 4) & 0x3;
+      info->alpha = 0x3F;
+   if ((regs->CCCTL & 0x204) == 0x204) info->alpha |= 0x80;
+   else if ((regs->CCCTL & 0x104) == 0x104) info->alpha |= 0x80;
+   info->specialcolormode = (regs->SFCCMD >> 4) & 0x3;
    if (regs->SFSEL & 0x4)
-      info.specialcode = regs->SFCODE >> 8;
+      info->specialcode = regs->SFCODE >> 8;
    else
-      info.specialcode = regs->SFCODE & 0xFF;
-   info.linescreen = 0;
+      info->specialcode = regs->SFCODE & 0xFF;
+   info->linescreen = 0;
    if (regs->LNCLEN & 0x4)
-      info.linescreen = 1;
+      info->linescreen = 1;
 
-   info.coloroffset = regs->CRAOFA & 0x700;
-   ReadVdp2ColorOffset(regs, &info, 0x4, 0x4);
-   info.coordincx = info.coordincy = 1;
+   info->coloroffset = regs->CRAOFA & 0x700;
+   ReadVdp2ColorOffset(regs, info, 0x4, 0x4);
+   info->coordincx = info->coordincy = 1;
 
-   info.priority = regs->PRINB & 0x7;
-   info.PlaneAddr = (void FASTCALL(*)(void *, int, Vdp2*))&Vdp2NBG2PlaneAddr;
+   info->priority = regs->PRINB & 0x7;
+   info->PlaneAddr = (void FASTCALL(*)(void *, int, Vdp2*))&Vdp2NBG2PlaneAddr;
 
-   if (!(info.enable & Vdp2External.disptoggle) ||
+   if (!(info->enable & Vdp2External.disptoggle) ||
       (regs->BGON & 0x1 && (regs->CHCTLA & 0x70) >> 4 >= 2)) // If NBG0 2048/32786/16M mode is enabled, don't draw
       return;
 
-   ReadMosaicData(&info, 0x4, regs);
-   info.islinescroll = 0;
-   info.isverticalscroll = 0;
-   info.wctl = regs->WCTLB;
-   info.isbitmap = 0;
+   ReadMosaicData(info, 0x4, regs);
+   info->islinescroll = 0;
+   info->isverticalscroll = 0;
+   info->wctl = regs->WCTLB;
+   info->isbitmap = 0;
 
-   info.LoadLineParams = (void(*)(void *, int, Vdp2*)) LoadLineParamsNBG2;
+   info->LoadLineParams = (void(*)(void *, int, Vdp2*)) LoadLineParamsNBG2;
+}
 
-   Vdp2DrawScroll(&info, lines, regs, ram);
+static void Vdp2DrawNBG2(Vdp2* lines, Vdp2* regs, u8* ram, int draw_start_line, int draw_end_line, vdp2draw_struct * info)
+{
+   Vdp2DrawScroll(info, lines, regs, ram, draw_start_line, draw_end_line);
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -1689,62 +1695,63 @@ static void LoadLineParamsNBG3(vdp2draw_struct * info, int line, Vdp2* lines)
 
 //////////////////////////////////////////////////////////////////////////////
 
-static void Vdp2DrawNBG3(Vdp2* lines, Vdp2* regs, u8* ram)
+void Vdp2Nbg3Info(vdp2draw_struct * info, Vdp2* regs)
 {
-   vdp2draw_struct info = { 0 };
+   info->titan_which_layer = TITAN_NBG3;
+   info->titan_shadow_enabled = (regs->SDCTL >> 3) & 1;
 
-   info.titan_which_layer = TITAN_NBG3;
-   info.titan_shadow_enabled = (regs->SDCTL >> 3) & 1;
+   info->enable = regs->BGON & 0x8;
+   info->transparencyenable = !(regs->BGON & 0x800);
+   info->specialprimode = (regs->SFPRMD >> 6) & 0x3;
 
-   info.enable = regs->BGON & 0x8;
-   info.transparencyenable = !(regs->BGON & 0x800);
-   info.specialprimode = (regs->SFPRMD >> 6) & 0x3;
+   info->colornumber = (regs->CHCTLB & 0x20) >> 5;
 
-   info.colornumber = (regs->CHCTLB & 0x20) >> 5;
-	
-   info.mapwh = 2;
+   info->mapwh = 2;
 
-   ReadPlaneSize(&info, regs->PLSZ >> 6);
-   info.x = regs->SCXN3 & 0x7FF;
-   info.y = regs->SCYN3 & 0x7FF;
-   ReadPatternData(&info, regs->PNCN3, regs->CHCTLB & 0x10);
+   ReadPlaneSize(info, regs->PLSZ >> 6);
+   info->x = regs->SCXN3 & 0x7FF;
+   info->y = regs->SCYN3 & 0x7FF;
+   ReadPatternData(info, regs->PNCN3, regs->CHCTLB & 0x10);
 
    if (regs->CCCTL & 0x208)
-      info.alpha = ((~regs->CCRNB & 0x1F00) >> 7) + 1;
+      info->alpha = ((~regs->CCRNB & 0x1F00) >> 7) + 1;
    else
-      info.alpha = 0x3F;
-   if ((regs->CCCTL & 0x208) == 0x208) info.alpha |= 0x80;
-   else if ((regs->CCCTL & 0x108) == 0x108) info.alpha |= 0x80;
-   info.specialcolormode = (regs->SFCCMD >> 6) & 0x3;
+      info->alpha = 0x3F;
+   if ((regs->CCCTL & 0x208) == 0x208) info->alpha |= 0x80;
+   else if ((regs->CCCTL & 0x108) == 0x108) info->alpha |= 0x80;
+   info->specialcolormode = (regs->SFCCMD >> 6) & 0x3;
    if (regs->SFSEL & 0x8)
-      info.specialcode = regs->SFCODE >> 8;
+      info->specialcode = regs->SFCODE >> 8;
    else
-      info.specialcode = regs->SFCODE & 0xFF;
-   info.linescreen = 0;
+      info->specialcode = regs->SFCODE & 0xFF;
+   info->linescreen = 0;
    if (regs->LNCLEN & 0x8)
-      info.linescreen = 1;
+      info->linescreen = 1;
 
-   info.coloroffset = (regs->CRAOFA & 0x7000) >> 4;
-   ReadVdp2ColorOffset(regs, &info, 0x8, 0x8);
-   info.coordincx = info.coordincy = 1;
+   info->coloroffset = (regs->CRAOFA & 0x7000) >> 4;
+   ReadVdp2ColorOffset(regs, info, 0x8, 0x8);
+   info->coordincx = info->coordincy = 1;
 
-   info.priority = (regs->PRINB >> 8) & 0x7;
-   info.PlaneAddr = (void FASTCALL(*)(void *, int, Vdp2*))&Vdp2NBG3PlaneAddr;
+   info->priority = (regs->PRINB >> 8) & 0x7;
+   info->PlaneAddr = (void FASTCALL(*)(void *, int, Vdp2*))&Vdp2NBG3PlaneAddr;
 
-   if (!(info.enable & Vdp2External.disptoggle) ||
+   if (!(info->enable & Vdp2External.disptoggle) ||
       (regs->BGON & 0x1 && (regs->CHCTLA & 0x70) >> 4 == 4) || // If NBG0 16M mode is enabled, don't draw
       (regs->BGON & 0x2 && (regs->CHCTLA & 0x3000) >> 12 >= 2)) // If NBG1 2048/32786 is enabled, don't draw
       return;
 
-   ReadMosaicData(&info, 0x8, regs);
-   info.islinescroll = 0;
-   info.isverticalscroll = 0;
-   info.wctl = regs->WCTLB >> 8;
-   info.isbitmap = 0;
+   ReadMosaicData(info, 0x8, regs);
+   info->islinescroll = 0;
+   info->isverticalscroll = 0;
+   info->wctl = regs->WCTLB >> 8;
+   info->isbitmap = 0;
 
-   info.LoadLineParams = (void(*)(void *, int, Vdp2*)) LoadLineParamsNBG3;
+   info->LoadLineParams = (void(*)(void *, int, Vdp2*)) LoadLineParamsNBG3;
+}
 
-   Vdp2DrawScroll(&info, lines, regs, ram);
+static void Vdp2DrawNBG3(Vdp2* lines, Vdp2* regs, u8* ram, int draw_start_line, int draw_end_line, vdp2draw_struct * info)
+{
+   Vdp2DrawScroll(info, lines, regs, ram, draw_start_line, draw_end_line);
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -1761,7 +1768,7 @@ static void LoadLineParamsRBG0(vdp2draw_struct * info, int line, Vdp2* lines)
 
 //////////////////////////////////////////////////////////////////////////////
 
-static void Vdp2DrawRBG0(Vdp2* lines, Vdp2* regs, u8* ram)
+static void Vdp2DrawRBG0(Vdp2* lines, Vdp2* regs, u8* ram, int draw_start_line, int draw_end_line)
 {
    vdp2draw_struct info = { 0 };
    vdp2rotationparameterfp_struct parameter[2];
@@ -1868,7 +1875,7 @@ static void Vdp2DrawRBG0(Vdp2* lines, Vdp2* regs, u8* ram)
 
    info.LoadLineParams = (void(*)(void *, int, Vdp2*)) LoadLineParamsRBG0;
 
-   Vdp2DrawRotationFP(&info, parameter, lines, regs, ram);
+   Vdp2DrawRotationFP(&info, parameter, lines, regs, ram, draw_start_line, draw_end_line);
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -1889,31 +1896,76 @@ struct {
    volatile int draw_finished[6];
    Vdp2 lines[270];
    Vdp2 regs;
+   int start_line[6];
+   int end_line[6];
    u8 ram[0x80000];
+
+   vdp2draw_struct info[6];
+   vdp2rotationparameterfp_struct nbg0_parameter;
 }vidsoft_thread_context;
 
-#define DECLARE_THREAD(NAME, LAYER, FUNC) \
-void NAME(void * data) \
+int num_threads = 4;
+
+struct Chunk
+{
+   int starts[6];
+   int ends[6];
+};
+
+int frame_chunk_pos = 0;
+int num_chunks = 4;
+
+struct Chunk frame_chunks[5] = { 0 };
+
+int ready_to_start_new_chunk = 1;
+
+//#define DECLARE_THREAD(NAME, LAYER, FUNC) \
+//void NAME(void * data) \
+//{ \
+//   for (;;) \
+//      { \
+//      if (vidsoft_thread_context.need_draw[LAYER]) \
+//      { \
+//         vidsoft_thread_context.need_draw[LAYER] = 0; \
+//         FUNC(vidsoft_thread_context.lines, &vidsoft_thread_context.regs, vidsoft_thread_context.ram); \
+//         vidsoft_thread_context.draw_finished[LAYER] = 1; \
+//      } \
+//      YabThreadSleep(); \
+//   } \
+//}
+//
+//#ifdef WANT_VIDSOFT_LAYER_THREADING
+//DECLARE_THREAD(VidsoftRbg0Thread, TITAN_RBG0, Vdp2DrawRBG0)
+//DECLARE_THREAD(VidsoftNbg0Thread, TITAN_NBG0, Vdp2DrawNBG0)
+//DECLARE_THREAD(VidsoftNbg1Thread, TITAN_NBG1, Vdp2DrawNBG1)
+//DECLARE_THREAD(VidsoftNbg2Thread, TITAN_NBG2, Vdp2DrawNBG2)
+//DECLARE_THREAD(VidsoftNbg3Thread, TITAN_NBG3, Vdp2DrawNBG3)
+//#endif
+
+
+#define DECLARE_THREAD(NAME, THREAD_NUM) \
+void NAME(void* data) \
 { \
    for (;;) \
+   { \
+      if (vidsoft_thread_context.need_draw[THREAD_NUM]) \
       { \
-      if (vidsoft_thread_context.need_draw[LAYER]) \
-      { \
-         vidsoft_thread_context.need_draw[LAYER] = 0; \
-         FUNC(vidsoft_thread_context.lines, &vidsoft_thread_context.regs, vidsoft_thread_context.ram); \
-         vidsoft_thread_context.draw_finished[LAYER] = 1; \
+         vidsoft_thread_context.need_draw[THREAD_NUM] = 0; \
+         Vdp2DrawRBG0(vidsoft_thread_context.lines, &vidsoft_thread_context.regs, vidsoft_thread_context.ram, frame_chunks[frame_chunk_pos].starts[THREAD_NUM], frame_chunks[frame_chunk_pos].ends[THREAD_NUM]); \
+         Vdp2DrawNBG0(vidsoft_thread_context.lines, &vidsoft_thread_context.regs, vidsoft_thread_context.ram, frame_chunks[frame_chunk_pos].starts[THREAD_NUM], frame_chunks[frame_chunk_pos].ends[THREAD_NUM], &vidsoft_thread_context.info[0], &vidsoft_thread_context.nbg0_parameter); \
+         Vdp2DrawNBG1(vidsoft_thread_context.lines, &vidsoft_thread_context.regs, vidsoft_thread_context.ram, frame_chunks[frame_chunk_pos].starts[THREAD_NUM], frame_chunks[frame_chunk_pos].ends[THREAD_NUM], &vidsoft_thread_context.info[1]); \
+         Vdp2DrawNBG2(vidsoft_thread_context.lines, &vidsoft_thread_context.regs, vidsoft_thread_context.ram, frame_chunks[frame_chunk_pos].starts[THREAD_NUM], frame_chunks[frame_chunk_pos].ends[THREAD_NUM], &vidsoft_thread_context.info[2]); \
+         Vdp2DrawNBG3(vidsoft_thread_context.lines, &vidsoft_thread_context.regs, vidsoft_thread_context.ram, frame_chunks[frame_chunk_pos].starts[THREAD_NUM], frame_chunks[frame_chunk_pos].ends[THREAD_NUM], &vidsoft_thread_context.info[3]); \
+         vidsoft_thread_context.draw_finished[THREAD_NUM] = 1; \
       } \
       YabThreadSleep(); \
    } \
 }
 
-#ifdef WANT_VIDSOFT_LAYER_THREADING
-DECLARE_THREAD(VidsoftRbg0Thread, TITAN_RBG0, Vdp2DrawRBG0)
-DECLARE_THREAD(VidsoftNbg0Thread, TITAN_NBG0, Vdp2DrawNBG0)
-DECLARE_THREAD(VidsoftNbg1Thread, TITAN_NBG1, Vdp2DrawNBG1)
-DECLARE_THREAD(VidsoftNbg2Thread, TITAN_NBG2, Vdp2DrawNBG2)
-DECLARE_THREAD(VidsoftNbg3Thread, TITAN_NBG3, Vdp2DrawNBG3)
-#endif
+DECLARE_THREAD(DrawThread0, 0);
+DECLARE_THREAD(DrawThread1, 1);
+DECLARE_THREAD(DrawThread2, 2);
+DECLARE_THREAD(DrawThread3, 3);
 
 //////////////////////////////////////////////////////////////////////////////
 
@@ -1997,11 +2049,14 @@ int VIDSoftInit(void)
    YabThreadStart(YAB_THREAD_VIDSOFT_VDP1, VidsoftVdp1Thread, 0);
 
 #ifdef WANT_VIDSOFT_LAYER_THREADING
-   YabThreadStart(YAB_THREAD_VIDSOFT_LAYER_RBG0, VidsoftRbg0Thread, 0);
-   YabThreadStart(YAB_THREAD_VIDSOFT_LAYER_NBG0, VidsoftNbg0Thread, 0);
-   YabThreadStart(YAB_THREAD_VIDSOFT_LAYER_NBG1, VidsoftNbg1Thread, 0);
-   YabThreadStart(YAB_THREAD_VIDSOFT_LAYER_NBG2, VidsoftNbg2Thread, 0);
-   YabThreadStart(YAB_THREAD_VIDSOFT_LAYER_NBG3, VidsoftNbg3Thread, 0);
+   YabThreadStart(YAB_THREAD_VIDSOFT_DRAW_0, DrawThread0, 0);
+   YabThreadStart(YAB_THREAD_VIDSOFT_DRAW_1, DrawThread1, 0);
+   YabThreadStart(YAB_THREAD_VIDSOFT_DRAW_2, DrawThread2, 0);
+   YabThreadStart(YAB_THREAD_VIDSOFT_DRAW_3, DrawThread3, 0);
+   //YabThreadStart(YAB_THREAD_VIDSOFT_LAYER_NBG0, VidsoftNbg0Thread, 0);
+   //YabThreadStart(YAB_THREAD_VIDSOFT_LAYER_NBG1, VidsoftNbg1Thread, 0);
+   //YabThreadStart(YAB_THREAD_VIDSOFT_LAYER_NBG2, VidsoftNbg2Thread, 0);
+   //YabThreadStart(YAB_THREAD_VIDSOFT_LAYER_NBG3, VidsoftNbg3Thread, 0);
 #endif
 
    return 0;
@@ -2554,7 +2609,7 @@ static void putpixel(int x, int y, Vdp1* regs, vdp1cmd_struct * cmd, u8 * back_f
 		if (clipped) return;
 	}
 
-	if ((cmd->CMDPMOD & (1 << 15)) && ((Vdp2Regs->SPCTL & 0x10) == 0))
+	if ((cmd->CMDPMOD & (1 << 15)))// && ((Vdp2Regs->SPCTL & 0x10) == 0))
 	{
 		if (currentPixel) {
 			*iPix |= 0x8000;
@@ -3337,6 +3392,72 @@ void VIDSoftVdp2DrawStart(void)
 
 //////////////////////////////////////////////////////////////////////////////
 
+void VidsoftStartThreads(int current_line)
+{
+   int num_jobs_per_chunk = num_threads;
+   int total_jobs = num_jobs_per_chunk * num_chunks;
+   int num_lines_per_job = vdp2height / total_jobs;
+   int starts[32] = { 0 };
+   int ends[32] = { 0 };
+
+   int i;
+
+   for (i = 0; i < total_jobs; i++)
+   {
+      starts[i] = num_lines_per_job * i;
+      ends[i] = ((i + 1) * num_lines_per_job);
+   }
+
+   int pos = 0;
+   for (i = 0; i < num_chunks; i++)
+   {
+      int j;
+      for (j = 0; j < num_jobs_per_chunk; j++)
+      {
+         frame_chunks[i].starts[j] = starts[pos];
+         frame_chunks[i].ends[j] = ends[pos];
+         pos++;
+      }
+   }
+
+   if (ready_to_start_new_chunk && (current_line == frame_chunks[frame_chunk_pos].starts[0]))
+   {
+      memcpy(vidsoft_thread_context.lines, Vdp2Lines, sizeof(Vdp2) * 270);
+      memcpy(&vidsoft_thread_context.regs, Vdp2Regs, sizeof(Vdp2));
+      memcpy(vidsoft_thread_context.ram, Vdp2Ram, 0x80000);
+
+      Vdp2Nbg0Info(&vidsoft_thread_context.info[0], Vdp2Regs, &vidsoft_thread_context.nbg0_parameter, Vdp2Ram);
+      Vdp2Nbg1Info(&vidsoft_thread_context.info[1], Vdp2Regs);
+      Vdp2Nbg2Info(&vidsoft_thread_context.info[2], Vdp2Regs);
+      Vdp2Nbg3Info(&vidsoft_thread_context.info[3], Vdp2Regs);
+
+      for (int i = 0; i < num_threads; i++)
+      {
+         vidsoft_thread_context.need_draw[i] = 1;
+         vidsoft_thread_context.draw_finished[i] = 0;
+         YabThreadWake(YAB_THREAD_VIDSOFT_DRAW_0 + i);
+      }
+
+      ready_to_start_new_chunk = 0;
+   }
+}
+
+void VidsoftWaitForThreads(int current_line)
+{
+   int end_line = frame_chunks[frame_chunk_pos].ends[num_threads - 1];
+
+   if (current_line == (end_line - 1))
+   {
+      for (int i = 0; i < num_threads; i++)
+      {
+         while (!vidsoft_thread_context.draw_finished[i]){}
+      }
+
+      ready_to_start_new_chunk = 1;
+      frame_chunk_pos++;
+   }
+}
+
 void VIDSoftVdp2DrawEnd(void)
 {
    int i, i2;
@@ -3428,11 +3549,11 @@ void VIDSoftVdp2DrawEnd(void)
 
             info.titan_shadow_type = 0;
 
-            // See if screen position is clipped, if it isn't, continue
-            if (!TestBothWindow(wctl, clip, i, i2))
-            {
-               continue;
-            }
+            //// See if screen position is clipped, if it isn't, continue
+            //if (!TestBothWindow(wctl, clip, i, i2))
+            //{
+            //   continue;
+            //}
 
             if (Vdp1Regs->TVMR & 2) {
                x = (touint(p.Xst + i * p.deltaX + i2 * p.deltaXst)) & (vdp1width - 1);
@@ -3546,6 +3667,7 @@ void VIDSoftVdp2DrawEnd(void)
                   {
                      if (Vdp2Regs->SPCTL & 0x10) {
                         /* sprite window, not handled yet... we avoid displaying garbage */
+                        info.titan_shadow_type = TITAN_MSB_SHADOW;
                      }
                      else 
                      {
@@ -3622,13 +3744,13 @@ void VIDSoftVdp2DrawEnd(void)
       }
    }
 
-#ifdef WANT_VIDSOFT_LAYER_THREADING
-   while (!vidsoft_thread_context.draw_finished[TITAN_NBG0]){}
-   while (!vidsoft_thread_context.draw_finished[TITAN_NBG1]){}
-   while (!vidsoft_thread_context.draw_finished[TITAN_NBG2]){}
-   while (!vidsoft_thread_context.draw_finished[TITAN_NBG3]){}
-   while (!vidsoft_thread_context.draw_finished[TITAN_RBG0]){}
-#endif
+//#ifdef WANT_VIDSOFT_LAYER_THREADING
+//   while (!vidsoft_thread_context.draw_finished[TITAN_NBG0]){}
+//   while (!vidsoft_thread_context.draw_finished[TITAN_NBG1]){}
+//   while (!vidsoft_thread_context.draw_finished[TITAN_NBG2]){}
+//   while (!vidsoft_thread_context.draw_finished[TITAN_NBG3]){}
+//   while (!vidsoft_thread_context.draw_finished[TITAN_RBG0]){}
+//#endif
 
    TitanRender(dispbuffer);
 
@@ -3652,23 +3774,23 @@ void VIDSoftVdp2DrawEnd(void)
 
 //////////////////////////////////////////////////////////////////////////////
 
-void VidsoftStartLayerThread(int * layer_priority, int * draw_priority_0, int * num_threads_dispatched, int which_layer, void(*layer_func) (Vdp2* lines, Vdp2* regs, u8* ram))
-{
-   if (layer_priority[which_layer] > 0 || draw_priority_0[which_layer])
-   {
-      if (*num_threads_dispatched < vidsoft_num_layer_threads)
-      {
-         vidsoft_thread_context.need_draw[which_layer] = 1;
-         vidsoft_thread_context.draw_finished[which_layer] = 0;
-         YabThreadWake(YAB_THREAD_VIDSOFT_LAYER_NBG3 + which_layer);
-         *num_threads_dispatched = *num_threads_dispatched + 1;
-      }
-      else
-      {
-        (*layer_func) (Vdp2Lines, Vdp2Regs, Vdp2Ram);
-      }
-   }
-}
+//void VidsoftStartLayerThread(int * layer_priority, int * draw_priority_0, int * num_threads_dispatched, int which_layer, void(*layer_func) (Vdp2* lines, Vdp2* regs, u8* ram))
+//{
+//   if (layer_priority[which_layer] > 0 || draw_priority_0[which_layer])
+//   {
+//      if (*num_threads_dispatched < vidsoft_num_layer_threads)
+//      {
+//         vidsoft_thread_context.need_draw[which_layer] = 1;
+//         vidsoft_thread_context.draw_finished[which_layer] = 0;
+//         YabThreadWake(YAB_THREAD_VIDSOFT_LAYER_NBG3 + which_layer);
+//         *num_threads_dispatched = *num_threads_dispatched + 1;
+//      }
+//      else
+//      {
+//        (*layer_func) (Vdp2Lines, Vdp2Regs, Vdp2Ram);
+//      }
+//   }
+//}
 
 //////////////////////////////////////////////////////////////////////////////
 
@@ -3696,30 +3818,22 @@ void VIDSoftVdp2DrawScreens(void)
       draw_priority_0[TITAN_RBG0] = (Vdp2Regs->SFPRMD >> 8) & 0x3;
    }
 
-   if (vidsoft_num_layer_threads > 0)
-   {
-      memcpy(vidsoft_thread_context.lines, Vdp2Lines, sizeof(Vdp2) * 270);
-      memcpy(&vidsoft_thread_context.regs, Vdp2Regs, sizeof(Vdp2));
-      memcpy(vidsoft_thread_context.ram, Vdp2Ram, 0x80000);
-   }
 
-#ifdef WANT_VIDSOFT_LAYER_THREADING
+   //VidsoftStartLayerThread(layer_priority, draw_priority_0, &num_threads_dispatched, TITAN_NBG0, Vdp2DrawNBG0);
+   //VidsoftStartLayerThread(layer_priority, draw_priority_0, &num_threads_dispatched, TITAN_RBG0, Vdp2DrawRBG0);
+   //VidsoftStartLayerThread(layer_priority, draw_priority_0, &num_threads_dispatched, TITAN_NBG1, Vdp2DrawNBG1);
+   //VidsoftStartLayerThread(layer_priority, draw_priority_0, &num_threads_dispatched, TITAN_NBG2, Vdp2DrawNBG2);
+   //VidsoftStartLayerThread(layer_priority, draw_priority_0, &num_threads_dispatched, TITAN_NBG3, Vdp2DrawNBG3);
 
-   VidsoftStartLayerThread(layer_priority, draw_priority_0, &num_threads_dispatched, TITAN_NBG0, Vdp2DrawNBG0);
-   VidsoftStartLayerThread(layer_priority, draw_priority_0, &num_threads_dispatched, TITAN_RBG0, Vdp2DrawRBG0);
-   VidsoftStartLayerThread(layer_priority, draw_priority_0, &num_threads_dispatched, TITAN_NBG1, Vdp2DrawNBG1);
-   VidsoftStartLayerThread(layer_priority, draw_priority_0, &num_threads_dispatched, TITAN_NBG2, Vdp2DrawNBG2);
-   VidsoftStartLayerThread(layer_priority, draw_priority_0, &num_threads_dispatched, TITAN_NBG3, Vdp2DrawNBG3);
-
-#else
-
-   Vdp2DrawNBG0(Vdp2Lines, Vdp2Regs, Vdp2Ram);
-   Vdp2DrawNBG1(Vdp2Lines, Vdp2Regs, Vdp2Ram);
-   Vdp2DrawNBG2(Vdp2Lines, Vdp2Regs, Vdp2Ram);
-   Vdp2DrawNBG3(Vdp2Lines, Vdp2Regs, Vdp2Ram);
-   Vdp2DrawRBG0(Vdp2Lines, Vdp2Regs, Vdp2Ram);
-
-#endif
+//#else
+//
+//   Vdp2DrawNBG0(Vdp2Lines, Vdp2Regs, Vdp2Ram);
+//   Vdp2DrawNBG1(Vdp2Lines, Vdp2Regs, Vdp2Ram);
+//   Vdp2DrawNBG2(Vdp2Lines, Vdp2Regs, Vdp2Ram);
+//   Vdp2DrawNBG3(Vdp2Lines, Vdp2Regs, Vdp2Ram);
+//   Vdp2DrawRBG0(Vdp2Lines, Vdp2Regs, Vdp2Ram);
+//
+//#endif
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -3728,24 +3842,24 @@ void VIDSoftVdp2DrawScreen(int screen)
 {
    VIDSoftVdp2SetResolution(Vdp2Regs->TVMD);
 
-   switch(screen)
-   {
-      case 0:
-         Vdp2DrawNBG0(Vdp2Lines, Vdp2Regs, Vdp2Ram);
-         break;
-      case 1:
-         Vdp2DrawNBG1(Vdp2Lines, Vdp2Regs, Vdp2Ram);
-         break;
-      case 2:
-         Vdp2DrawNBG2(Vdp2Lines, Vdp2Regs, Vdp2Ram);
-         break;
-      case 3:
-         Vdp2DrawNBG3(Vdp2Lines, Vdp2Regs, Vdp2Ram);
-         break;
-      case 4:
-         Vdp2DrawRBG0(Vdp2Lines, Vdp2Regs, Vdp2Ram);
-         break;
-   }
+   //switch(screen)
+   //{
+   //   case 0:
+   //      Vdp2DrawNBG0(Vdp2Lines, Vdp2Regs, Vdp2Ram);
+   //      break;
+   //   case 1:
+   //      Vdp2DrawNBG1(Vdp2Lines, Vdp2Regs, Vdp2Ram);
+   //      break;
+   //   case 2:
+   //      Vdp2DrawNBG2(Vdp2Lines, Vdp2Regs, Vdp2Ram);
+   //      break;
+   //   case 3:
+   //      Vdp2DrawNBG3(Vdp2Lines, Vdp2Regs, Vdp2Ram);
+   //      break;
+   //   case 4:
+   //      Vdp2DrawRBG0(Vdp2Lines, Vdp2Regs, Vdp2Ram);
+   //      break;
+   //}
 }
 
 //////////////////////////////////////////////////////////////////////////////

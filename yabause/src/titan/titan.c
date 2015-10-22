@@ -193,13 +193,113 @@ static INLINE int FASTCALL TitanTransBit(u32 pixel)
    return pixel & 0x80000000;
 }
 
-static u32 TitanDigPixel(int pos, int y)
+int sprite_window_inside[6] = { 0 };
+int sprite_window_enabled[6] = { 0 };
+int transparent_process_window_logic[6] = { 0 };
+int transparent_process_window_enable[6][2] = { 0 };
+int transparent_process_window_area[6][2] = { 0 };
+
+clipping_struct window[2] = { 0 };
+clipping_struct line_window[2] = { 0 };
+
+int CheckWindow(int which_layer, int which_window, int x, int y, int pos)
+{
+   if (transparent_process_window_area[which_layer][which_window])
+   {
+      //outside
+      if (x >= window[which_window].xstart && x <= window[which_window].xend &&
+         y >= window[which_window].ystart && y <= window[which_window].yend)
+      {
+         return 0;
+         //tt_context.vdp2framebuffer[which_layer][pos].priority = 0;
+      }
+   }
+   else
+   {
+      //inside
+      if (x < window[which_window].xstart || x > window[which_window].xend ||
+         y < window[which_window].ystart || y > window[which_window].yend)
+      {
+         return 0;
+         //tt_context.vdp2framebuffer[which_layer][pos].priority = 0;
+      }
+   }
+
+   return 1;
+}
+
+int CheckSpriteWindow(int which_layer, int pos, struct PixelData sprite_pixel)
+{
+   if (sprite_window_inside[which_layer])
+   {
+      if (sprite_pixel.shadow_type != TITAN_MSB_SHADOW)
+      {
+         //tt_context.vdp2framebuffer[which_layer][pos].priority = 0;
+         return 1;
+      }
+   }
+   else
+   {
+      if (sprite_pixel.shadow_type == TITAN_MSB_SHADOW)
+      {
+         //tt_context.vdp2framebuffer[which_layer][pos].priority = 0;
+         return 1;
+      }
+   }
+   return 0;
+}
+
+void DoWindowProcess(int x, int y, int pos)
+{
+   struct PixelData sprite_pixel = tt_context.vdp2framebuffer[TITAN_SPRITE][pos];
+
+   int which_layer;
+
+   for (which_layer = TITAN_SPRITE; which_layer >= 0; which_layer--)
+   {
+      int w0_result = CheckWindow(which_layer, 0, x, y, pos);
+
+      int w1_result = CheckWindow(which_layer, 1, x, y, pos);
+
+      int sprite_result = CheckSpriteWindow(which_layer, pos, sprite_pixel);
+
+      w0_result = transparent_process_window_enable[which_layer][0] && w0_result;
+      w1_result = transparent_process_window_enable[which_layer][1] && w1_result;
+      sprite_result = sprite_window_enabled[which_layer] && sprite_result && (Vdp2Regs->SPCTL & 0x10);
+
+      if (transparent_process_window_logic[which_layer])
+      {
+         //if (!(transparent_process_window_enable[which_layer][0] && transparent_process_window_enable[which_layer][1] && sprite_window_enabled[which_layer]))
+         //{
+         //   tt_context.vdp2framebuffer[which_layer][pos].priority = 0;
+         //}
+         
+         if (w0_result && w1_result && sprite_result)
+         {
+            tt_context.vdp2framebuffer[which_layer][pos].priority = 0;
+         }
+      }
+      else
+      {
+         if (w0_result || w1_result || sprite_result)
+         {
+            tt_context.vdp2framebuffer[which_layer][pos].priority = 0;
+         }
+      }
+   }
+}
+
+static u32 TitanDigPixel(int pos, int x, int y)
 {
    struct PixelData pixel_stack[2] = { 0 };
 
    int pixel_stack_pos = 0;
 
    int priority;
+
+   int sprite_is_clipped = 0;
+
+   DoWindowProcess(x, y, pos);
 
    //sort the pixels from highest to lowest priority
    for (priority = 7; priority > 0; priority--)
@@ -248,8 +348,11 @@ finished:
          pixel_stack[0].pixel = tt_context.blend(pixel_stack[0].pixel, bottom);
       }
 
-      //sprite self-shadowing
-      pixel_stack[0].pixel = TitanBlendPixelsTop(0x20000000, pixel_stack[0].pixel);
+      if (!(Vdp2Regs->SPCTL & 0x10))
+      {
+         //sprite self-shadowing
+         pixel_stack[0].pixel = TitanBlendPixelsTop(0x20000000, pixel_stack[0].pixel);
+      }
    }
    else if (pixel_stack[0].shadow_type == TITAN_NORMAL_SHADOW)
    {
@@ -422,6 +525,61 @@ void TitanPutHLine(int priority, s32 x, s32 y, s32 width, u32 color)
    }
 }
 
+void LineWindow(clipping_struct *clip, Vdp2* regs, u8* ram, u32 * linewndaddr)
+{
+   clip->xstart = T1ReadWord(ram, *linewndaddr);
+   *linewndaddr += 2;
+   clip->xend = T1ReadWord(ram, *linewndaddr);
+   *linewndaddr += 2;
+
+   /* Ok... that looks insane... but there's at least two games (3D Baseball and
+   Panzer Dragoon Saga) that set the line window end to 0xFFFF and expect the line
+   window to be invalid for those lines... */
+   if (clip->xend == 0xFFFF)
+   {
+      clip->xstart = 0;
+      clip->xend = 0;
+      return;
+   }
+
+   clip->xstart &= 0x3FF;
+   clip->xend &= 0x3FF;
+
+   switch ((regs->TVMD >> 1) & 0x3)
+   {
+   case 0: // Normal
+      clip->xstart = (clip->xstart >> 1) & 0x1FF;
+      clip->xend = (clip->xend >> 1) & 0x1FF;
+      break;
+   case 1: // Hi-Res
+      clip->xstart = clip->xstart & 0x3FF;
+      clip->xend = clip->xend & 0x3FF;
+      break;
+   case 2: // Exclusive Normal
+      clip->xstart = clip->xstart & 0x1FF;
+      clip->xend = clip->xend & 0x1FF;
+      break;
+   case 3: // Exclusive Hi-Res
+      clip->xstart = (clip->xstart & 0x3FF) >> 1;
+      clip->xend = (clip->xend & 0x3FF) >> 1;
+      break;
+   }
+}
+
+void GetLineWindowBase(Vdp2 * regs, u32* addr)
+{
+  // if (regs->LWTA0.all & 0x80000000)
+   {
+   //   islinewindow[0] |= 0x1;
+      addr[0] = (regs->LWTA0.all & 0x7FFFE) << 1;
+   }
+//   if (regs->LWTA1.all & 0x80000000)
+   {
+   //   islinewindow[0] |= 0x2;
+      addr[1] = (regs->LWTA1.all & 0x7FFFE) << 1;
+   }
+}
+
 void TitanRenderLines(pixel_t * dispbuffer, int start_line, int end_line)
 {
    int x, y;
@@ -434,16 +592,28 @@ void TitanRenderLines(pixel_t * dispbuffer, int start_line, int end_line)
    }
 
    Vdp2GetInterlaceInfo(&interlace_line, &line_increment);
+
+
+   u32 line_window_base_addr[2] = { 0 };
+   u32 line_window_addr[2] = { 0 };
+
+   GetLineWindowBase(Vdp2Regs, line_window_base_addr);
    
    for (y = start_line + interlace_line; y < end_line; y += line_increment)
    {
+
+      line_window_addr[0] = line_window_base_addr[0] + (y * 4);
+      line_window_addr[1] = line_window_base_addr[1] + (y * 4);
+
+      LineWindow(window, Vdp2Regs, Vdp2Ram, &line_window_addr[0]);
+
       for (x = 0; x < tt_context.vdp2width; x++)
       {
          int i = (y * tt_context.vdp2width) + x;
 
          dispbuffer[i] = 0;
 
-         dot = TitanDigPixel(i, y);
+         dot = TitanDigPixel(i, x, y);
 
          if (dot)
          {
@@ -527,9 +697,61 @@ void TitanRender(pixel_t * dispbuffer)
       return;
    }
 
+   ReadWindowCoordinates(0, &window[0], Vdp2Regs);
+   ReadWindowCoordinates(1, &window[1], Vdp2Regs);
+
+   transparent_process_window_logic[TITAN_NBG0] = (Vdp2Regs->WCTLA >> 7) & 1;
+   transparent_process_window_logic[TITAN_NBG1] = (Vdp2Regs->WCTLA >> 15) & 1;
+   transparent_process_window_logic[TITAN_NBG2] = (Vdp2Regs->WCTLB >> 7) & 1;
+   transparent_process_window_logic[TITAN_NBG3] = (Vdp2Regs->WCTLB >> 15) & 1;
+   transparent_process_window_logic[TITAN_RBG0] = (Vdp2Regs->WCTLC >> 7) & 1;
+   transparent_process_window_logic[TITAN_SPRITE] = (Vdp2Regs->WCTLC >> 15) & 1;
+
+   transparent_process_window_enable[TITAN_NBG0][0] = (Vdp2Regs->WCTLA >> 1) & 1;
+   transparent_process_window_enable[TITAN_NBG1][0] = (Vdp2Regs->WCTLA >> 9) & 1;
+   transparent_process_window_enable[TITAN_NBG2][0] = (Vdp2Regs->WCTLB >> 1) & 1;
+   transparent_process_window_enable[TITAN_NBG3][0] = (Vdp2Regs->WCTLB >> 9) & 1;
+   transparent_process_window_enable[TITAN_RBG0][0] = (Vdp2Regs->WCTLC >> 1) & 1;
+   transparent_process_window_enable[TITAN_SPRITE][0] = (Vdp2Regs->WCTLC >> 9) & 1;
+
+   transparent_process_window_enable[TITAN_NBG0][1] = (Vdp2Regs->WCTLA >> 3) & 1;
+   transparent_process_window_enable[TITAN_NBG1][1] = (Vdp2Regs->WCTLA >> 11) & 1;
+   transparent_process_window_enable[TITAN_NBG2][1] = (Vdp2Regs->WCTLB >> 3) & 1;
+   transparent_process_window_enable[TITAN_NBG3][1] = (Vdp2Regs->WCTLB >> 11) & 1;
+   transparent_process_window_enable[TITAN_RBG0][1] = (Vdp2Regs->WCTLC >> 3) & 1;
+   transparent_process_window_enable[TITAN_SPRITE][1] = (Vdp2Regs->WCTLC >> 11) & 1;
+
+   sprite_window_enabled[TITAN_NBG0] = (Vdp2Regs->WCTLA >> 5) & 1;
+   sprite_window_enabled[TITAN_NBG1] = (Vdp2Regs->WCTLA >> 13) & 1;
+   sprite_window_enabled[TITAN_NBG2] = (Vdp2Regs->WCTLB >> 5) & 1;
+   sprite_window_enabled[TITAN_NBG3] = (Vdp2Regs->WCTLB >> 13) & 1;
+   sprite_window_enabled[TITAN_SPRITE] = (Vdp2Regs->WCTLC >> 13) & 1;
+   sprite_window_enabled[TITAN_RBG0] = (Vdp2Regs->WCTLC >> 5) & 1;
+
+   transparent_process_window_area[TITAN_NBG0][0] = (Vdp2Regs->WCTLA >> 0) & 1;
+   transparent_process_window_area[TITAN_NBG1][0] = (Vdp2Regs->WCTLA >> 8) & 1;
+   transparent_process_window_area[TITAN_NBG2][0] = (Vdp2Regs->WCTLB >> 0) & 1;
+   transparent_process_window_area[TITAN_NBG3][0] = (Vdp2Regs->WCTLB >> 8) & 1;
+   transparent_process_window_area[TITAN_RBG0][0] = (Vdp2Regs->WCTLC >> 0) & 1;
+   transparent_process_window_area[TITAN_SPRITE][0] = (Vdp2Regs->WCTLC >> 8) & 1;
+
+   transparent_process_window_area[TITAN_NBG0][1] = (Vdp2Regs->WCTLA >> 2) & 1;
+   transparent_process_window_area[TITAN_NBG1][1] = (Vdp2Regs->WCTLA >> 10) & 1;
+   transparent_process_window_area[TITAN_NBG2][1] = (Vdp2Regs->WCTLB >> 2) & 1;
+   transparent_process_window_area[TITAN_NBG3][1] = (Vdp2Regs->WCTLB >> 10) & 1;
+   transparent_process_window_area[TITAN_RBG0][1] = (Vdp2Regs->WCTLC >> 2) & 1;
+   transparent_process_window_area[TITAN_SPRITE][1] = (Vdp2Regs->WCTLC >> 10) & 1;
+
+   sprite_window_inside[TITAN_NBG0] = (Vdp2Regs->WCTLA >> 4) & 1;
+   sprite_window_inside[TITAN_NBG1] = (Vdp2Regs->WCTLA >> 12) & 1;
+   sprite_window_inside[TITAN_NBG2] = (Vdp2Regs->WCTLB >> 4) & 1;
+   sprite_window_inside[TITAN_NBG3] = (Vdp2Regs->WCTLB >> 12) & 1;
+   sprite_window_inside[TITAN_SPRITE] = (Vdp2Regs->WCTLC >> 12) & 1;
+   sprite_window_inside[TITAN_RBG0] = (Vdp2Regs->WCTLC >> 4) & 1;
+
 #ifdef WANT_VIDSOFT_PRIORITY_THREADING
 
-   if (vidsoft_num_priority_threads > 0)
+   if (0)//vidsoft_num_priority_threads > 0)
    {
 
       TitanRenderThreads(dispbuffer);

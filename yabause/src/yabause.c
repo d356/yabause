@@ -457,6 +457,8 @@ int YabauseExec(void) {
 int saved_centicycles;
 #endif
 
+extern int frame_chunk_pos;
+
 int YabauseEmulate(void) {
    int oneframeexec = 0;
 
@@ -493,6 +495,8 @@ int YabauseEmulate(void) {
      return 0;
    }
    #endif
+
+   frame_chunk_pos = 0;
 
    while (!oneframeexec)
    {
@@ -593,6 +597,11 @@ int YabauseEmulate(void) {
          ScspExec();
          PROFILE_STOP("SCSP");
 #endif
+
+         VidsoftStartThreads(yabsys.LineCount);
+
+         VidsoftWaitForThreads(yabsys.LineCount);
+
          yabsys.DecilineCount = 0;
          yabsys.LineCount++;
          if (yabsys.LineCount == yabsys.VBlankLineCount)

@@ -22,6 +22,8 @@
 #include "tests.h"
 #include "smpc.h"
 
+u8 per_fetch_continue();
+
 //////////////////////////////////////////////////////////////////////////////
 
 void smpc_test()
@@ -55,9 +57,389 @@ void disable_iapetus_handler()
    bios_set_scu_interrupt(0x41, NULL);
    bios_set_scu_interrupt(0x47, NULL);
 }
+#if 0
+//////////////////////////////////////////////////////////////////////////////
+
+volatile int hline_count_this_frame = 0;
+
+void smpc_test_vblank_out_handler()
+{
+   hline_count_this_frame = 0;
+}
 
 //////////////////////////////////////////////////////////////////////////////
 
+volatile int hblank_timer = 0;
+
+void smpc_test_hblank_in_handler()
+{
+   hblank_timer++;
+   hline_count_this_frame++;
+}
+
+//////////////////////////////////////////////////////////////////////////////
+
+void print_result(u32 starttime, int*line_count, int nops)
+{
+   u32 endtime = hblank_timer;
+   vdp_printf(&test_disp_font, 0 * 8, *line_count * 8, 15, "%06d   | %03d            | %03d", nops, endtime - starttime, hline_count_this_frame);
+   *line_count = *line_count + 1;
+}
+
+//////////////////////////////////////////////////////////////////////////////
+
+void intback_write_iregs(int status, int p2md, int p1md, int pen, int ope)
+{
+   SMPC_REG_IREG(0) = status;
+   SMPC_REG_IREG(1) = (p2md << 6) | (p1md << 4) | (pen << 3) | (ope << 0);
+   SMPC_REG_IREG(2) = 0xF0;
+}
+
+//////////////////////////////////////////////////////////////////////////////
+
+void timed_command_issue(u32*freq,int*line_count, int command, int num_nops)
+{
+   smpc_issue_command(command);
+   u32 starttime = hblank_timer;
+   smpc_wait_till_ready();
+   print_result(starttime, line_count,  num_nops);
+}
+
+//////////////////////////////////////////////////////////////////////////////
+
+//not exact since the for loop will cost cycles
+void intback_wait(int delay)
+{
+   int i = 0;
+   for (i = 0; i < delay; i++)
+      asm("nop");
+}
+
+//////////////////////////////////////////////////////////////////////////////
+
+void smpc_intback_set_interrupts()
+{
+   interrupt_set_level_mask(0xF);
+   bios_change_scu_interrupt_mask(0xFFFFFFFF, MASK_VBLANKOUT | MASK_HBLANKIN);
+   bios_set_scu_interrupt(0x41, smpc_test_vblank_out_handler);
+   bios_set_scu_interrupt(0x42, smpc_test_hblank_in_handler);
+   bios_change_scu_interrupt_mask(~(MASK_VBLANKOUT | MASK_HBLANKIN), 0);
+   interrupt_set_level_mask(0x1);
+}
+
+//////////////////////////////////////////////////////////////////////////////
+
+void smpc_intback_issue_timing_test()
+{
+   disable_iapetus_handler();
+   test_disp_font.transparent = 0;
+
+   u32 freq;
+
+   smpc_intback_set_interrupts();
+
+   vdp_vsync();
+
+   //28.6364 mhz = 28.64 cycles per microsecond
+   //26.8741 mhz = 26.87 cycles per microsecond
+   //intback is supposed to be issued 300 microseconds after vblankin
+   //300 * 28.64 = 8592 cycles
+   //300 * 26.87 = 8061 cycles
+   int nop_increment = 8061 / 2;
+   
+   vdp_printf(&test_disp_font, 0, 0, 15,   "Smpc intback command issue timing test");
+   vdp_printf(&test_disp_font, 0, 8, 15,   "--------------------------------------");
+   vdp_printf(&test_disp_font, 0, 16, 15,  "Nops     | Hblanks until  | Issued at ");
+   vdp_printf(&test_disp_font, 0, 24, 15,  "         | complete       | hblank #  ");
+   vdp_printf(&test_disp_font, 0, 32, 15,  "--------------------------------------");
+   int line_count = 5;
+   int i;
+   for (i = 0; i < 27; i++)
+   {
+      int num_nops = nop_increment * i;
+      intback_write_iregs(0, 0, 0, 1, 0);
+      vdp_wait_vblankin();
+      intback_wait(num_nops);
+      timed_command_issue(&freq, &line_count, SMPC_CMD_INTBACK, num_nops);
+   }
+
+   // Re-enable Peripheral Handler
+   per_init();
+
+   for (;;)
+   {
+      vdp_vsync();
+
+      if (per[0].but_push_once & PAD_START)
+      {
+         ar_menu();
+      }
+   }
+
+   test_disp_font.transparent = 1;
+   gui_clear_scr(&test_disp_font);
+}
+#else
+//////////////////////////////////////////////////////////////////////////////
+
+
+
+//////////////////////////////////////////////////////////////////////////////
+
+volatile int hblank_timer = 0;
+volatile int issue_intback = 0;
+
+volatile int line_count = 5;
+
+volatile int lines_since_vblank_out = 0;
+volatile int lines_since_vblank_in = 0;
+
+volatile int result_pos = 0;
+
+struct Results
+{
+   volatile int issue_line;
+   volatile int finish_line;
+
+   volatile int start_time;
+   volatile int end_time;
+
+} volatile results[25] = { 0 };
+
+void smpc_test_vblank_out_handler()
+{
+   lines_since_vblank_out = 0;
+//   results[result_pos].start_time = 0xdead;
+//   result_pos++;
+}
+
+void smpc_test_hblank_in_handler()
+{
+   hblank_timer++;
+   lines_since_vblank_out++;
+   lines_since_vblank_in++;
+}
+
+void smpc_test_vblank_in_handler()
+{
+   lines_since_vblank_in = 0;
+   issue_intback = 1;
+}
+
+//////////////////////////////////////////////////////////////////////////////
+
+void print_result(int which)
+{
+   if (results[which].start_time == 0xdead)
+   {
+      vdp_printf(&test_disp_font, 0 * 8, line_count * 8, 15, "Vblank-out");
+
+   }
+   else
+   {
+      int time = results[which].end_time - results[which].start_time;
+      vdp_printf(&test_disp_font, 0 * 8, line_count * 8, 15, "%04d  | %04d  | %03d  | %03d | %03d",
+         results[which].start_time, results[which].end_time, time, results[which].issue_line, results[which].finish_line);
+   }
+   line_count++;
+}
+
+//////////////////////////////////////////////////////////////////////////////
+
+void intback_write_iregs(int status, int p2md, int p1md, int pen, int ope)
+{
+   SMPC_REG_IREG(0) = status;
+   SMPC_REG_IREG(1) = (p2md << 6) | (p1md << 4) | (pen << 3) | (ope << 0);
+   SMPC_REG_IREG(2) = 0xF0;
+   SMPC_REG_IREG(6) = 0xFE;
+}
+
+//////////////////////////////////////////////////////////////////////////////
+
+//not exact since the for loop will cost cycles
+void intback_wait(int delay)
+{
+   int i = 0;
+   for (i = 0; i < delay; i++)
+      asm("nop");
+}
+
+
+
+void smpc_test_system_manager_handler()
+{
+   results[result_pos].end_time = hblank_timer;
+   results[result_pos].finish_line = lines_since_vblank_out;
+   result_pos++;
+}
+
+//////////////////////////////////////////////////////////////////////////////
+
+void smpc_intback_set_interrupts()
+{
+   interrupt_set_level_mask(0xF);
+   bios_change_scu_interrupt_mask(0xFFFFFFFF, MASK_VBLANKOUT | MASK_HBLANKIN | MASK_VBLANKIN | MASK_SYSTEMMANAGER);
+   bios_set_scu_interrupt(0x47, smpc_test_system_manager_handler);
+   bios_set_scu_interrupt(0x40, smpc_test_vblank_in_handler);
+   bios_set_scu_interrupt(0x41, smpc_test_vblank_out_handler);
+   bios_set_scu_interrupt(0x42, smpc_test_hblank_in_handler);
+   bios_change_scu_interrupt_mask(~(MASK_VBLANKOUT | MASK_HBLANKIN | MASK_VBLANKIN | MASK_SYSTEMMANAGER), 0);
+   interrupt_set_level_mask(0x1);
+}
+
+//////////////////////////////////////////////////////////////////////////////
+
+void smpc_intback_issue_timing_test()
+{
+   disable_iapetus_handler();
+   test_disp_font.transparent = 0;
+
+   smpc_intback_set_interrupts();
+
+//   vdp_vsync();
+
+   //28.6364 mhz = 28.64 cycles per microsecond
+   //26.8741 mhz = 26.87 cycles per microsecond
+   //intback is supposed to be issued 300 microseconds after vblankin
+   //300 * 28.64 = 8592 cycles
+   //300 * 26.87 = 8061 cycles
+   //int nop_increment = 8061;
+
+   vdp_printf(&test_disp_font, 0, 0, 15, "Smpc intback command issue timing test");
+   vdp_printf(&test_disp_font, 0, 8, 15, "--------------------------------------");
+   vdp_printf(&test_disp_font, 0, 16, 15, "Nops     | Hblanks until  | Issued at ");
+   vdp_printf(&test_disp_font, 0, 24, 15, "         | complete       | hblank #  ");
+   vdp_printf(&test_disp_font, 0, 32, 15, "--------------------------------------");
+
+   
+   int count = 224;
+   for (;;)
+   {
+      if (issue_intback)
+      {
+         int lines = lines_since_vblank_out;
+
+         if (lines >= count)
+         {
+            issue_intback = 0;
+            results[result_pos].start_time = hblank_timer;
+            results[result_pos].issue_line = lines;
+            intback_write_iregs(0, 0, 0, 1, 0);
+            smpc_issue_command(SMPC_CMD_INTBACK);
+            count++;
+         }
+      }
+
+      if (result_pos > 20)
+         break;
+#if 0
+      if (issue_intback)
+      { 
+         issue_intback = 0;
+         int num_nops = nop_increment * i;
+       //  intback_wait(num_nops);
+         timed_command_issue(&line_count, SMPC_CMD_INTBACK, num_nops);
+         i++;
+      }
+
+      if (i > 26)
+         break;
+#endif
+   }
+
+   int i;
+   for (i = 0; i < 25; i++)
+   {
+      print_result(i);
+   }
+
+   // Re-enable Peripheral Handler
+   per_init();
+
+   for (;;)
+   {
+      vdp_vsync();
+
+      if (per[0].but_push_once & PAD_START)
+      {
+         ar_menu();
+      }
+   }
+
+   test_disp_font.transparent = 1;
+   gui_clear_scr(&test_disp_font);
+}
+#endif
+
+void smpc_cmd_test2()
+{
+   int i, j, k;
+   int a = 0, b = 0, c = 0;
+again:
+
+   // Disable Peripheral handler
+   disable_iapetus_handler();
+   test_disp_font.transparent = 0;
+
+
+
+   //   SMPC_REG_IREG(0) = 0x40;
+   SMPC_REG_IREG(0) = a;
+   SMPC_REG_IREG(1) = b;
+   SMPC_REG_IREG(2) = c;
+
+   smpc_issue_command(0x1e);
+   smpc_wait_till_ready();
+
+   
+
+ //  for (i = 9; i > 0; i--)
+//   {
+      for (j = 0; j < 16; j++)
+         vdp_printf(&test_disp_font, 2 * 8, (6 + j) * 8, 15, "OREG%02d = %08X", j, SMPC_REG_OREG(j));
+      for (j = 0; j < 16; j++)
+         vdp_printf(&test_disp_font, 20 * 8, (6 + j) * 8, 15, "OREG%d = %08X", 16 + j, SMPC_REG_OREG(16 + j));
+
+   //   vdp_printf(&test_disp_font, 18 * 8, (6 + 17) * 8, 15, "%d", i);
+         
+//
+
+      // Re-enable Peripheral Handler
+      per_init();
+   for (;;)
+   {
+      vdp_vsync();
+      vdp_printf(&test_disp_font, 0 * 8, 0 * 8, 15, "a = %02X b = %02X c = %02X", a, b, c);
+
+      if (per[0].but_push_once & PAD_START)
+      {
+         ar_menu();
+      }
+
+      if (per[0].but_push_once & PAD_A)
+      {
+         goto again;
+      }
+
+      if (per[0].but_push_once & PAD_X)
+      {
+         a++;
+      }
+      if (per[0].but_push_once & PAD_Y)
+      {
+         b++;
+      }
+      if (per[0].but_push_once & PAD_Z)
+      {
+         c++;
+      }
+   }
+
+
+
+   test_disp_font.transparent = 1;
+   gui_clear_scr(&test_disp_font);
+}
 void smpc_cmd_test()
 {
 	// Intback IREG test

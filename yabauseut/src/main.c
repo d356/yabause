@@ -191,6 +191,8 @@ int main()
 
    yabauseut_init();
 
+   smpc_intback_issue_timing_test();
+
    auto_test_do_selected_test(auto_test_selection);
 
    // Display Main Menu

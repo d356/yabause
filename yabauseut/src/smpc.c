@@ -182,14 +182,8 @@ void smpc_intback_issue_timing_test()
 #else
 //////////////////////////////////////////////////////////////////////////////
 
-
-
-//////////////////////////////////////////////////////////////////////////////
-
 volatile int hblank_timer = 0;
 volatile int issue_intback = 0;
-
-volatile int line_count = 4;
 
 volatile int lines_since_vblank_out = 0;
 volatile int lines_since_vblank_in = 0;
@@ -197,36 +191,48 @@ volatile int lines_since_vblank_in = 0;
 volatile int result_pos = 0;
 volatile int system_manager_occured = 0;
 
-struct LineTiming {
-   int start_line;
-   int finish_line;
+volatile int frame_count = 0;
+volatile int stored_timer = 0;
+
+struct ResultType
+{
+   int type;
+   int since_vblank_out;
+   int since_vblank_in;
+   int free_timer;
+   int frame;
+   int total_time;
 };
 
-//struct Results
-//{
-//   struct LineTiming since_vblank_out;
-//   struct LineTiming since_vblank_in;
-//   struct LineTiming free_timer;
-//} results[25] = { { 0 } };
+volatile struct ResultType results[64] = { { 0 } };
 
-struct ResultStrings
+char * result_types[] = 
 {
-   char str[128];
-}result_strings[128] = { { { 0 } } };
+   "bad       ",
+   "intb issue",
+   "sys interu",
+   "in no data",
+   "data remai"
+};
 
-int result_str_pos = 0;
+#define RESULT_START 1
+#define RESULT_SYS_MAN 2
+#define RESULT_NO_DATA 3
+#define RESULT_DATA_REM 4
 
-//struct Results continue_results = {{0}};
+#define TEST_STATUS_ONLY 1
+#define TEST_STATUS_PERIPHERAL 2
+#define TEST_PERIPHERAL_ONLY 3
 
-volatile int continue_results_pos = 0;
-volatile int test_started = 0;
-volatile int frame_count = 0;
+//////////////////////////////////////////////////////////////////////////////
 
 void smpc_test_vblank_out_handler()
 {
    lines_since_vblank_out = 0;
    frame_count++;
 }
+
+//////////////////////////////////////////////////////////////////////////////
 
 void smpc_test_hblank_in_handler()
 {
@@ -235,83 +241,51 @@ void smpc_test_hblank_in_handler()
    lines_since_vblank_in++;
 }
 
+//////////////////////////////////////////////////////////////////////////////
+
 void smpc_test_vblank_in_handler()
 {
    lines_since_vblank_in = 0;
    issue_intback = 1;
 }
 
-volatile int m = 0;
-volatile int stored_timer = 0;
+//////////////////////////////////////////////////////////////////////////////
+
+void reset_result(int pos)
+{
+   volatile struct ResultType * r = &results[pos];
+   r->type = 0;
+   r->since_vblank_out = 0;
+   r->since_vblank_in = 0;
+   r->free_timer = 0;
+   r->frame = 0;
+   r->total_time = 0;
+}
+
+//////////////////////////////////////////////////////////////////////////////
+
+inline void set_result(int type)
+{
+   volatile struct ResultType * r = &results[result_pos];
+
+   r->type = type;
+   r->since_vblank_out = lines_since_vblank_out;
+   r->since_vblank_in = lines_since_vblank_in;
+   r->free_timer = hblank_timer;
+   r->frame = frame_count;
+   r->total_time = hblank_timer - stored_timer;
+   result_pos++;
+}
+
+//////////////////////////////////////////////////////////////////////////////
 
 void smpc_test_system_manager_handler()
 {
-   //results[result_pos].since_vblank_out.finish_line = lines_since_vblank_out;
-   //results[result_pos].since_vblank_in.finish_line = lines_since_vblank_in;
-   //results[result_pos].free_timer.finish_line = hblank_timer;
-   //result_pos++;
-
- //  int free_time = results[which].free_timer.finish_line - results[which].free_timer.start_line;
-
-   int vbo_lines = lines_since_vblank_out;
-   int vbi_lines = lines_since_vblank_in;
-   int hb = hblank_timer;
-   int fc = frame_count;
-
-   int free_time = hb - stored_timer;
-
-   strcpy(result_strings[result_str_pos].str, "sys man");
-   result_str_pos++;
-
-   sprintf(result_strings[result_str_pos].str, "%04d  | %04d  | %04d | %04d | %04d",
-      vbo_lines,
-      vbi_lines,
-      hb,
-      fc,
-      free_time);
-
-   result_str_pos++;
+   set_result(RESULT_SYS_MAN);
 
    system_manager_occured = 1;
 }
 
-//////////////////////////////////////////////////////////////////////////////
-#if 0
-void print_result(int which)
-{
-#if 0
-   int free_time = results[which].free_timer.finish_line - results[which].free_timer.start_line;
-
-   vdp_printf(&test_disp_font, 0 * 8, line_count * 8, 15, "%04d  | %04d  | %04d | %04d",
-      results[which].since_vblank_out.start_line,
-      results[which].since_vblank_in.start_line,
-      results[which].free_timer.start_line,
-      frame_count);
-
-   line_count++;
-
-   vdp_printf(&test_disp_font, 0 * 8, line_count * 8, 15, "%04d  | %04d  | %04d | %04d",
-      results[which].since_vblank_out.finish_line,
-      results[which].since_vblank_in.finish_line,
-      results[which].free_timer.finish_line,
-      free_time);
-
-   line_count+=2;
-#else
-
-
-   int free_time = results[which].free_timer.finish_line - results[which].free_timer.start_line;
-
-   sprintf(result_strings[result_str_pos].str, "%04d  | %04d  | %04d | %04d",
-      results[which].since_vblank_out.finish_line,
-      results[which].since_vblank_in.finish_line,
-      results[which].free_timer.finish_line,
-      free_time);
-
-   result_str_pos++;
-#endif
-}
-#endif
 //////////////////////////////////////////////////////////////////////////////
 
 void intback_write_iregs(int status, int p2md, int p1md, int pen, int ope)
@@ -324,20 +298,16 @@ void intback_write_iregs(int status, int p2md, int p1md, int pen, int ope)
 
 //////////////////////////////////////////////////////////////////////////////
 
-//not exact since the for loop will cost cycles
-void intback_wait(int delay)
+void smpc_intback_disable_interrupts()
 {
-   int i = 0;
-   for (i = 0; i < delay; i++)
-      asm("nop");
+   interrupt_set_level_mask(0xF);
+   bios_change_scu_interrupt_mask(0xFFFFFFFF, MASK_VBLANKOUT | MASK_HBLANKIN | MASK_VBLANKIN | MASK_SYSTEMMANAGER);
 }
 
 //////////////////////////////////////////////////////////////////////////////
 
 void smpc_intback_set_interrupts()
 {
-   interrupt_set_level_mask(0xF);
-   bios_change_scu_interrupt_mask(0xFFFFFFFF, MASK_VBLANKOUT | MASK_HBLANKIN | MASK_VBLANKIN | MASK_SYSTEMMANAGER);
    bios_set_scu_interrupt(0x47, smpc_test_system_manager_handler);
    bios_set_scu_interrupt(0x40, smpc_test_vblank_in_handler);
    bios_set_scu_interrupt(0x41, smpc_test_vblank_out_handler);
@@ -346,115 +316,153 @@ void smpc_intback_set_interrupts()
    interrupt_set_level_mask(0x1);
 }
 
-void do_test_start()
+//////////////////////////////////////////////////////////////////////////////
+
+void reset_test_vars()
 {
-   int vbo_lines = lines_since_vblank_out;
-   int vbi_lines = lines_since_vblank_in;
-   int hb = hblank_timer;
-   int fc = frame_count;
+   int i;
+   for (i = 0; i < 64; i++)
+      reset_result(i);
 
-   sprintf(result_strings[result_str_pos].str, "%04d  | %04d  | %04d | %04d",
-      vbo_lines,
-      vbi_lines,
-      hb,
-      fc);
+   hblank_timer = 0;
+   issue_intback = 0;
 
-   stored_timer = hb;
+   lines_since_vblank_out = 0;
+   lines_since_vblank_in = 0;
 
-   result_str_pos++;
+   result_pos = 0;
+   system_manager_occured = 0;
+
+   frame_count = 0;
+   stored_timer = 0;
 }
 
 //////////////////////////////////////////////////////////////////////////////
 
-void smpc_intback_issue_timing_test()
+void smpc_intback_issue_timing_test_main(int test_type, int vblank_line)
 {
-   disable_iapetus_handler();
+   smpc_intback_disable_interrupts();
+
+   reset_test_vars();
+
    test_disp_font.transparent = 0;
 
    smpc_intback_set_interrupts();
 
-   int non_peripheral_test = 1;
-   int issue_continue_next_frame = 0;
-
-   int printed_results_pos = 0;
-   
    for (;;)
    {
-      if (issue_intback)
+      if (issue_intback && (lines_since_vblank_in == vblank_line))
       {
          issue_intback = 0;
 
-         if (non_peripheral_test)
+         if (test_type == TEST_STATUS_PERIPHERAL)
             intback_write_iregs(1, 0, 0, 1, 0);
-         else
+         else if (test_type == TEST_PERIPHERAL_ONLY)
             intback_write_iregs(0, 0, 0, 1, 0);
+         else if (test_type == TEST_STATUS_ONLY)
+            intback_write_iregs(1, 0, 0, 0, 0);
 
-         do_test_start();
+         stored_timer = hblank_timer;
 
-         //results[result_pos].since_vblank_out.start_line = lines_since_vblank_out;
-         //results[result_pos].since_vblank_in.start_line = lines_since_vblank_in;
-         //results[result_pos].free_timer.start_line = hblank_timer;
+         set_result(RESULT_START);
 
          smpc_issue_command(SMPC_CMD_INTBACK);
       }
 
       if (system_manager_occured)
       {
-         //print_result(printed_results_pos);
-         //printed_results_pos++;
+         system_manager_occured = 0;
 
-       //  if (non_peripheral_test)
+         if (SMPC_REG_SR & (1 << 5))
          {
-            if (SMPC_REG_SR & (1 << 5))
-            {
-               //remaining peripheral data
-               //issue continue
-            //   strcpy(result_strings[result_str_pos].str, "dr");
-               //sprintf(result_strings[result_str_pos].str, "%s", "dr");
-             //  result_str_pos++;
-               do_test_start();
-               //results[result_pos].since_vblank_out.start_line = lines_since_vblank_out;
-               //results[result_pos].since_vblank_in.start_line = lines_since_vblank_in;
-               //results[result_pos].free_timer.start_line = hblank_timer;
-               SMPC_REG_IREG(0) = 0x80;
-               
-            }
-            else
-            {
-               //sprintf(result_strings[result_str_pos].str, "%04d",0);
+            set_result(RESULT_DATA_REM);
+            SMPC_REG_IREG(0) = 0x80;
 
-               //result_str_pos++;
-       /*        result_strings[result_str_pos].str[0] = 'N';
-               result_strings[result_str_pos].str[1] = '\0';*/
-             //  sprintf(result_strings[result_str_pos].str, "%s", "nd");
-               //strcpy(result_strings[result_str_pos].str, "nd");
-             //  printf(result_strings[result_str_pos].str, "%s", "nd");
-             //  result_str_pos++;
-            }
+         }
+         else
+         {
+            set_result(RESULT_NO_DATA);
          }
       }
 
-      if (result_pos > 10)
+      if (result_pos > 48)
          break;
-   }
-
-   int i;
-   for (i = 0; i < 25; i++)
-   {
-      vdp_printf(&test_disp_font, 0, 8 * i, 15, result_strings[i].str);
    }
 
    // Re-enable Peripheral Handler
    per_init();
 
+   int i;
+   int j = 2;
+   int previous_frame = -1;
+
+   for (i = 0; i < 64; i++)
+   {
+      if (results[i].frame < 3)
+         continue;
+
+      if (results[i].frame != previous_frame)
+         j++;
+
+      previous_frame = results[i].frame;
+
+      vdp_printf(&test_disp_font, 0, 8 * j, 15,
+         "%s | %03d | %03d | %04d | %02d | %03d",
+         result_types[results[i].type],
+         results[i].since_vblank_out,
+         results[i].since_vblank_in,
+         results[i].free_timer,
+         results[i].frame,
+         results[i].total_time);
+
+      j++;
+
+      if (j > 27)
+         break;
+   }
+
    for (;;)
    {
       vdp_vsync();
+
+      if (per[0].but_push_once & PAD_A)
+      {
+         break;
+      }
 
       if (per[0].but_push_once & PAD_START)
       {
          reset_system();
       }
+   }
+}
+
+//////////////////////////////////////////////////////////////////////////////
+
+void smpc_intback_issue_timing_test()
+{
+   int line = 0;
+
+   vdp_printf(&test_disp_font, 0, 2 * 8, 15, "           | vbo | vbi | hbla | fr | lin", line);
+
+   int increment = 4;
+
+   for (line = 0; line < 41; line += increment)
+   {
+      vdp_printf(&test_disp_font, 0, 0, 15,"peripheral only, %d lines from vblank in    ", line);
+      smpc_intback_issue_timing_test_main(TEST_PERIPHERAL_ONLY, line);
+   }
+
+   for (line = 0; line < 41; line += increment)
+   {
+      vdp_printf(&test_disp_font, 0, 0, 15, "status before, %d lines from vblank in  ", line);
+      smpc_intback_issue_timing_test_main(TEST_STATUS_PERIPHERAL, line);
+   }
+
+   for (line = 0; line < 41; line += increment)
+   {
+      vdp_printf(&test_disp_font, 0, 0, 15, "status only, %d lines from vblank in  ", line);
+      smpc_intback_issue_timing_test_main(TEST_STATUS_ONLY, line);
    }
 
    test_disp_font.transparent = 1;

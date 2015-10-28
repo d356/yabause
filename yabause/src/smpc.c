@@ -46,6 +46,7 @@
 Smpc * SmpcRegs;
 u8 * SmpcRegsT;
 SmpcInternal * SmpcInternalVars;
+int intback_wait_for_line = 0;
 
 //////////////////////////////////////////////////////////////////////////////
 
@@ -509,11 +510,12 @@ static void SmpcRESDISA(void) {
 void SmpcExec(s32 t) {
    if (SmpcInternalVars->timing > 0) {
 
-      if (SmpcInternalVars->intback)
+      if (intback_wait_for_line)
       {
          if (yabsys.LineCount == 207)
          {
             SmpcInternalVars->timing = -1;
+            intback_wait_for_line = 0;
          }
       }
 
@@ -634,6 +636,7 @@ static void SmpcSetTiming(void) {
          if (SmpcInternalVars->intback)//continue was issued
          {
             SmpcInternalVars->timing = 16000;
+            intback_wait_for_line = 1;
          }
          else {
             // Calculate timing based on what data is being retrieved
@@ -652,6 +655,7 @@ static void SmpcSetTiming(void) {
             {
                //peripheral only
                SmpcInternalVars->timing = 16000;
+               intback_wait_for_line = 1;
             }
          }
          return;

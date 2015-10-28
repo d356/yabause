@@ -508,6 +508,15 @@ static void SmpcRESDISA(void) {
 
 void SmpcExec(s32 t) {
    if (SmpcInternalVars->timing > 0) {
+
+      if (SmpcInternalVars->intback)
+      {
+         if (yabsys.LineCount == 207)
+         {
+            SmpcInternalVars->timing = -1;
+         }
+      }
+
       SmpcInternalVars->timing -= t;
       if (SmpcInternalVars->timing <= 0) {
          switch(SmpcRegs->COMREG) {
@@ -622,21 +631,28 @@ static void SmpcSetTiming(void) {
          SmpcInternalVars->timing = 1; // this has to be tested on a real saturn
          return;
       case 0x10:
-         if (SmpcInternalVars->intback)
-            SmpcInternalVars->timing = 20; // this will need to be verified
+         if (SmpcInternalVars->intback)//continue was issued
+         {
+            SmpcInternalVars->timing = 16000;
+         }
          else {
             // Calculate timing based on what data is being retrieved
 
-            SmpcInternalVars->timing = 1;
-
-            // If retrieving non-peripheral data, add 0.2 milliseconds
-            if (SmpcRegs->IREG[0] == 0x01)
-               SmpcInternalVars->timing += 2;
-
-            // If retrieving peripheral data, add 15 milliseconds
-            if (SmpcRegs->IREG[1] & 0x8)
-               SmpcInternalVars->timing += 16000; // Strangely enough, this works better
-//               SmpcInternalVars->timing += 150;
+            if ((SmpcRegs->IREG[0] == 0x01) && (SmpcRegs->IREG[1] & 0x8))
+            {
+               //status followed by peripheral data
+               SmpcInternalVars->timing = 250;
+            }
+            else if ((SmpcRegs->IREG[0] == 0x01) && ((SmpcRegs->IREG[1] & 0x8) == 0))
+            {
+               //status only
+               SmpcInternalVars->timing = 250;
+            }
+            else if ((SmpcRegs->IREG[0] == 0) && (SmpcRegs->IREG[1] & 0x8))
+            {
+               //peripheral only
+               SmpcInternalVars->timing = 16000;
+            }
          }
          return;
       case 0x17:

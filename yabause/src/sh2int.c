@@ -52,6 +52,60 @@
 } while (0)
 #endif
 
+int cycles_16[] = { 13, 25, 9, 5, 3,20 };
+int cycles_32[] = { 6, 14, 8, 4, 3,20 };
+
+void GetCycles(u32 addr, u32* cycles, int * timing)
+{
+   u32 temp_addr = addr & 0x1FFFFFFF;
+
+   if ((temp_addr >= 0x200000) && (temp_addr < 0x300000))
+   {
+      //work ram l
+      *cycles = *cycles + timing[0];
+   }
+   else if ((temp_addr >= 0x5A00000) && (temp_addr < 0x5A80000))
+   {
+      //sound ram
+      *cycles = *cycles + timing[1];
+   }
+   else if ((temp_addr >= 0x5C00000) && (temp_addr < 0x5E00000))
+   {
+      //vdp1
+      *cycles = *cycles + timing[2];
+   }
+   else if ((temp_addr >= 0x5E00000) && (temp_addr < 0xFE00000))
+   {
+      //vdp2
+      *cycles = *cycles + timing[3];
+   }
+   else if ((temp_addr >= 0x6000000) && (temp_addr < 0x6100000))
+   {
+      //vdp2
+      *cycles = *cycles + timing[4];
+   }
+   else  if ((temp_addr >= 0x2000000) && (temp_addr < 0x5900000))
+   {
+      *cycles = *cycles + timing[5];
+   }
+   else
+   {
+      *cycles = *cycles + 5;
+   }
+}
+
+void MappedMemoryWriteWordTiming(u32 addr, u32 val, u32 * cycles)
+{
+   GetCycles(addr, cycles, cycles_16);
+   MappedMemoryWriteWord(addr, val);
+}
+
+void MappedMemoryWriteLongTiming(u32 addr, u32 val, u32 * cycles)
+{
+   GetCycles(addr, cycles, cycles_32);
+   MappedMemoryWriteLong(addr, val);
+}
+
 void SetInsTracingToggle(int toggle)
 {
 	SetInsTracing(toggle ? 1 : 0);
@@ -1405,7 +1459,7 @@ static void FASTCALL SH2movlm(SH2_struct * sh)
    s32 m = INSTRUCTION_C(sh->instruction);
    s32 n = INSTRUCTION_B(sh->instruction);
 
-   MappedMemoryWriteLong(sh->regs.R[n] - 4,sh->regs.R[m]);
+   MappedMemoryWriteLongTiming(sh->regs.R[n] - 4, sh->regs.R[m], &sh->cycles);
    sh->regs.R[n] -= 4;
    sh->regs.PC += 2;
    sh->cycles++;
@@ -1431,7 +1485,7 @@ static void FASTCALL SH2movls(SH2_struct * sh)
    int b = INSTRUCTION_B(sh->instruction);
    int c = INSTRUCTION_C(sh->instruction);
 
-   MappedMemoryWriteLong(sh->regs.R[b], sh->regs.R[c]);
+   MappedMemoryWriteLongTiming(sh->regs.R[b], sh->regs.R[c], &sh->cycles);
    sh->regs.PC += 2;
    sh->cycles++;
 }
@@ -1440,8 +1494,8 @@ static void FASTCALL SH2movls(SH2_struct * sh)
 
 static void FASTCALL SH2movls0(SH2_struct * sh)
 {
-   MappedMemoryWriteLong(sh->regs.R[INSTRUCTION_B(sh->instruction)] + sh->regs.R[0],
-                         sh->regs.R[INSTRUCTION_C(sh->instruction)]);
+   MappedMemoryWriteLongTiming(sh->regs.R[INSTRUCTION_B(sh->instruction)] + sh->regs.R[0],
+      sh->regs.R[INSTRUCTION_C(sh->instruction)], &sh->cycles);
    sh->regs.PC += 2;
    sh->cycles++;
 }
@@ -1454,7 +1508,7 @@ static void FASTCALL SH2movls4(SH2_struct * sh)
    s32 disp = INSTRUCTION_D(sh->instruction);
    s32 n = INSTRUCTION_B(sh->instruction);
 
-   MappedMemoryWriteLong(sh->regs.R[n]+(disp<<2),sh->regs.R[m]);
+   MappedMemoryWriteLongTiming(sh->regs.R[n] + (disp << 2), sh->regs.R[m], &sh->cycles);
    sh->regs.PC += 2;
    sh->cycles++;
 }
@@ -1465,7 +1519,7 @@ static void FASTCALL SH2movlsg(SH2_struct * sh)
 {
    s32 disp = INSTRUCTION_CD(sh->instruction);
 
-   MappedMemoryWriteLong(sh->regs.GBR+(disp<<2),sh->regs.R[0]);
+   MappedMemoryWriteLongTiming(sh->regs.GBR + (disp << 2), sh->regs.R[0], &sh->cycles);
    sh->regs.PC+=2;
    sh->cycles++;
 }
@@ -1545,7 +1599,7 @@ static void FASTCALL SH2movwm(SH2_struct * sh)
    s32 m = INSTRUCTION_C(sh->instruction);
    s32 n = INSTRUCTION_B(sh->instruction);
 
-   MappedMemoryWriteWord(sh->regs.R[n] - 2,sh->regs.R[m]);
+   MappedMemoryWriteWordTiming(sh->regs.R[n] - 2, sh->regs.R[m], &sh->cycles);
    sh->regs.R[n] -= 2;
    sh->regs.PC += 2;
    sh->cycles++;
@@ -1572,7 +1626,7 @@ static void FASTCALL SH2movws(SH2_struct * sh)
    s32 m = INSTRUCTION_C(sh->instruction);
    s32 n = INSTRUCTION_B(sh->instruction);
 
-   MappedMemoryWriteWord(sh->regs.R[n],sh->regs.R[m]);
+   MappedMemoryWriteWordTiming(sh->regs.R[n], sh->regs.R[m], &sh->cycles);
    sh->regs.PC += 2;
    sh->cycles++;
 }
@@ -1581,8 +1635,8 @@ static void FASTCALL SH2movws(SH2_struct * sh)
 
 static void FASTCALL SH2movws0(SH2_struct * sh)
 {
-   MappedMemoryWriteWord(sh->regs.R[INSTRUCTION_B(sh->instruction)] + sh->regs.R[0],
-                         sh->regs.R[INSTRUCTION_C(sh->instruction)]);
+   MappedMemoryWriteWordTiming(sh->regs.R[INSTRUCTION_B(sh->instruction)] + sh->regs.R[0],
+      sh->regs.R[INSTRUCTION_C(sh->instruction)], &sh->cycles);
    sh->regs.PC+=2;
    sh->cycles++;
 }
@@ -1594,7 +1648,7 @@ static void FASTCALL SH2movws4(SH2_struct * sh)
    s32 disp = INSTRUCTION_D(sh->instruction);
    s32 n = INSTRUCTION_C(sh->instruction);
 
-   MappedMemoryWriteWord(sh->regs.R[n]+(disp<<1),sh->regs.R[0]);
+   MappedMemoryWriteWordTiming(sh->regs.R[n] + (disp << 1), sh->regs.R[0], &sh->cycles);
    sh->regs.PC+=2;
    sh->cycles++;
 }
@@ -1605,7 +1659,7 @@ static void FASTCALL SH2movwsg(SH2_struct * sh)
 {
    s32 disp = INSTRUCTION_CD(sh->instruction);
 
-   MappedMemoryWriteWord(sh->regs.GBR+(disp<<1),sh->regs.R[0]);
+   MappedMemoryWriteWordTiming(sh->regs.GBR + (disp << 1), sh->regs.R[0], &sh->cycles);
    sh->regs.PC+=2;
    sh->cycles++;
 }
@@ -2007,7 +2061,7 @@ static void FASTCALL SH2stcmgbr(SH2_struct * sh)
 {
    s32 n = INSTRUCTION_B(sh->instruction);
    sh->regs.R[n]-=4;
-   MappedMemoryWriteLong(sh->regs.R[n],sh->regs.GBR);
+   MappedMemoryWriteLongTiming(sh->regs.R[n], sh->regs.GBR, &sh->cycles);
    sh->regs.PC+=2;
    sh->cycles += 2;
 }
@@ -2018,7 +2072,7 @@ static void FASTCALL SH2stcmsr(SH2_struct * sh)
 {
    s32 n = INSTRUCTION_B(sh->instruction);
    sh->regs.R[n]-=4;
-   MappedMemoryWriteLong(sh->regs.R[n],sh->regs.SR.all);
+   MappedMemoryWriteLongTiming(sh->regs.R[n], sh->regs.SR.all, &sh->cycles);
    sh->regs.PC+=2;
    sh->cycles += 2;
 }
@@ -2029,7 +2083,7 @@ static void FASTCALL SH2stcmvbr(SH2_struct * sh)
 {
    s32 n = INSTRUCTION_B(sh->instruction);
    sh->regs.R[n]-=4;
-   MappedMemoryWriteLong(sh->regs.R[n],sh->regs.VBR);
+   MappedMemoryWriteLongTiming(sh->regs.R[n], sh->regs.VBR, &sh->cycles);
    sh->regs.PC+=2;
    sh->cycles += 2;
 }
@@ -2080,7 +2134,7 @@ static void FASTCALL SH2stsmmach(SH2_struct * sh)
 {
    s32 n = INSTRUCTION_B(sh->instruction);
    sh->regs.R[n] -= 4;
-   MappedMemoryWriteLong(sh->regs.R[n],sh->regs.MACH); 
+   MappedMemoryWriteLongTiming(sh->regs.R[n], sh->regs.MACH, &sh->cycles);
    sh->regs.PC+=2;
    sh->cycles++;
 }
@@ -2091,7 +2145,7 @@ static void FASTCALL SH2stsmmacl(SH2_struct * sh)
 {
    s32 n = INSTRUCTION_B(sh->instruction);
    sh->regs.R[n] -= 4;
-   MappedMemoryWriteLong(sh->regs.R[n],sh->regs.MACL);
+   MappedMemoryWriteLongTiming(sh->regs.R[n], sh->regs.MACL, &sh->cycles);
    sh->regs.PC+=2;
    sh->cycles++;
 }
@@ -2102,7 +2156,7 @@ static void FASTCALL SH2stsmpr(SH2_struct * sh)
 {
    s32 n = INSTRUCTION_B(sh->instruction);
    sh->regs.R[n] -= 4;
-   MappedMemoryWriteLong(sh->regs.R[n],sh->regs.PR);
+   MappedMemoryWriteLongTiming(sh->regs.R[n], sh->regs.PR, &sh->cycles);
    sh->regs.PC+=2;
    sh->cycles++;
 }

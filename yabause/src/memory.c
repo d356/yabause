@@ -230,6 +230,10 @@ static void FASTCALL HighWramMemoryWriteByte(u32 addr, u8 val)
 
 static void FASTCALL HighWramMemoryWriteWord(u32 addr, u16 val)
 {
+   if ((addr & 0xFFFFF) == (0x65644))
+   {
+      int i = 0;
+   }
    T2WriteWord(HighWram, addr & 0xFFFFF, val);
 }
 
@@ -912,6 +916,8 @@ void MappedMemoryLoadExec(const char *filename, u32 pc)
 {
    char *p;
    size_t i;
+
+   filename = "C:/yabause-3/yabause/yabauseut/build/src/YabauseUT.elf";
 
    if ((p = strrchr(filename, '.')))
    {

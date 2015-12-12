@@ -184,6 +184,8 @@ typedef struct
    u32 LineColorBase;
    
    void (*LoadLineParams)(void *, int line, Vdp2* lines);
+   
+   int invalid_character_access;
 } vdp2draw_struct;
 
 

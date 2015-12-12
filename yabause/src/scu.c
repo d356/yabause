@@ -45,8 +45,56 @@ static void ScuTestInterruptMask(void);
 
 //////////////////////////////////////////////////////////////////////////////
 
+struct SavedAddrs
+{
+   u32 read_addr;
+   u32 write_addr;
+}dma_saved_addrs[3];
+
+
+struct DirectIndirectState
+{
+   u32 read_address_current;
+   u32 write_address_current;
+   u32 transfer_number;
+   u32 started;
+   u32 bus;
+   u32 is_sound;
+   u32 cycles;
+};
+
+struct DmaState
+{
+   u32 read_address_start;
+   u32 write_address_start;
+   struct DirectIndirectState direct;
+   u32 count;
+   u8 read_add_value;
+   u8 write_add_value;
+   u32 state;
+   u32 mode_address_update;
+   u32 level;
+   u32 is_indirect;
+   u32 indirect_started;
+   u32 indirect_stop;
+   struct DirectIndirectState indirect;
+   //scudmainfo_struct dmainfo;
+   //u8 read_add_value;
+   //u8 write_add_value;
+   //u32 count_transferred;
+   //u8 started;
+   //u8 bus;
+   //u8 is_sound;
+}dma_state[3][3];
+
 int ScuInit(void) {
    int i;
+
+   yabsys.use_scu_dma_timing = 0;
+
+   memset(dma_state, 0, sizeof(dma_state[0][0]) * 3 * 3);
+
+   memset(dma_saved_addrs, 0, sizeof(struct SavedAddrs));
 
    if ((ScuRegs = (Scu *) calloc(1, sizeof(Scu))) == NULL)
       return -1;
@@ -404,43 +452,77 @@ static void DoDMA(u32 ReadAddress, unsigned int ReadAdd,
 
 //////////////////////////////////////
 
+void ScuDMAGetAddValues(u32 add_val, u8* ReadAdd, u8* WriteAdd)
+{
+   if (add_val & 0x100)
+      *ReadAdd = 4;
+   else
+      *ReadAdd = 0;
+
+   switch (add_val & 0x7) {
+   case 0x0:
+      *WriteAdd = 0;
+      break;
+   case 0x1:
+      *WriteAdd = 2;
+      break;
+   case 0x2:
+      *WriteAdd = 4;
+      break;
+   case 0x3:
+      *WriteAdd = 8;
+      break;
+   case 0x4:
+      *WriteAdd = 16;
+      break;
+   case 0x5:
+      *WriteAdd = 32;
+      break;
+   case 0x6:
+      *WriteAdd = 64;
+      break;
+   case 0x7:
+      *WriteAdd = 128;
+      break;
+   default:
+      *WriteAdd = 0;
+      break;
+   }
+}
+
+void ScuDMASendInterrupt(u32 mode)
+{
+   switch (mode) {
+   case 0:
+      ScuSendLevel0DMAEnd();
+      break;
+   case 1:
+      ScuSendLevel1DMAEnd();
+      break;
+   case 2:
+      ScuSendLevel2DMAEnd();
+      break;
+   }
+}
+
+void ScuDMAGetTransferNumber(u32 mode, u32 *transfer_number)
+{
+   if (mode > 0) {
+      *transfer_number &= 0xFFF;
+
+      if (*transfer_number == 0)
+         *transfer_number = 0x1000;
+   }
+   else {
+      if (*transfer_number == 0)
+         *transfer_number = 0x100000;
+   }
+}
+
 static void FASTCALL ScuDMA(scudmainfo_struct *dmainfo) {
    u8 ReadAdd, WriteAdd;
 
-   if (dmainfo->AddValue & 0x100)
-      ReadAdd = 4;
-   else
-      ReadAdd = 0;
-
-   switch(dmainfo->AddValue & 0x7) {
-      case 0x0:
-         WriteAdd = 0;
-         break;
-      case 0x1:
-         WriteAdd = 2;
-         break;
-      case 0x2:
-         WriteAdd = 4;
-         break;
-      case 0x3:
-         WriteAdd = 8;
-         break;
-      case 0x4:
-         WriteAdd = 16;
-         break;
-      case 0x5:
-         WriteAdd = 32;
-         break;
-      case 0x6:
-         WriteAdd = 64;
-         break;
-      case 0x7:
-         WriteAdd = 128;
-         break;
-      default:
-         WriteAdd = 0;
-         break;
-   }
+   ScuDMAGetAddValues(dmainfo->AddValue, &ReadAdd, &WriteAdd);
 
    if (dmainfo->ModeAddressUpdate & 0x1000000) {
       // Indirect DMA
@@ -460,46 +542,17 @@ static void FASTCALL ScuDMA(scudmainfo_struct *dmainfo) {
          dmainfo->WriteAddress+= 0xC;
       }
 
-      switch(dmainfo->mode) {
-         case 0:
-            ScuSendLevel0DMAEnd();
-            break;
-         case 1:
-            ScuSendLevel1DMAEnd();
-            break;
-         case 2:
-            ScuSendLevel2DMAEnd();
-            break;
-      }
+      ScuDMASendInterrupt(dmainfo->mode);
    }
    else {
       // Direct DMA
 
-      if (dmainfo->mode > 0) {
-         dmainfo->TransferNumber &= 0xFFF;
-
-         if (dmainfo->TransferNumber == 0)
-            dmainfo->TransferNumber = 0x1000;
-      }
-      else {
-         if (dmainfo->TransferNumber == 0)
-            dmainfo->TransferNumber = 0x100000;
-      }
-
+      ScuDMAGetTransferNumber(dmainfo->mode,&dmainfo->TransferNumber);
+      
       DoDMA(dmainfo->ReadAddress, ReadAdd, dmainfo->WriteAddress, WriteAdd,
             dmainfo->TransferNumber);
 
-      switch(dmainfo->mode) {
-         case 0:
-            ScuSendLevel0DMAEnd();
-            break;
-         case 1:
-            ScuSendLevel1DMAEnd();
-            break;
-         case 2:
-            ScuSendLevel2DMAEnd();
-            break;
-      }
+      ScuDMASendInterrupt(dmainfo->mode);
    }
 }
 
@@ -928,8 +981,290 @@ static void writedmadest(u8 num, u32 val, u8 add)
 
 //////////////////////////////////////////////////////////////////////////////
 
+#define SCU_DMA_FROM_B_BUS 1
+#define SCU_DMA_TO_B_BUS 2
+#define SCU_DMA_A_BUS 3
+
+//int mode;
+//u32 ReadAddress;
+//u32 WriteAddress;
+//u32 TransferNumber;
+//u32 AddValue;
+//u32 ModeAddressUpdate;
+
+#define SCU_DMA_STATE_STARTED 1
+#define SCU_DMA_STATE_WAITING 2
+//#define SCU_DMA_STATE_ACTIVATE_EVERY_FACTOR 3
+void ScuDmaTimingBBus(struct DirectIndirectState* current_dma, u32* channel_timing)
+{
+   if (current_dma->is_sound)
+   {
+      *channel_timing = *channel_timing - 14;
+      current_dma->cycles += 14;
+   }
+   else
+   {
+      *channel_timing = *channel_timing - 1;
+      current_dma->cycles += 1;
+   }
+}
+
+#if 0
+if (current_dma->bus == SCU_DMA_A_BUS)
+{
+   *channel_timing = channel_timing - 1;
+}
+//MappedMemoryWriteLong(current_dma->write_address_current, val);
+
+#endif
+
+
+void ScuDmaSetBus(struct DirectIndirectState* dma_channel)
+{
+
+   u32 read_addr = dma_channel->read_address_current & 0x1FFFFFFF;
+   u32 write_addr = dma_channel->write_address_current & 0x1FFFFFFF;
+
+   if ((read_addr >= 0x2000000 && read_addr < 0x5900000) ||
+      (write_addr >= 0x2000000 && write_addr < 0x5900000))
+   {
+      //a-bus
+      //cs0/1/dummy/2
+      dma_channel->bus = SCU_DMA_A_BUS;
+   }
+
+   if (write_addr >= 0x5A00000 && write_addr < 0x5FF0000)
+   {
+      dma_channel->bus = SCU_DMA_TO_B_BUS;
+   }
+
+   if (read_addr >= 0x5A00000 && read_addr < 0x5FF0000)
+   {
+      dma_channel->bus = SCU_DMA_FROM_B_BUS;
+   }
+
+   if ((read_addr >= 0x5A00000 && read_addr < 0x5A80000) ||
+      (write_addr >= 0x5A00000 && write_addr < 0x5A80000))
+   {
+      dma_channel->is_sound = 1;
+   }
+}
+
+void ScuDmaIndirectSetup(struct DmaState* current_dma)
+{
+   //indirect dma setup
+   current_dma->indirect.transfer_number = MappedMemoryReadLong(current_dma->direct.write_address_current);
+   current_dma->indirect.write_address_current = MappedMemoryReadLong(current_dma->direct.write_address_current + 4);
+   current_dma->indirect.read_address_current = MappedMemoryReadLong(current_dma->direct.write_address_current + 8);
+
+   ScuDmaSetBus(&current_dma->indirect);
+
+   if (current_dma->indirect.read_address_current & 0x80000000)
+   {
+      current_dma->indirect_stop = 1;
+      current_dma->indirect.read_address_current &= ~0x80000000;
+   }
+}
+
+void ScuDmaTransfer(struct DmaState* current_dma, struct DirectIndirectState* di, int *channel_timing)
+{
+   int q = 1;
+
+   q = 0;
+
+   while (*channel_timing > 0 )
+   //for (;;)
+   {
+      if (di->bus == SCU_DMA_TO_B_BUS)
+      {
+         if (current_dma->count < di->transfer_number)
+         {
+            u32 val = MappedMemoryReadLong(di->read_address_current);
+            di->read_address_current += current_dma->read_add_value;
+
+            //1st word
+            MappedMemoryWriteWord(di->write_address_current, (u16)(val >> 16));
+            di->write_address_current += current_dma->write_add_value;
+            ScuDmaTimingBBus(di, channel_timing);
+            current_dma->count += 2;
+
+            //2nd word
+            MappedMemoryWriteWord(di->write_address_current, (u16)val);
+            di->write_address_current += current_dma->write_add_value;
+            ScuDmaTimingBBus(di, channel_timing);
+            current_dma->count += 2;
+         }
+         else
+         {
+            if (current_dma->is_indirect)
+            {
+               if (current_dma->indirect_stop)
+               {
+                  current_dma->state = 0;
+                  ScuDMASendInterrupt(current_dma->level);
+                  break;
+               }
+               else
+               {
+                  //set up next indirect dma
+                  current_dma->direct.write_address_current += 0xC;
+                  ScuDmaIndirectSetup(current_dma);
+                  current_dma->count = 0;
+                  continue;
+               }
+            }
+            else
+            {
+               //finished
+               if ((current_dma->mode_address_update & 7) == 7)
+               {
+                  current_dma->state = 0;
+               }
+               else
+               {
+                  current_dma->state = SCU_DMA_STATE_WAITING;
+                  current_dma->count = 0;
+                  current_dma->direct.write_address_current = current_dma->write_address_start;
+                  current_dma->direct.read_address_current = current_dma->read_address_start;
+                  di->write_address_current = current_dma->direct.write_address_current;
+                  di->read_address_current = current_dma->direct.read_address_current;
+               }
+
+
+               if ((current_dma->mode_address_update >> 8) & 1)
+               {
+                  //write address update
+                  dma_saved_addrs[current_dma->level].write_addr = di->write_address_current;
+               }
+
+               if ((current_dma->mode_address_update >> 16) & 1)
+               {
+                  //read address update
+                  dma_saved_addrs[current_dma->level].read_addr = di->read_address_current;
+               }
+
+               //start any pending dma on the current channel
+               for (int i = 0; i < 3; i++)
+               {
+                  if (dma_state[current_dma->level][i].state == SCU_DMA_STATE_WAITING && 
+                    (dma_state[current_dma->level][i].mode_address_update & 7) == 7)
+                  {
+                     dma_state[current_dma->level][i].state = SCU_DMA_STATE_STARTED;
+                     return;
+                  }
+               }
+
+               if (current_dma->count == 0x1000 && current_dma->direct.bus == SCU_DMA_TO_B_BUS && current_dma->direct.is_sound)
+               {
+                  extern u64 total_cycles;
+                  extern u64 end_cycles;
+                  extern u64 dma_started;
+
+                  int timer = total_cycles - dma_started;
+
+                  end_cycles = total_cycles;
+
+                  
+               }
+
+               //all pending dmas are complete
+               ScuDMASendInterrupt(current_dma->level);
+               return;
+            }
+         }
+      }
+      else if (di->bus == SCU_DMA_FROM_B_BUS)
+      {
+         if (current_dma->count < di->transfer_number)
+         {
+            u32 val = MappedMemoryReadWord(di->read_address_current);
+            ScuDmaTimingBBus(di, channel_timing);
+
+            u32 val2 = MappedMemoryReadWord(di->read_address_current + 2);
+            ScuDmaTimingBBus(di, channel_timing);
+
+            di->read_address_current += current_dma->read_add_value;
+
+            MappedMemoryWriteLong(di->write_address_current, (val << 16) | val2);
+            di->write_address_current += current_dma->write_add_value;
+
+            current_dma->count += 4;
+         }
+         else
+         {
+            //finished
+            current_dma->state = 0;
+            ScuDMASendInterrupt(current_dma->level);
+            break;
+         }
+      }
+      else // a bus
+      {
+         if (current_dma->count < di->transfer_number) {
+            u32 src_val = MappedMemoryReadLong(di->read_address_current);
+            MappedMemoryWriteLong(di->write_address_current, src_val);
+            di->read_address_current += 4;
+            di->write_address_current += current_dma->write_add_value;
+            current_dma->count += 4;
+
+            *channel_timing = *channel_timing - 1;
+         }
+         else
+         {
+            //finished
+            di->started = 0;
+            ScuDMASendInterrupt(current_dma->level);
+            break;
+         }
+      }
+   }
+}
+
+void ScuDmaExec(u32 timing)
+{
+   if (!yabsys.use_scu_dma_timing)
+      return;
+
+   int i;
+   for (i = 0; i < 3; i++)
+   {
+      int channel_timing = timing;
+
+      for (int j = 0; j < 3; j++)
+      {
+         struct DmaState* current_dma = &dma_state[i][j];
+
+         if (current_dma->state == SCU_DMA_STATE_STARTED)
+         {
+            if (current_dma->is_indirect && (!current_dma->indirect_started))
+            {
+               current_dma->indirect_started = 1;
+
+               ScuDmaIndirectSetup(current_dma);
+
+               ScuDmaTransfer(current_dma, &current_dma->indirect, &channel_timing);
+            }
+            else if (current_dma->is_indirect && current_dma->indirect_started)
+            {
+               //indirect dma transfer
+               ScuDmaTransfer(current_dma, &current_dma->indirect, &channel_timing);
+            }
+            else if (!current_dma->is_indirect)
+            {
+               //direct dma transfer
+               ScuDmaTransfer(current_dma, &current_dma->direct, &channel_timing);
+            }
+         }
+      }
+   }
+}
+
 void ScuExec(u32 timing) {
    int i;
+
+   ScuDmaExec(timing);
+
+   timing /= 2;
 
    // is dsp executing?
    if (ScuDsp->ProgControlPort.part.EX) {
@@ -2285,22 +2620,127 @@ void FASTCALL ScuWriteWord(u32 addr, UNUSED u16 val) {
 
 //////////////////////////////////////////////////////////////////////////////
 
+void QueueDMA(u32 level, u32 read_address, u32 write_address, u32 count, u32 add_value, u32 mode)
+{
+   struct DmaState* dma_channel;
+   int assigned = 0;
+   int dma_running_on_channel = 0;
+
+   for (int i = 0; i < 3; i++)
+   {
+      dma_channel = &dma_state[level][i];
+
+      if (dma_channel->state == SCU_DMA_STATE_STARTED)
+      {
+         dma_running_on_channel = 1;
+         continue;
+      }  
+      else
+      {
+         assigned = 1;
+         break;
+      }
+   }
+
+   if (assigned == 0)
+   {
+      return;
+   }
+
+   memset(dma_channel, 0, sizeof(struct DmaState));
+
+   dma_channel->level = level;
+
+   dma_channel->mode_address_update = mode;
+
+   if (dma_running_on_channel || (dma_channel->mode_address_update & 0x7) != 7)
+      dma_channel->state = SCU_DMA_STATE_WAITING;
+   //else if ()
+   //{
+   //   dma_channel->state = SCU_DMA_STATE_ACTIVATE_EVERY_FACTOR;
+   //}
+   else
+      dma_channel->state = SCU_DMA_STATE_STARTED;
+
+   if (((dma_channel->mode_address_update >> 8) & 1) && dma_saved_addrs[dma_channel->level].write_addr != 0)
+   {
+      //write address update
+      dma_channel->direct.write_address_current = dma_channel->write_address_start = dma_saved_addrs[dma_channel->level].write_addr;
+   }
+   else
+   {
+      dma_channel->direct.write_address_current = dma_channel->write_address_start = write_address;
+   }
+
+   if (((dma_channel->mode_address_update >> 16) & 1) && dma_saved_addrs[dma_channel->level].read_addr != 0)
+   {
+      //read address update
+      dma_channel->direct.read_address_current = dma_channel->read_address_start = dma_saved_addrs[dma_channel->level].read_addr;
+   }
+   else
+   {
+      dma_channel->direct.read_address_current = dma_channel->read_address_start = read_address;
+   }
+
+   dma_channel->direct.transfer_number = count;
+
+   
+
+   ScuDMAGetAddValues(add_value, &dma_channel->read_add_value, &dma_channel->write_add_value);
+
+   if (mode & 0x1000000)
+      dma_channel->is_indirect = 1;
+
+   ScuDMAGetTransferNumber(level, &dma_channel->direct.transfer_number);
+
+   ScuDmaSetBus(&dma_channel->direct);
+
+   extern u64 dma_started;
+   extern u64 total_cycles;
+
+   if (count == 0x1000 && dma_channel->direct.bus == SCU_DMA_TO_B_BUS && dma_channel->direct.is_sound == 1)
+      dma_started = total_cycles;
+}
+
+void ScuDmaStopStartingFactor(int i)
+{
+   for (int j = 0; j < 3; j++)
+   {
+      if (dma_state[i][j].state == SCU_DMA_STATE_WAITING)
+      {
+         if ((dma_state[i][j].mode_address_update & 0x7) != 7)
+         {
+            dma_state[i][j].state = 0;
+         }
+      }
+   }
+}
+
+
 void FASTCALL ScuWriteLong(u32 addr, u32 val) {
    addr &= 0xFF;
    switch(addr) {
       case 0:
          ScuRegs->D0R = val;
+         dma_saved_addrs[0].read_addr = 0;
+         ScuDmaStopStartingFactor(0);
          break;
       case 4:
          ScuRegs->D0W = val;
+         dma_saved_addrs[0].write_addr = 0;
+         ScuDmaStopStartingFactor(0);
          break;
       case 8:
          ScuRegs->D0C = val;
+         ScuDmaStopStartingFactor(0);
          break;
       case 0xC:
          ScuRegs->D0AD = val;
+         ScuDmaStopStartingFactor(0);
          break;
       case 0x10:
+         ScuDmaStopStartingFactor(0);
+
          if (val & 0x1)
          {
             scudmainfo_struct dmainfo;
@@ -2312,29 +2752,41 @@ void FASTCALL ScuWriteLong(u32 addr, u32 val) {
             dmainfo.AddValue = ScuRegs->D0AD;
             dmainfo.ModeAddressUpdate = ScuRegs->D0MD;
 
-            ScuDMA(&dmainfo);
+            if (yabsys.use_scu_dma_timing)
+               QueueDMA(0, ScuRegs->D0R, ScuRegs->D0W, ScuRegs->D0C, ScuRegs->D0AD, ScuRegs->D0MD);
+            else
+               ScuDMA(&dmainfo);
+            
          }
          ScuRegs->D0EN = val;
          break;
       case 0x14:
+         ScuDmaStopStartingFactor(0);
          if ((val & 0x7) != 7) {
             LOG("scu\t: DMA mode 0 interrupt start factor not implemented\n");
          }
          ScuRegs->D0MD = val;
          break;
       case 0x20:
+         ScuDmaStopStartingFactor(1);
          ScuRegs->D1R = val;
+         dma_saved_addrs[1].read_addr = 0;
          break;
       case 0x24:
+         ScuDmaStopStartingFactor(1);
          ScuRegs->D1W = val;
+         dma_saved_addrs[1].write_addr = 0;
          break;
       case 0x28:
+         ScuDmaStopStartingFactor(1);
          ScuRegs->D1C = val;
          break;
       case 0x2C:
+         ScuDmaStopStartingFactor(1);
          ScuRegs->D1AD = val;
          break;
       case 0x30:
+         ScuDmaStopStartingFactor(1);
          if (val & 0x1)
          {
             scudmainfo_struct dmainfo;
@@ -2346,29 +2798,41 @@ void FASTCALL ScuWriteLong(u32 addr, u32 val) {
             dmainfo.AddValue = ScuRegs->D1AD;
             dmainfo.ModeAddressUpdate = ScuRegs->D1MD;
 
-            ScuDMA(&dmainfo);
+            if (yabsys.use_scu_dma_timing)
+               QueueDMA(1, ScuRegs->D1R, ScuRegs->D1W, ScuRegs->D1C, ScuRegs->D1AD, ScuRegs->D1MD);
+            else
+               ScuDMA(&dmainfo);
+            
          }
          ScuRegs->D1EN = val;
          break;
       case 0x34:
+         ScuDmaStopStartingFactor(1);
          if ((val & 0x7) != 7) {
             LOG("scu\t: DMA mode 1 interrupt start factor not implemented\n");
          }
          ScuRegs->D1MD = val;
          break;
       case 0x40:
+         ScuDmaStopStartingFactor(2);
          ScuRegs->D2R = val;
+         dma_saved_addrs[2].read_addr = 0;
          break;
       case 0x44:
+         ScuDmaStopStartingFactor(2);
          ScuRegs->D2W = val;
+         dma_saved_addrs[2].write_addr = 0;
          break;
       case 0x48:
+         ScuDmaStopStartingFactor(2);
          ScuRegs->D2C = val;
          break;
       case 0x4C:
+         ScuDmaStopStartingFactor(2);
          ScuRegs->D2AD = val;
          break;
       case 0x50:
+         ScuDmaStopStartingFactor(2);
          if (val & 0x1)
          {
             scudmainfo_struct dmainfo;
@@ -2380,11 +2844,15 @@ void FASTCALL ScuWriteLong(u32 addr, u32 val) {
             dmainfo.AddValue = ScuRegs->D2AD;
             dmainfo.ModeAddressUpdate = ScuRegs->D2MD;
 
-            ScuDMA(&dmainfo);
+            if (yabsys.use_scu_dma_timing)
+               QueueDMA(2, ScuRegs->D2R, ScuRegs->D2W, ScuRegs->D2C, ScuRegs->D2AD, ScuRegs->D2MD);
+            else
+               ScuDMA(&dmainfo);
          }
          ScuRegs->D2EN = val;
          break;
       case 0x54:
+         ScuDmaStopStartingFactor(2);
          if ((val & 0x7) != 7) {
             LOG("scu\t: DMA mode 2 interrupt start factor not implemented\n");
          }
@@ -2534,15 +3002,43 @@ static INLINE void SendInterrupt(u8 vector, u8 level, u16 mask, u32 statusbit) {
    }
 }
 
+#define FACTOR_VBLANK_IN 0
+#define FACTOR_VBLANK_OUT 1
+#define FACTOR_HBLANK_IN 2
+#define FACTOR_TIMER_0 3
+#define FACTOR_TIMER_1 4
+#define FACTOR_SOUND_REQUEST 5
+#define FACTOR_DRAW_END 6
+
+
+void ScuDmaStartingFactor(int factor)
+{
+   for (int i = 0; i < 3; i++)
+   {
+      for (int j = 0; j < 3; j++)
+      {
+         if (dma_state[i][j].state == SCU_DMA_STATE_WAITING)
+         {
+            if ((dma_state[i][j].mode_address_update & 0x7) == factor)
+            {
+               dma_state[i][j].state = SCU_DMA_STATE_STARTED;
+            }
+         }
+      }
+   }
+}
+
 //////////////////////////////////////////////////////////////////////////////
 
 void ScuSendVBlankIN(void) {
+   ScuDmaStartingFactor(FACTOR_VBLANK_IN);
    SendInterrupt(0x40, 0xF, 0x0001, 0x0001);
 }
 
 //////////////////////////////////////////////////////////////////////////////
 
 void ScuSendVBlankOUT(void) {
+   ScuDmaStartingFactor(FACTOR_VBLANK_OUT);
    SendInterrupt(0x41, 0xE, 0x0002, 0x0002);
    ScuRegs->timer0 = 0;
    if (ScuRegs->T1MD & 0x1)
@@ -2555,6 +3051,7 @@ void ScuSendVBlankOUT(void) {
 //////////////////////////////////////////////////////////////////////////////
 
 void ScuSendHBlankIN(void) {
+   ScuDmaStartingFactor(FACTOR_HBLANK_IN);
    SendInterrupt(0x42, 0xD, 0x0004, 0x0004);
 
    ScuRegs->timer0++;
@@ -2571,12 +3068,14 @@ void ScuSendHBlankIN(void) {
 //////////////////////////////////////////////////////////////////////////////
 
 void ScuSendTimer0(void) {
+   ScuDmaStartingFactor(FACTOR_TIMER_0);
    SendInterrupt(0x43, 0xC, 0x0008, 0x00000008);
 }
 
 //////////////////////////////////////////////////////////////////////////////
 
 void ScuSendTimer1(void) {
+   ScuDmaStartingFactor(FACTOR_TIMER_1);
    SendInterrupt(0x44, 0xB, 0x0010, 0x00000010);
 }
 
@@ -2589,6 +3088,7 @@ void ScuSendDSPEnd(void) {
 //////////////////////////////////////////////////////////////////////////////
 
 void ScuSendSoundRequest(void) {
+   ScuDmaStartingFactor(FACTOR_SOUND_REQUEST);
    SendInterrupt(0x46, 0x9, 0x0040, 0x00000040);
 }
 
@@ -2631,6 +3131,7 @@ void ScuSendDMAIllegal(void) {
 //////////////////////////////////////////////////////////////////////////////
 
 void ScuSendDrawEnd(void) {
+   ScuDmaStartingFactor(FACTOR_DRAW_END);
    SendInterrupt(0x4D, 0x2, 0x2000, 0x00002000);
 }
 

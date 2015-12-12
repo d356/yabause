@@ -452,10 +452,17 @@ int YabauseExec(void) {
 	return 0;
 }
 
+
+
 //////////////////////////////////////////////////////////////////////////////
 #ifndef USE_SCSP2
 int saved_centicycles;
 #endif
+
+int was_drawn = 0;
+u64 total_cycles = 0;
+u64 dma_started = 0;
+u64 end_cycles = 0;
 
 int YabauseEmulate(void) {
    int oneframeexec = 0;
@@ -532,8 +539,10 @@ int YabauseEmulate(void) {
             PROFILE_STOP("hblankin");
          }
 
+         total_cycles += sh2cycles;
+
          PROFILE_START("SCU");
-         ScuExec(sh2cycles / 2);
+         ScuExec(sh2cycles);
          PROFILE_STOP("SCU");
 
       } else {  // !DecilineMode
@@ -570,8 +579,10 @@ int YabauseEmulate(void) {
          PROFILE_STOP("SCSP");
 #endif
 
+         total_cycles += sh2cycles;
+
          PROFILE_START("SCU");
-         ScuExec(sh2cycles / 2);
+         ScuExec(sh2cycles);
          PROFILE_STOP("SCU");
 
       }  // if (yabsys.DecilineMode)

@@ -368,8 +368,9 @@ void UIDebugSH2::reserved1()
 
 void UIDebugSH2::reserved2()
 {
-   if (debugSH2)
-      SH2TrackInfLoopClear(debugSH2);
+   updateCodeList(0x0602d978);
+   //if (debugSH2)
+   //   SH2TrackInfLoopClear(debugSH2);
    updateAll();
 }
 

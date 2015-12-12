@@ -194,6 +194,32 @@ typedef struct
    u32 planetbl[16];
 } screeninfo_struct;
 
+int cycle_table[4][8] = { { 0 } };
+
+struct PatternAccess
+{
+   int pattern_cycle;
+   int layer;
+};
+
+int invalid_accesses[16] = { 0 };
+
+#define CYCLE_OK 0
+#define CYCLE_XX 1
+
+const int valid_cycles[8][8] =
+{  //T0        T1        T2        T3        T4        T5        T6        T7
+   { CYCLE_OK, CYCLE_OK, CYCLE_OK, CYCLE_XX, CYCLE_OK, CYCLE_OK, CYCLE_OK, CYCLE_OK },//T0
+   { CYCLE_OK, CYCLE_OK, CYCLE_OK, CYCLE_OK, CYCLE_XX, CYCLE_OK, CYCLE_OK, CYCLE_OK },//T1
+   { CYCLE_OK, CYCLE_OK, CYCLE_OK, CYCLE_OK, CYCLE_XX, CYCLE_XX, CYCLE_OK, CYCLE_OK },//T2
+   { CYCLE_OK, CYCLE_OK, CYCLE_OK, CYCLE_OK, CYCLE_XX, CYCLE_XX, CYCLE_XX, CYCLE_OK },//T3
+
+   { CYCLE_OK, CYCLE_OK, CYCLE_OK, CYCLE_OK, CYCLE_XX, CYCLE_XX, CYCLE_XX, CYCLE_XX },//T4
+   { CYCLE_XX, CYCLE_OK, CYCLE_OK, CYCLE_OK, CYCLE_XX, CYCLE_XX, CYCLE_XX, CYCLE_XX },//T5
+   { CYCLE_XX, CYCLE_XX, CYCLE_OK, CYCLE_OK, CYCLE_XX, CYCLE_XX, CYCLE_XX, CYCLE_XX },//T6
+   { CYCLE_XX, CYCLE_XX, CYCLE_XX, CYCLE_OK, CYCLE_XX, CYCLE_XX, CYCLE_XX, CYCLE_XX },//T7
+};
+
 //////////////////////////////////////////////////////////////////////////////
 
 static INLINE u32 FASTCALL Vdp2ColorRamGetColor(u32 addr)
@@ -841,6 +867,9 @@ static void FASTCALL Vdp2DrawScroll(vdp2draw_struct *info, Vdp2* lines, Vdp2* re
    }
 
    Vdp2GetInterlaceInfo(&start_line, &line_increment);
+
+   if (info->invalid_character_access)
+      info->x -= 8;
 
    for (j = start_line; j < vdp2height; j+=1)
    {
@@ -1555,6 +1584,8 @@ static void Vdp2DrawNBG0(Vdp2* lines, Vdp2* regs, u8* ram)
 
    info.LoadLineParams = (void (*)(void *, int ,Vdp2*)) LoadLineParamsNBG0;
 
+   info.invalid_character_access = invalid_accesses[0];
+
    if (info.enable == 1)
    {
       // NBG0 draw
@@ -1668,6 +1699,8 @@ static void Vdp2DrawNBG1(Vdp2* lines, Vdp2* regs, u8* ram)
 
    info.LoadLineParams = (void(*)(void *, int, Vdp2*)) LoadLineParamsNBG1;
 
+   info.invalid_character_access = invalid_accesses[1];
+
    Vdp2DrawScroll(&info, lines, regs, ram);
 }
 
@@ -1737,6 +1770,8 @@ static void Vdp2DrawNBG2(Vdp2* lines, Vdp2* regs, u8* ram)
    info.isbitmap = 0;
 
    info.LoadLineParams = (void(*)(void *, int, Vdp2*)) LoadLineParamsNBG2;
+
+   info.invalid_character_access = invalid_accesses[2];
 
    Vdp2DrawScroll(&info, lines, regs, ram);
 }
@@ -1809,6 +1844,8 @@ static void Vdp2DrawNBG3(Vdp2* lines, Vdp2* regs, u8* ram)
    info.isbitmap = 0;
 
    info.LoadLineParams = (void(*)(void *, int, Vdp2*)) LoadLineParamsNBG3;
+
+   info.invalid_character_access = invalid_accesses[3];
 
    Vdp2DrawScroll(&info, lines, regs, ram);
 }
@@ -3390,8 +3427,26 @@ int VIDSoftVdp2Reset(void)
 
 //////////////////////////////////////////////////////////////////////////////
 
+void FillCycleTable(u16 reg_l, u16 reg_u, int i)
+{
+   cycle_table[i][0] = (reg_l >> 12) & 0xF;
+   cycle_table[i][1] = (reg_l >> 8) & 0xF;
+   cycle_table[i][2] = (reg_l >> 4) & 0xF;
+   cycle_table[i][3] = reg_l & 0xF;
+   cycle_table[i][4] = (reg_u >> 12) & 0xF;
+   cycle_table[i][5] = (reg_u >> 8) & 0xF;
+   cycle_table[i][6] = (reg_u >> 4) & 0xF;
+   cycle_table[i][7] = reg_u & 0xF;
+}
+
+//////////////////////////////////////////////////////////////////////////////
+
 void VIDSoftVdp2DrawStart(void)
 {
+   int i;
+   int num_pattern_accesses = 0;
+   struct PatternAccess pattern_accesses[128] = { { 0 } };
+
    int titanblendmode = TITAN_BLEND_TOP;
    if (Vdp2Regs->CCCTL & 0x100) titanblendmode = TITAN_BLEND_ADD;
    else if (Vdp2Regs->CCCTL & 0x200) titanblendmode = TITAN_BLEND_BOTTOM;
@@ -3399,6 +3454,65 @@ void VIDSoftVdp2DrawStart(void)
 
    Vdp2DrawBackScreen();
    Vdp2DrawLineScreen();
+
+   //dracula x data select screen
+
+   FillCycleTable(Vdp2Regs->CYCA0L, Vdp2Regs->CYCA0U, 0);
+   FillCycleTable(Vdp2Regs->CYCA1L, Vdp2Regs->CYCA1U, 1);
+   FillCycleTable(Vdp2Regs->CYCB0L, Vdp2Regs->CYCB0U, 2);
+   FillCycleTable(Vdp2Regs->CYCB1L, Vdp2Regs->CYCB1U, 3);
+
+   memset(invalid_accesses, 0, sizeof(int) * 16);
+
+   //find pattern name data accesses
+   for (i = 0; i < 4; i++)
+   {
+      int j;
+
+      for (j = 0; j < 8; j++)
+      {
+         int entry = cycle_table[i][j];
+
+         if (entry >= 0 && entry <= 3)//pattern name data
+         {
+            pattern_accesses[num_pattern_accesses].pattern_cycle = j;
+            pattern_accesses[num_pattern_accesses].layer = entry;
+            num_pattern_accesses++;
+         }
+      }
+   }
+
+   //find character pattern data accesses, check if they are valid
+   for (i = 0; i < 4; i++)//4 vram areas
+   {
+      int j;
+
+      for (j = 0; j < 8; j++)//8 slots per vram area
+      { 
+         int entry = cycle_table[i][j];
+
+         if (entry >= 4 && entry <= 7)//character pattern access
+         {
+            int k;
+
+            for (k = 0; k < num_pattern_accesses; k++)
+            {
+               int nbg_num = (entry - 4);
+
+               if (nbg_num == pattern_accesses[k].layer)
+               {
+                  int pattern_cycle = pattern_accesses[k].pattern_cycle;
+                  int character_cycle = j;
+
+                  if (valid_cycles[pattern_cycle][character_cycle] != CYCLE_OK)
+                  {
+                     invalid_accesses[nbg_num] = 1;
+                  }
+               }
+            }
+         }
+      }
+   }
 }
 
 //////////////////////////////////////////////////////////////////////////////

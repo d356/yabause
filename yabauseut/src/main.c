@@ -191,6 +191,14 @@ int main()
 
    yabauseut_init();
 
+   //vdp1_manual_2();
+
+   vdp2_bad_cycle_pattern_test();
+
+   analyze_test();
+
+  //smpc_intback_issue_timing_test();
+
    auto_test_do_selected_test(auto_test_selection);
 
    // Display Main Menu

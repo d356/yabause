@@ -22,43 +22,6 @@
 #include "dsp.h"
 #include "scu.h"
 
-#define SCUREG_D0R   (*(volatile u32 *)0x25FE0000)
-#define SCUREG_D0W   (*(volatile u32 *)0x25FE0004)
-#define SCUREG_D0C   (*(volatile u32 *)0x25FE0008)
-#define SCUREG_D0AD  (*(volatile u32 *)0x25FE000C)
-#define SCUREG_D0EN  (*(volatile u32 *)0x25FE0010)
-#define SCUREG_D0MD  (*(volatile u32 *)0x25FE0014)
-
-#define SCUREG_D1R   (*(volatile u32 *)0x25FE0020)
-#define SCUREG_D1W   (*(volatile u32 *)0x25FE0024)
-#define SCUREG_D1C   (*(volatile u32 *)0x25FE0028)
-#define SCUREG_D1AD  (*(volatile u32 *)0x25FE002C)
-#define SCUREG_D1EN  (*(volatile u32 *)0x25FE0030)
-#define SCUREG_D1MD  (*(volatile u32 *)0x25FE0034)
-
-#define SCUREG_D2R   (*(volatile u32 *)0x25FE0040)
-#define SCUREG_D2W   (*(volatile u32 *)0x25FE0044)
-#define SCUREG_D2C   (*(volatile u32 *)0x25FE0048)
-#define SCUREG_D2AD  (*(volatile u32 *)0x25FE004C)
-#define SCUREG_D2EN  (*(volatile u32 *)0x25FE0050)
-#define SCUREG_D2MD  (*(volatile u32 *)0x25FE0054)
-
-#define SCUREG_DSTP  (*(volatile u32 *)0x25FE0060)
-#define SCUREG_DSTA  (*(volatile u32 *)0x25FE0070)
-
-#define SCUREG_T0C   (*(volatile u32 *)0x25FE0090)
-#define SCUREG_T1S   (*(volatile u32 *)0x25FE0094)
-#define SCUREG_T1MD  (*(volatile u32 *)0x25FE0098)
-
-#define SCUREG_IMS   (*(volatile u32 *)0x25FE00A0)
-#define SCUREG_IST   (*(volatile u32 *)0x25FE00A4)
-
-#define SCUREG_AIACK (*(volatile u32 *)0x25FE00A8)
-#define SCUREG_ASR0  (*(volatile u32 *)0x25FE00B0)
-#define SCUREG_ASR1  (*(volatile u32 *)0x25FE00B4)
-
-#define SCUREG_RSEL  (*(volatile u32 *)0x25FE00C4)
-#define SCUREG_VER   (*(volatile u32 *)0x25FE00C8)
 
 //////////////////////////////////////////////////////////////////////////////
 

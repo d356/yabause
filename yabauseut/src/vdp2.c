@@ -165,7 +165,7 @@ void write_tile(int x_pos, int y_pos, int palette, int name, u32 base,
 
 void write_str_as_pattern_name_data_special(int x_pos, int y_pos, const char* str, 
    int palette, u32 base, u32 tile_start_address,int special_priority,
-   int special_color)
+   int special_color, int one_word)
 {
    int x;
 
@@ -177,11 +177,19 @@ void write_str_as_pattern_name_data_special(int x_pos, int y_pos, const char* st
 
       int offset = x + x_pos;
 
-      volatile u32 *p = (volatile u32 *)(VDP2_RAM + base);
-      //64 cells across in the plane
-      p[(y_pos * 64) + offset] = (special_priority << 29) | 
-         (special_color << 28) | (tile_start_address >> 5) | name | 
-         (palette << 16);
+      if (one_word)
+      {
+         volatile u16 *p = (volatile u16 *)(VDP2_RAM + base);
+         p[(y_pos * 64) + offset] = ((tile_start_address >> 5) & 0xfff) | name | (palette << 12);
+      }
+      else
+      {
+         volatile u32 *p = (volatile u32 *)(VDP2_RAM + base);
+         //64 cells across in the plane
+         p[(y_pos * 64) + offset] = (special_priority << 29) |
+            (special_color << 28) | (tile_start_address >> 5) | name |
+            (palette << 16);
+      }
    }
 }
 
@@ -190,7 +198,7 @@ void write_str_as_pattern_name_data_special(int x_pos, int y_pos, const char* st
 void write_str_as_pattern_name_data(int x_pos, int y_pos, const char* str,
    int palette, u32 base, u32 tile_start_address)
 {
-   write_str_as_pattern_name_data_special(x_pos, y_pos, str, palette, base, tile_start_address, 0, 0);  
+   write_str_as_pattern_name_data_special(x_pos, y_pos, str, palette, base, tile_start_address, 0, 0, 0);  
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -506,6 +514,70 @@ void vdp2_all_scroll_test()
          do_scroll = 0;
          scroll_pos = 0;
          vdp2_scroll_test_set_scroll(scroll_pos);
+      }
+
+      if (per[0].but_push_once & PAD_START)
+         break;
+   }
+#endif
+
+   vdp2_basic_tile_scroll_deinit();
+}
+
+void vdp2_bad_cycle_pattern_test()
+{
+   int i;
+   const u32 tile_address = 0x40000;
+
+   u32 nbg3_tile_addr = 0x02000;//bank a0
+   u32 nbg3_pattern_name = 0x00050000;//bank b0
+
+   auto_test_sub_test_start("Bad cycle pattern test");
+
+   vdp2_basic_tile_scroll_setup(tile_address);
+
+   volatile u16 *vram_ptr = (volatile u32 *)(VDP2_RAM);
+
+   for (i = 0; i < 0x80000/4; i++)
+   {
+      vram_ptr[i] = 0;
+   }
+   
+   VDP2_REG_PNCN0 = 0x8008;
+   VDP2_REG_PNCN3 = 0x8000 | (nbg3_tile_addr >> 15);
+
+   VDP2_REG_MPABN3 = 0x2928;
+   VDP2_REG_MPCDN3 = 0x2b2a;
+
+   VDP2_REG_CYCA0L = 0x5566;
+   VDP2_REG_CYCA0U = 0x47ff;
+   VDP2_REG_CYCA1L = 0xffff;
+   VDP2_REG_CYCA1U = 0xffff;
+
+   VDP2_REG_CYCB0L = 0x12ff;
+   VDP2_REG_CYCB0U = 0x03ff;
+   VDP2_REG_CYCB1L = 0xffff;
+   VDP2_REG_CYCB1U = 0xffff;
+
+   VDP2_REG_RAMCTL = 0x1200;
+
+   load_font_8x8_to_vram_1bpp_to_4bpp(nbg3_tile_addr, VDP2_RAM);
+
+   for (i = 0; i < 64; i += 4)
+   {
+      write_str_as_pattern_name_data_special(0, i + 3, "NBG3 Bad cycle pattern", 6, nbg3_pattern_name, nbg3_tile_addr, 0, 0, 1);
+   }
+
+#ifdef BUILD_AUTOMATED_TESTING
+   auto_test_take_screenshot(1);
+#else
+   for (;;)
+   {
+      vdp_vsync();
+
+      if (per[0].but_push_once & PAD_Z)
+      {
+         reset_system();
       }
 
       if (per[0].but_push_once & PAD_START)
@@ -1603,10 +1675,10 @@ void vdp2_special_priority_test()
       }
    }
 
-   write_str_as_pattern_name_data_special(0, 5, "NBG0", 3, addresses[0], vdp2_tile_address[0], 0, 0);
-   write_str_as_pattern_name_data_special(0, 6, "NBG1", 4, addresses[1], vdp2_tile_address[0], 0, 0);
-   write_str_as_pattern_name_data_special(0, 7, "NBG2", 5, addresses[2], vdp2_tile_address[0], 0, 0);
-   write_str_as_pattern_name_data_special(0, 8, "NBG3", 6, addresses[3], vdp2_tile_address[0], 0, 0);
+   write_str_as_pattern_name_data_special(0, 5, "NBG0", 3, addresses[0], vdp2_tile_address[0], 0, 0,0);
+   write_str_as_pattern_name_data_special(0, 6, "NBG1", 4, addresses[1], vdp2_tile_address[0], 0, 0,0);
+   write_str_as_pattern_name_data_special(0, 7, "NBG2", 5, addresses[2], vdp2_tile_address[0], 0, 0,0);
+   write_str_as_pattern_name_data_special(0, 8, "NBG3", 6, addresses[3], vdp2_tile_address[0], 0, 0,0);
 
    write_tile(5, 5, 3, 1, addresses[0], vdp2_tile_address[0], 0, 0);
    write_tile(5, 6, 4, 1, addresses[1], vdp2_tile_address[0], 0, 0);
@@ -1916,19 +1988,19 @@ void vdp2_line_window_test()
    int i;
    for (i = 0; i < 32; i += 4)
    {
-      write_str_as_pattern_name_data_special(0, 0 + i, "\n\n\n\nNBG0                        NBG0\n\n\n\n", 3, 0, vdp2_tile_address, 0, 0);
-      write_str_as_pattern_name_data_special(0, 1 + i, "\n\n\n\nNBG1                        NBG1\n\n\n\n", 4, 0x004000, vdp2_tile_address, 0, 0);
-      write_str_as_pattern_name_data_special(0, 2 + i, "\n\n\n\nNBG2                        NBG2\n\n\n\n", 5, 0x008000, vdp2_tile_address, 0, 0);
-      write_str_as_pattern_name_data_special(0, 3 + i, "\n\n\n\nNBG3                        NBG3\n\n\n\n", 6, 0x00C000, vdp2_tile_address, 0, 0);
+      write_str_as_pattern_name_data_special(0, 0 + i, "\n\n\n\nNBG0                        NBG0\n\n\n\n", 3, 0, vdp2_tile_address, 0, 0,0);
+      write_str_as_pattern_name_data_special(0, 1 + i, "\n\n\n\nNBG1                        NBG1\n\n\n\n", 4, 0x004000, vdp2_tile_address, 0, 0,0);
+      write_str_as_pattern_name_data_special(0, 2 + i, "\n\n\n\nNBG2                        NBG2\n\n\n\n", 5, 0x008000, vdp2_tile_address, 0, 0,0);
+      write_str_as_pattern_name_data_special(0, 3 + i, "\n\n\n\nNBG3                        NBG3\n\n\n\n", 6, 0x00C000, vdp2_tile_address, 0, 0,0);
    }
 
-   write_str_as_pattern_name_data_special(0, 0,  "\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n", 3, 0x000000, vdp2_tile_address, 0, 0);
-   write_str_as_pattern_name_data_special(0, 1, "\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n", 4, 0x004000, vdp2_tile_address, 0, 0);
-   write_str_as_pattern_name_data_special(0, 2, "\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n", 5, 0x008000, vdp2_tile_address, 0, 0);
+   write_str_as_pattern_name_data_special(0, 0,  "\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n", 3, 0x000000, vdp2_tile_address, 0, 0,0);
+   write_str_as_pattern_name_data_special(0, 1, "\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n", 4, 0x004000, vdp2_tile_address, 0, 0,0);
+   write_str_as_pattern_name_data_special(0, 2, "\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n", 5, 0x008000, vdp2_tile_address, 0, 0,0);
 
-   write_str_as_pattern_name_data_special(0, 25, "\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n", 4, 0x004000, vdp2_tile_address, 0, 0);
-   write_str_as_pattern_name_data_special(0, 26, "\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n", 5, 0x008000, vdp2_tile_address, 0, 0);
-   write_str_as_pattern_name_data_special(0, 27, "\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n", 6, 0x00C000, vdp2_tile_address, 0, 0);
+   write_str_as_pattern_name_data_special(0, 25, "\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n", 4, 0x004000, vdp2_tile_address, 0, 0,0);
+   write_str_as_pattern_name_data_special(0, 26, "\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n", 5, 0x008000, vdp2_tile_address, 0, 0,0);
+   write_str_as_pattern_name_data_special(0, 27, "\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n", 6, 0x00C000, vdp2_tile_address, 0, 0,0);
 
    struct LineWindowRegs v = { { 0 } };
 
@@ -2192,7 +2264,7 @@ void vdp2_line_scroll_test()
    int i;
    for (i = 0; i < 32; i += 2)
    {
-      write_str_as_pattern_name_data_special(0, 0 + i, "\n\n\n\nNBG0\n\n\n\n\n\n\n\n", 4, 0x000000, vdp2_tile_address, 0, 0);
+      write_str_as_pattern_name_data_special(0, 0 + i, "\n\n\n\nNBG0\n\n\n\n\n\n\n\n", 4, 0x000000, vdp2_tile_address, 0, 0,0);
    }
 
    VDP2_REG_PRINA = 1 | 7 << 8;
@@ -2615,8 +2687,8 @@ void vdp2_sprite_window_test()
    int i;
    for (i = 0; i < 32; i += 2)
    {
-      write_str_as_pattern_name_data_special(0, 0 + i, "\n\n\n\nNBG2\n\n\n\n\n\n\n\n", 5, 0x008000, vdp2_tile_address, 0, 0);
-      write_str_as_pattern_name_data_special(0, 1 + i, "\n\n\n\nNBG3\n\n\n\n\n\n\n\n", 6, 0x00C000, vdp2_tile_address, 0, 0);
+      write_str_as_pattern_name_data_special(0, 0 + i, "\n\n\n\nNBG2\n\n\n\n\n\n\n\n", 5, 0x008000, vdp2_tile_address, 0, 0,0);
+      write_str_as_pattern_name_data_special(0, 1 + i, "\n\n\n\nNBG3\n\n\n\n\n\n\n\n", 6, 0x00C000, vdp2_tile_address, 0, 0,0);
    }
 
    //vars for reg adjuster

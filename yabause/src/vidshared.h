@@ -185,7 +185,7 @@ typedef struct
    
    void (*LoadLineParams)(void *, int line, Vdp2* lines);
    
-   int invalid_character_access;
+   int invalid_character_access_shift;
 } vdp2draw_struct;
 
 

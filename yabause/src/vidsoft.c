@@ -204,20 +204,23 @@ struct PatternAccess
 
 int invalid_accesses[16] = { 0 };
 
-#define CYCLE_OK 0
-#define CYCLE_XX 1
+#define NOSHFT 0
+#define LEFT_1 1
+#define LEFT_2 2
+#define LEFT_3 3
+#define RIGHT1 4
 
-const int valid_cycles[8][8] =
-{  //T0        T1        T2        T3        T4        T5        T6        T7
-   { CYCLE_OK, CYCLE_OK, CYCLE_OK, CYCLE_XX, CYCLE_OK, CYCLE_OK, CYCLE_OK, CYCLE_OK },//T0
-   { CYCLE_OK, CYCLE_OK, CYCLE_OK, CYCLE_OK, CYCLE_XX, CYCLE_OK, CYCLE_OK, CYCLE_OK },//T1
-   { CYCLE_OK, CYCLE_OK, CYCLE_OK, CYCLE_OK, CYCLE_XX, CYCLE_XX, CYCLE_OK, CYCLE_OK },//T2
-   { CYCLE_OK, CYCLE_OK, CYCLE_OK, CYCLE_OK, CYCLE_XX, CYCLE_XX, CYCLE_XX, CYCLE_OK },//T3
+const int cycle_shift_table[8][8] =
+{  //T0      T1      T2      T3      T4      T5      T6      T7
+   { NOSHFT, NOSHFT, NOSHFT, NOSHFT, NOSHFT, NOSHFT, NOSHFT, NOSHFT },//T0
+   { LEFT_1, NOSHFT, LEFT_1, LEFT_1, NOSHFT, LEFT_1, LEFT_1, LEFT_1 },//T1
+   { LEFT_2, LEFT_2, NOSHFT, LEFT_2, LEFT_1, LEFT_1, LEFT_2, LEFT_2 },//T2
+   { LEFT_3, LEFT_3, LEFT_3, NOSHFT, LEFT_2, LEFT_2, LEFT_2, LEFT_3 },//T3
 
-   { CYCLE_OK, CYCLE_OK, CYCLE_OK, CYCLE_OK, CYCLE_XX, CYCLE_XX, CYCLE_XX, CYCLE_XX },//T4
-   { CYCLE_XX, CYCLE_OK, CYCLE_OK, CYCLE_OK, CYCLE_XX, CYCLE_XX, CYCLE_XX, CYCLE_XX },//T5
-   { CYCLE_XX, CYCLE_XX, CYCLE_OK, CYCLE_OK, CYCLE_XX, CYCLE_XX, CYCLE_XX, CYCLE_XX },//T6
-   { CYCLE_XX, CYCLE_XX, CYCLE_XX, CYCLE_OK, CYCLE_XX, CYCLE_XX, CYCLE_XX, CYCLE_XX },//T7
+   { NOSHFT, NOSHFT, NOSHFT, NOSHFT, RIGHT1, RIGHT1, RIGHT1, RIGHT1 },//T4
+   { NOSHFT, LEFT_1, LEFT_1, LEFT_1, NOSHFT, RIGHT1, NOSHFT, NOSHFT },//T5
+   { LEFT_1, LEFT_1, LEFT_2, LEFT_2, LEFT_1, LEFT_1, RIGHT1, LEFT_1 },//T6
+   { LEFT_2, LEFT_2, LEFT_2, LEFT_3, LEFT_2, LEFT_2, LEFT_2, RIGHT1 },//T7
 };
 
 //////////////////////////////////////////////////////////////////////////////
@@ -868,8 +871,8 @@ static void FASTCALL Vdp2DrawScroll(vdp2draw_struct *info, Vdp2* lines, Vdp2* re
 
    Vdp2GetInterlaceInfo(&start_line, &line_increment);
 
-   if (info->invalid_character_access)
-      info->x -= 8;
+   if (info->invalid_character_access_shift)
+      info->x -= info->invalid_character_access_shift;
 
    for (j = start_line; j < vdp2height; j+=1)
    {
@@ -1584,7 +1587,7 @@ static void Vdp2DrawNBG0(Vdp2* lines, Vdp2* regs, u8* ram)
 
    info.LoadLineParams = (void (*)(void *, int ,Vdp2*)) LoadLineParamsNBG0;
 
-   info.invalid_character_access = invalid_accesses[0];
+   info.invalid_character_access_shift = invalid_accesses[0];
 
    if (info.enable == 1)
    {
@@ -1699,7 +1702,7 @@ static void Vdp2DrawNBG1(Vdp2* lines, Vdp2* regs, u8* ram)
 
    info.LoadLineParams = (void(*)(void *, int, Vdp2*)) LoadLineParamsNBG1;
 
-   info.invalid_character_access = invalid_accesses[1];
+   info.invalid_character_access_shift = invalid_accesses[1];
 
    Vdp2DrawScroll(&info, lines, regs, ram);
 }
@@ -1771,7 +1774,7 @@ static void Vdp2DrawNBG2(Vdp2* lines, Vdp2* regs, u8* ram)
 
    info.LoadLineParams = (void(*)(void *, int, Vdp2*)) LoadLineParamsNBG2;
 
-   info.invalid_character_access = invalid_accesses[2];
+   info.invalid_character_access_shift = invalid_accesses[2];
 
    Vdp2DrawScroll(&info, lines, regs, ram);
 }
@@ -1845,7 +1848,7 @@ static void Vdp2DrawNBG3(Vdp2* lines, Vdp2* regs, u8* ram)
 
    info.LoadLineParams = (void(*)(void *, int, Vdp2*)) LoadLineParamsNBG3;
 
-   info.invalid_character_access = invalid_accesses[3];
+   info.invalid_character_access_shift = invalid_accesses[3];
 
    Vdp2DrawScroll(&info, lines, regs, ram);
 }
@@ -3476,6 +3479,8 @@ void CheckCyclePatterns()
    struct PatternAccess pattern_accesses[128] = { { 0 } };
    int valid_accesses[128] = { 0 };
    int color_depth[4] = { 0 };
+   int shift_value[8] = { 0 };
+   int shift_table[5] = { 0, -8, -16, -24, 8 };
 
    FillCycleTable(Vdp2Regs->CYCA0L, Vdp2Regs->CYCA0U, 0);
    FillCycleTable(Vdp2Regs->CYCA1L, Vdp2Regs->CYCA1U, 1);
@@ -3524,9 +3529,13 @@ void CheckCyclePatterns()
                   int pattern_cycle = pattern_accesses[k].pattern_cycle;
                   int character_cycle = j;
 
-                  if (valid_cycles[pattern_cycle][character_cycle] == CYCLE_OK)
+                  if (cycle_shift_table[pattern_cycle][character_cycle] == NOSHFT)
                   {
                      valid_accesses[nbg_num]++;
+                  }
+                  else
+                  {
+                     shift_value[nbg_num] = cycle_shift_table[pattern_cycle][character_cycle];
                   }
                }
             }
@@ -3545,7 +3554,8 @@ void CheckCyclePatterns()
 
       if ((valid_accesses[i] < accesses_required) && (color_depth[i] == 0))
       {
-         invalid_accesses[i] = 1;
+         int shift = shift_value[i];
+         invalid_accesses[i] = shift_table[shift];
       }
    }
 }

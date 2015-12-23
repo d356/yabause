@@ -524,6 +524,11 @@ void vdp2_all_scroll_test()
    vdp2_basic_tile_scroll_deinit();
 }
 
+#define VDP2_REG_CYCA0         (*(volatile u32 *)0x25F80010)
+#define VDP2_REG_CYCA1         (*(volatile u32 *)0x25F80014)
+#define VDP2_REG_CYCB0         (*(volatile u32 *)0x25F80018)
+#define VDP2_REG_CYCB1         (*(volatile u32 *)0x25F8001C)
+
 void vdp2_bad_cycle_pattern_test()
 {
    int i;
@@ -565,8 +570,16 @@ void vdp2_bad_cycle_pattern_test()
 
    for (i = 0; i < 64; i += 4)
    {
-      write_str_as_pattern_name_data_special(0, i + 3, "NBG3 Bad cycle pattern", 6, nbg3_pattern_name, nbg3_tile_addr, 0, 0, 1);
+      write_str_as_pattern_name_data_special(3, i + 3, "NBG3 Bad cycle pattern", 6, nbg3_pattern_name, nbg3_tile_addr, 0, 0, 1);
    }
+
+   int pattern_pos = 0;
+   int char_pos = 0;
+
+   char status_str[64] = { 0 };
+
+   u32 a0 = 0;
+   u32 b0 = 0;
 
 #ifdef BUILD_AUTOMATED_TESTING
    auto_test_take_screenshot(1);
@@ -574,6 +587,25 @@ void vdp2_bad_cycle_pattern_test()
    for (;;)
    {
       vdp_vsync();
+
+      if (per[0].but_push_once & PAD_A)
+      {
+         VDP2_REG_CYCA0 = a0 = 0x70000000 >> char_pos * 4;
+         VDP2_REG_CYCB0 = b0 = 0x30000000 >> pattern_pos*4;
+
+         char_pos++;
+
+         if (char_pos > 7)
+         {
+            char_pos = 0;
+            pattern_pos++;
+         }
+
+         sprintf(status_str, "%d %d", pattern_pos, char_pos);
+         write_str_as_pattern_name_data_special(3, 1, status_str, 6, nbg3_pattern_name, nbg3_tile_addr, 0, 0, 1);
+         sprintf(status_str, "%08X %08X", a0, b0);
+         write_str_as_pattern_name_data_special(3, 2, status_str, 6, nbg3_pattern_name, nbg3_tile_addr, 0, 0, 1);
+      }
 
       if (per[0].but_push_once & PAD_Z)
       {

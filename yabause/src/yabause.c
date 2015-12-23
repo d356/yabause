@@ -301,6 +301,8 @@ int YabauseInit(yabauseinit_struct *init)
    GdbStubInit(MSH2, 43434);
 #endif
 
+   yabsys.UseThreads = 0;
+
    if (yabsys.UseThreads)
    {
       int num = yabsys.NumThreads < 1 ? 1 : yabsys.NumThreads;

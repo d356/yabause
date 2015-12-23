@@ -168,6 +168,7 @@ int vdp2_interlace = 0;
 static int rbg0height = 0;
 int bilinear = 0;
 int vidsoft_num_layer_threads = 0;
+int vidsoft_check_cycle_patterns = 1;
 
 struct VidsoftVdp1ThreadContext
 {
@@ -200,9 +201,11 @@ struct PatternAccess
 {
    int pattern_cycle;
    int layer;
+   int vram_area;
 };
 
-int invalid_accesses[16] = { 0 };
+int invalid_accesses[4] = { 0 };
+int unable_to_display[4] = { 0 };
 
 #define NOSHFT 0
 #define LEFT_1 1
@@ -210,7 +213,50 @@ int invalid_accesses[16] = { 0 };
 #define LEFT_3 3
 #define RIGHT1 4
 
-const int cycle_shift_table[8][8] =
+//neither A or B are split
+const int no_split_nbg[2][8][8] =
+{  
+   //nbg0,1
+   {  //T0      T1      T2      T3      T4      T5      T6      T7
+      { NOSHFT, NOSHFT, NOSHFT, NOSHFT, NOSHFT, NOSHFT, NOSHFT, NOSHFT },//T0
+      { NOSHFT, NOSHFT, NOSHFT, NOSHFT, RIGHT1, NOSHFT, NOSHFT, NOSHFT },//T1
+      { NOSHFT, NOSHFT, NOSHFT, NOSHFT, RIGHT1, RIGHT1, NOSHFT, NOSHFT },//T2
+      { NOSHFT, NOSHFT, NOSHFT, NOSHFT, RIGHT1, RIGHT1, RIGHT1, NOSHFT },//T3
+
+      { NOSHFT, NOSHFT, NOSHFT, NOSHFT, RIGHT1, RIGHT1, RIGHT1, RIGHT1 },//T4
+      { RIGHT1, NOSHFT, NOSHFT, NOSHFT, RIGHT1, RIGHT1, RIGHT1, RIGHT1 },//T5
+      { RIGHT1, RIGHT1, NOSHFT, NOSHFT, RIGHT1, RIGHT1, RIGHT1, RIGHT1 },//T6
+      { RIGHT1, RIGHT1, RIGHT1, NOSHFT, RIGHT1, RIGHT1, RIGHT1, RIGHT1 },//T7
+   },
+   //nbg2,3
+   {  //T0      T1      T2      T3      T4      T5      T6      T7
+      { NOSHFT, NOSHFT, NOSHFT, LEFT_1, NOSHFT, NOSHFT, NOSHFT, NOSHFT },//T0
+      { NOSHFT, NOSHFT, NOSHFT, NOSHFT, NOSHFT, NOSHFT, NOSHFT, NOSHFT },//T1
+      { NOSHFT, NOSHFT, NOSHFT, NOSHFT, RIGHT1, NOSHFT, NOSHFT, NOSHFT },//T2
+      { NOSHFT, NOSHFT, NOSHFT, NOSHFT, RIGHT1, RIGHT1, NOSHFT, NOSHFT },//T3
+
+      { NOSHFT, NOSHFT, NOSHFT, NOSHFT, RIGHT1, RIGHT1, RIGHT1, NOSHFT },//T4
+      { NOSHFT, NOSHFT, NOSHFT, NOSHFT, RIGHT1, RIGHT1, RIGHT1, RIGHT1 },//T5
+      { RIGHT1, NOSHFT, NOSHFT, NOSHFT, RIGHT1, RIGHT1, RIGHT1, RIGHT1 },//T6
+      { RIGHT1, RIGHT1, NOSHFT, NOSHFT, RIGHT1, RIGHT1, RIGHT1, RIGHT1 },//T7
+   }
+};
+
+//nbg2/3 pattern data located in VRAM-B
+const int nbg23_inb[8][8] = {
+   { NOSHFT, NOSHFT, NOSHFT, NOSHFT, NOSHFT, NOSHFT, NOSHFT, NOSHFT },//T0
+   { NOSHFT, NOSHFT, NOSHFT, NOSHFT, RIGHT1, NOSHFT, NOSHFT, NOSHFT },//T1
+   { NOSHFT, NOSHFT, NOSHFT, NOSHFT, RIGHT1, RIGHT1, NOSHFT, NOSHFT },//T2
+   { NOSHFT, NOSHFT, NOSHFT, NOSHFT, RIGHT1, RIGHT1, RIGHT1, NOSHFT },//T3
+
+   { NOSHFT, NOSHFT, NOSHFT, NOSHFT, RIGHT1, RIGHT1, RIGHT1, RIGHT1 },//T4
+   { RIGHT1, NOSHFT, NOSHFT, NOSHFT, RIGHT1, RIGHT1, RIGHT1, RIGHT1 },//T5
+   { RIGHT1, RIGHT1, NOSHFT, NOSHFT, RIGHT1, RIGHT1, RIGHT1, RIGHT1 },//T6
+   { RIGHT1, RIGHT1, RIGHT1, NOSHFT, RIGHT1, RIGHT1, RIGHT1, RIGHT1 },//T7
+};
+
+//dracula x
+const int split_nbg3[8][8] =
 {  //T0      T1      T2      T3      T4      T5      T6      T7
    { NOSHFT, NOSHFT, NOSHFT, NOSHFT, NOSHFT, NOSHFT, NOSHFT, NOSHFT },//T0
    { LEFT_1, NOSHFT, LEFT_1, LEFT_1, NOSHFT, LEFT_1, LEFT_1, LEFT_1 },//T1
@@ -1589,6 +1635,9 @@ static void Vdp2DrawNBG0(Vdp2* lines, Vdp2* regs, u8* ram)
 
    info.invalid_character_access_shift = invalid_accesses[0];
 
+   if (unable_to_display[0])
+      return;
+
    if (info.enable == 1)
    {
       // NBG0 draw
@@ -1704,6 +1753,9 @@ static void Vdp2DrawNBG1(Vdp2* lines, Vdp2* regs, u8* ram)
 
    info.invalid_character_access_shift = invalid_accesses[1];
 
+   if (unable_to_display[1])
+      return;
+
    Vdp2DrawScroll(&info, lines, regs, ram);
 }
 
@@ -1775,6 +1827,9 @@ static void Vdp2DrawNBG2(Vdp2* lines, Vdp2* regs, u8* ram)
    info.LoadLineParams = (void(*)(void *, int, Vdp2*)) LoadLineParamsNBG2;
 
    info.invalid_character_access_shift = invalid_accesses[2];
+
+   if (unable_to_display[2])
+      return;
 
    Vdp2DrawScroll(&info, lines, regs, ram);
 }
@@ -1849,6 +1904,9 @@ static void Vdp2DrawNBG3(Vdp2* lines, Vdp2* regs, u8* ram)
    info.LoadLineParams = (void(*)(void *, int, Vdp2*)) LoadLineParamsNBG3;
 
    info.invalid_character_access_shift = invalid_accesses[3];
+
+   if (unable_to_display[3])
+      return;
 
    Vdp2DrawScroll(&info, lines, regs, ram);
 }
@@ -3472,6 +3530,11 @@ int GetNumberOfRequiredAccesses(int color_depth)
 
 //////////////////////////////////////////////////////////////////////////////
 
+#define VRAM_A0 0
+#define VRAM_A1 1
+#define VRAM_B0 2
+#define VRAM_B1 3
+
 void CheckCyclePatterns()
 {
    int i;
@@ -3481,16 +3544,23 @@ void CheckCyclePatterns()
    int color_depth[4] = { 0 };
    int shift_value[8] = { 0 };
    int shift_table[5] = { 0, -8, -16, -24, 8 };
+   int increment = 1;
 
    FillCycleTable(Vdp2Regs->CYCA0L, Vdp2Regs->CYCA0U, 0);
    FillCycleTable(Vdp2Regs->CYCA1L, Vdp2Regs->CYCA1U, 1);
    FillCycleTable(Vdp2Regs->CYCB0L, Vdp2Regs->CYCB0U, 2);
    FillCycleTable(Vdp2Regs->CYCB1L, Vdp2Regs->CYCB1U, 3);
 
-   memset(invalid_accesses, 0, sizeof(int) * 16);
+   memset(invalid_accesses, 0, sizeof(int) * 4);
+   memset(unable_to_display, 1, sizeof(int) * 4);
+
+   if (((Vdp2Regs->RAMCTL >> 8) & 2) == 0)
+   {
+      increment = 2;//vram is not split
+   }
 
    //find pattern name data accesses
-   for (i = 0; i < 4; i++)
+   for (i = VRAM_A0; i < 4; i += increment)
    {
       int j;
 
@@ -3502,13 +3572,14 @@ void CheckCyclePatterns()
          {
             pattern_accesses[num_pattern_accesses].pattern_cycle = j;
             pattern_accesses[num_pattern_accesses].layer = entry;
+            pattern_accesses[num_pattern_accesses].vram_area = i;
             num_pattern_accesses++;
          }
       }
    }
 
    //find character pattern data accesses, check if they are valid
-   for (i = 0; i < 4; i++)//4 vram areas
+   for (i = VRAM_A0; i < 4; i += increment)
    {
       int j;
 
@@ -3519,23 +3590,45 @@ void CheckCyclePatterns()
          if (entry >= 4 && entry <= 7)//character pattern access
          {
             int k;
+            int nbg_num = (entry - 4);
+
+            //show the background if there is at least one character access
+            unable_to_display[nbg_num] = 0;
 
             for (k = 0; k < num_pattern_accesses; k++)
             {
-               int nbg_num = (entry - 4);
-
                if (nbg_num == pattern_accesses[k].layer)
                {
                   int pattern_cycle = pattern_accesses[k].pattern_cycle;
                   int character_cycle = j;
-
-                  if (cycle_shift_table[pattern_cycle][character_cycle] == NOSHFT)
+                  int value;
+                  
+                  if (increment == 2)//vram not split
                   {
-                     valid_accesses[nbg_num]++;
+                     int nbg01_or_23 = (pattern_accesses[k].layer & 2) >> 1;
+                     value = no_split_nbg[nbg01_or_23][pattern_cycle][character_cycle];
+
+                     if (pattern_accesses[k].vram_area == VRAM_B0)
+                     {
+                        if (nbg01_or_23 == 1)
+                        {
+                           //patterns in vram-b, nbg2/3
+                           value = nbg23_inb[pattern_cycle][character_cycle];
+                        }
+                     }
+                  }
+                  else //vram split
+                  {
+                     value = split_nbg3[pattern_cycle][character_cycle];
+                  }
+
+                  if (value == NOSHFT)
+                  {
+                     valid_accesses[nbg_num]++;//access is ok
                   }
                   else
                   {
-                     shift_value[nbg_num] = cycle_shift_table[pattern_cycle][character_cycle];
+                     shift_value[nbg_num] = value;//access results in a shifted display
                   }
                }
             }
@@ -3548,6 +3641,7 @@ void CheckCyclePatterns()
    color_depth[2] = (Vdp2Regs->CHCTLB >> 1) & 1;
    color_depth[3] = (Vdp2Regs->CHCTLB >> 5) & 1;
 
+   //check if there are enough valid accesses for the bit depth
    for (i = 0; i < 4; i++)
    {
       int accesses_required = GetNumberOfRequiredAccesses(color_depth[i]);
@@ -3572,7 +3666,15 @@ void VIDSoftVdp2DrawStart(void)
    Vdp2DrawBackScreen();
    Vdp2DrawLineScreen();
 
-   CheckCyclePatterns();
+   if (vidsoft_check_cycle_patterns)
+   {
+      CheckCyclePatterns();
+   }
+   else
+   {
+      memset(invalid_accesses, 0, sizeof(int) * 4);
+      memset(unable_to_display, 0, sizeof(int) * 4);
+   }
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -3962,30 +4064,27 @@ void VIDSoftVdp2DrawScreens(void)
 
    VidsoftDrawSprite();
 
-   if (vidsoft_num_layer_threads > 0)
+   if (vidsoft_num_layer_threads > 1)
    {
       memcpy(vidsoft_thread_context.lines, Vdp2Lines, sizeof(Vdp2) * 270);
       memcpy(&vidsoft_thread_context.regs, Vdp2Regs, sizeof(Vdp2));
-      memcpy(vidsoft_thread_context.ram, Vdp2Ram, 0x80000);
+      memcpy(vidsoft_thread_context.ram, Vdp2Ram, 0x80000);   
+
+      VidsoftStartLayerThread(layer_priority, draw_priority_0, &num_threads_dispatched, TITAN_NBG0, Vdp2DrawNBG0);
+      VidsoftStartLayerThread(layer_priority, draw_priority_0, &num_threads_dispatched, TITAN_RBG0, Vdp2DrawRBG0);
+      VidsoftStartLayerThread(layer_priority, draw_priority_0, &num_threads_dispatched, TITAN_NBG1, Vdp2DrawNBG1);
+      VidsoftStartLayerThread(layer_priority, draw_priority_0, &num_threads_dispatched, TITAN_NBG2, Vdp2DrawNBG2);
+      VidsoftStartLayerThread(layer_priority, draw_priority_0, &num_threads_dispatched, TITAN_NBG3, Vdp2DrawNBG3);
+
    }
-
-#ifdef WANT_VIDSOFT_LAYER_THREADING
-
-   VidsoftStartLayerThread(layer_priority, draw_priority_0, &num_threads_dispatched, TITAN_NBG0, Vdp2DrawNBG0);
-   VidsoftStartLayerThread(layer_priority, draw_priority_0, &num_threads_dispatched, TITAN_RBG0, Vdp2DrawRBG0);
-   VidsoftStartLayerThread(layer_priority, draw_priority_0, &num_threads_dispatched, TITAN_NBG1, Vdp2DrawNBG1);
-   VidsoftStartLayerThread(layer_priority, draw_priority_0, &num_threads_dispatched, TITAN_NBG2, Vdp2DrawNBG2);
-   VidsoftStartLayerThread(layer_priority, draw_priority_0, &num_threads_dispatched, TITAN_NBG3, Vdp2DrawNBG3);
-
-#else
-
-   Vdp2DrawNBG0(Vdp2Lines, Vdp2Regs, Vdp2Ram);
-   Vdp2DrawNBG1(Vdp2Lines, Vdp2Regs, Vdp2Ram);
-   Vdp2DrawNBG2(Vdp2Lines, Vdp2Regs, Vdp2Ram);
-   Vdp2DrawNBG3(Vdp2Lines, Vdp2Regs, Vdp2Ram);
-   Vdp2DrawRBG0(Vdp2Lines, Vdp2Regs, Vdp2Ram);
-
-#endif
+   else
+   {
+      Vdp2DrawNBG0(Vdp2Lines, Vdp2Regs, Vdp2Ram);
+      Vdp2DrawNBG1(Vdp2Lines, Vdp2Regs, Vdp2Ram);
+      Vdp2DrawNBG2(Vdp2Lines, Vdp2Regs, Vdp2Ram);
+      Vdp2DrawNBG3(Vdp2Lines, Vdp2Regs, Vdp2Ram);
+      Vdp2DrawRBG0(Vdp2Lines, Vdp2Regs, Vdp2Ram);
+   }
 }
 
 //////////////////////////////////////////////////////////////////////////////

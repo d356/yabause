@@ -520,6 +520,243 @@ void MappedMemoryInit()
 
 //////////////////////////////////////////////////////////////////////////////
 
+#include "sh2core.h"
+
+void PurgeCache(SH2_struct *sh2)
+{
+   return;
+
+   for (int i = 0; i < 64; i++)
+   {
+      for (int j = 0; j < 4; j++)
+      {
+         sh2->cache[i][j].valid = 0;
+      }
+   }
+}
+
+void PurgeLine(u32 addr, SH2_struct *sh2)
+{
+   u32 tag = (addr >> 9) & 0x7FFFF;
+   u32 entry = (addr >> 3) & 0x3F;
+   int way = 0;
+   sh2->cache[entry][way].valid = 0;
+}
+
+void UpdateLine(u32 addr, SH2_struct *sh2)
+{
+   u32 the_addr = addr & 0xfffffff0;
+
+   u32 tag = (addr >> 9) & 0x7FFFF;
+   u32 entry = (addr >> 3) & 0x3F;
+   u32 byte = (addr & 0xf);
+   int way = 0;
+
+   T1WriteLong(sh2->cache[entry][way].data, 0, ReadLongList[((the_addr) >> 16) & 0xFFF](the_addr));
+   T1WriteLong(sh2->cache[entry][way].data, 4, ReadLongList[((the_addr + 4) >> 16) & 0xFFF](the_addr + 4));
+   T1WriteLong(sh2->cache[entry][way].data, 8, ReadLongList[((the_addr + 8) >> 16) & 0xFFF](the_addr + 8));
+   T1WriteLong(sh2->cache[entry][way].data, 12, ReadLongList[((the_addr + 12) >> 16) & 0xFFF](the_addr + 12));
+
+   sh2->cache[entry][way].valid = 1;
+
+   sh2->cache[entry][way].tag = tag;
+}
+
+u32 read_write_pos = 0;
+
+struct ReadWrite
+{
+   u32 addr;
+   u32 data;
+   u32 is_read;
+   u32 size;
+}reads_writes[0x100000];
+
+//#define DO_WRITE
+
+//#define USE_CACHE
+
+FILE* fp;
+
+int end_place = 10000;
+
+void CheckIt(u32 addr, u32 data, u32 is_read, u32 size)
+{
+   return;
+
+   static int started = 0;
+#ifdef DO_WRITE
+   
+
+   if (!started)
+   {
+      fp = fopen("test.txt", "wb");
+
+      if (!fp)
+      {
+         int i = 0;
+      }
+      started = 1;
+   }
+
+   fwrite(&addr, sizeof(u32), 1, fp);
+   fwrite(&data, sizeof(u32), 1, fp);
+   fwrite(&is_read, sizeof(u32), 1, fp);
+   fwrite(&size, sizeof(u32), 1, fp);
+
+   read_write_pos++;
+
+   if (read_write_pos > end_place)
+   {
+      fclose(fp);
+      exit(0);
+   }
+#else
+   if(!started)
+   {
+      fp = fopen("test.txt", "rb");
+
+      if (!fp)
+      {
+         int i = 0;
+      }
+      started = 1;
+   }
+   u32 addr_b, data_b, is_read_b, size_b;
+
+   fread(&addr_b, sizeof(u32), 1, fp);
+   fread(&data_b, sizeof(u32), 1, fp);
+   fread(&is_read_b, sizeof(u32), 1, fp);
+   fread(&size_b, sizeof(u32), 1, fp);
+
+   if (addr != addr_b)
+   {
+      int i = 0;
+   }
+
+   if (data != data_b)
+   {
+      int i = 0;
+   }
+
+   if (is_read != is_read_b)
+   {
+      int i = 0;
+   }
+
+   if (size != size_b)
+   {
+      int i = 0;
+   }
+
+   read_write_pos++;
+
+   if (read_write_pos > end_place)
+   {
+      exit(0);
+   }
+#endif
+}
+
+u32 CheckCache(const u32 addr, u32 size, SH2_struct *sh2)
+{
+   u32 tag = (addr >> 9) & 0x7FFFF;
+   u32 entry = (addr >> 3) & 0x3F;
+   u32 byte = (addr & 0xf);
+   int way = 0;
+   
+   u32 result = 0;
+
+   if (sh2->cache[entry][way].tag == tag
+      && sh2->cache[entry][way].valid)
+   {
+      //cache hit
+
+      if (size == 0)
+      {
+         u32 it_should_be = ReadByteList[(addr >> 16) & 0xFFF](addr);
+         u32 it_is = T1ReadByte(sh2->cache[entry][way].data, byte);
+
+         if (it_should_be != it_is)
+         {
+            int i = 0;
+         }
+         result = T1ReadByte(sh2->cache[entry][way].data, byte);
+      }
+      else if (size == 1)
+      {
+         u32 it_should_be = ReadWordList[(addr >> 16) & 0xFFF](addr);
+         u32 it_is = T1ReadWord(sh2->cache[entry][way].data, byte);
+         if (it_should_be != it_is)
+         {
+            int i = 0;
+         }
+         result = T1ReadWord(sh2->cache[entry][way].data, byte);
+      }
+      else if (size == 2)
+      {
+         u32 it_should_be = ReadLongList[(addr >> 16) & 0xFFF](addr);
+         u32 it_is = T1ReadLong(sh2->cache[entry][way].data, byte);
+         if (it_should_be != it_is)
+         {
+            int i = 0;
+         }
+         result = T1ReadLong(sh2->cache[entry][way].data, byte);
+      }
+      //if (size == 0)
+      //{
+      //   return cache[entry][way].data[byte];
+      //}
+      //else if (size == 1)
+      //{
+      //   return (cache[entry][way].data[byte] << 8) | (cache[entry][way].data[byte + 1] << 0);
+      //}
+      //else if (size == 2)
+      //{
+      //   return (cache[entry][way].data[byte] << 24) | (cache[entry][way].data[byte + 1] << 16);
+      //   (cache[entry][way].data[byte + 2] << 8) | (cache[entry][way].data[byte + 3] << 0);
+      //}
+
+   }
+   else
+   {
+      u32 the_addr = addr & 0xfffffff0;
+      //cache miss, read 16 bytes
+
+      //if (addr = 0x06001f38)
+      //{
+      //   int i = 0;
+      //}
+
+      T1WriteLong(sh2->cache[entry][way].data, 0, ReadLongList[((the_addr) >> 16) & 0xFFF](the_addr));
+      T1WriteLong(sh2->cache[entry][way].data, 4, ReadLongList[((the_addr + 4) >> 16) & 0xFFF](the_addr + 4));
+      T1WriteLong(sh2->cache[entry][way].data, 8, ReadLongList[((the_addr + 8) >> 16) & 0xFFF](the_addr + 8));
+      T1WriteLong(sh2->cache[entry][way].data, 12, ReadLongList[((the_addr + 12) >> 16) & 0xFFF](the_addr + 12));
+
+      u32 dongs = T1ReadLong(sh2->cache[entry][way].data, 12);
+
+      //cache[entry][way].data[0] = ;
+      //cache[entry][way].data[1] = ReadLongList[((the_addr + 4) >> 16) & 0xFFF](the_addr + 4);
+      //cache[entry][way].data[2] = ReadLongList[((the_addr + 8) >> 16) & 0xFFF](the_addr + 8);
+      //cache[entry][way].data[3] = ReadLongList[((the_addr + 12) >> 16) & 0xFFF](the_addr + 12);
+
+      sh2->cache[entry][way].valid = 1;
+
+      sh2->cache[entry][way].tag = tag;
+
+      if (size == 0)
+         result = ReadByteList[(addr >> 16) & 0xFFF](addr);
+      else if (size == 1)
+         result = ReadWordList[(addr >> 16) & 0xFFF](addr);
+      else if (size == 2)
+         result = ReadLongList[(addr >> 16) & 0xFFF](addr);
+   }
+
+   //u32 result = MappedMemoryReadLong(addr);
+   CheckIt(addr, result, 1, size);
+   return result;
+}
+
 u8 FASTCALL MappedMemoryReadByte(u32 addr)
 {
    switch (addr >> 29)
@@ -528,7 +765,7 @@ u8 FASTCALL MappedMemoryReadByte(u32 addr)
       case 0x1:
       case 0x5:
       {
-         // Cache/Non-Cached
+          // Cache/Non-Cached
          return ReadByteList[(addr >> 16) & 0xFFF](addr);
       }
 /*
@@ -569,6 +806,25 @@ u8 FASTCALL MappedMemoryReadByte(u32 addr)
    return 0;
 }
 
+u8 FASTCALL MappedMemoryReadByteSh2(u32 addr, SH2_struct* sh2)
+{ 
+#ifdef USE_CACHE
+   if ((addr >> 29) == 0)
+   {
+      if (MSH2->onchip.CCR & 1)
+      {
+         return CheckCache(addr, 0, sh2);
+      }
+   }
+#endif
+
+   
+
+   u8 result =  MappedMemoryReadByte(addr);
+   CheckIt(addr, result, 1, 0);
+   return result;
+}
+
 //////////////////////////////////////////////////////////////////////////////
 
 u16 FASTCALL MappedMemoryReadWord(u32 addr)
@@ -582,13 +838,13 @@ u16 FASTCALL MappedMemoryReadWord(u32 addr)
          // Cache/Non-Cached
          return ReadWordList[(addr >> 16) & 0xFFF](addr);
       }
-/*
+      /*
       case 0x2:
       {
          // Purge Area
          break;
       }
-*/
+      */
       case 0x4:
       case 0x6:
          // Data Array
@@ -620,7 +876,29 @@ u16 FASTCALL MappedMemoryReadWord(u32 addr)
    return 0;
 }
 
+u16 FASTCALL MappedMemoryReadWordSh2(u32 addr, SH2_struct* sh2)
+{
+#ifdef USE_CACHE
+   if ((addr >> 29) == 0)
+   {
+      if (MSH2->onchip.CCR & 1)
+      {
+         return CheckCache(addr, 1, sh2);
+      }
+   }
+#endif
+
+   //return MappedMemoryReadWord(addr);
+
+   u16 result = MappedMemoryReadWord(addr);
+   CheckIt(addr, result, 1, 1);
+   return result;
+}
+
+
 //////////////////////////////////////////////////////////////////////////////
+
+
 
 u32 FASTCALL MappedMemoryReadLong(u32 addr)
 {
@@ -632,14 +910,16 @@ u32 FASTCALL MappedMemoryReadLong(u32 addr)
       {
          // Cache/Non-Cached
          return ReadLongList[(addr >> 16) & 0xFFF](addr);
+
+         
       }
-/*
+      /*
       case 0x2:
       {
          // Purge Area
          break;
       }
-*/
+      */
       case 0x3:
       {
          // Address Array
@@ -675,10 +955,34 @@ u32 FASTCALL MappedMemoryReadLong(u32 addr)
    return 0;
 }
 
+u32 FASTCALL MappedMemoryReadLongSh2(u32 addr, SH2_struct* sh2)
+{
+#ifdef USE_CACHE
+   if ((addr >> 29) == 0)
+   {
+      if (MSH2->onchip.CCR & 1)
+      {
+         return CheckCache(addr, 2, sh2);
+      }
+   }
+#endif
+
+   //return MappedMemoryReadLong(addr);
+
+   u32 result = MappedMemoryReadLong(addr);
+   CheckIt(addr, result, 1, 2);
+   return result;
+}
+
+
 //////////////////////////////////////////////////////////////////////////////
 
 void FASTCALL MappedMemoryWriteByte(u32 addr, u8 val)
 {
+   if (addr == 0x06001fd8)
+   {
+      int i = 0;
+   }
    switch (addr >> 29)
    {
       case 0x0:
@@ -728,10 +1032,32 @@ void FASTCALL MappedMemoryWriteByte(u32 addr, u8 val)
    }
 }
 
+void FASTCALL MappedMemoryWriteByteSh2(u32 addr, u8 val, SH2_struct* sh2)
+{
+#ifdef USE_CACHE
+   if ((addr >> 29) == 0)
+   {
+      if (MSH2->onchip.CCR & 1)
+      {
+         WriteByteList[(addr >> 16) & 0xFFF](addr, val);
+         UpdateLine(addr, sh2);
+         return;
+      }
+   }
+#endif
+
+   CheckIt(addr, val, 0, 0);
+   MappedMemoryWriteByte(addr, val);
+}
+
 //////////////////////////////////////////////////////////////////////////////
 
 void FASTCALL MappedMemoryWriteWord(u32 addr, u16 val)
 {
+   if (addr == 0x06001fd8)
+   {
+      int i = 0;
+   }
    switch (addr >> 29)
    {
       case 0x0:
@@ -781,10 +1107,31 @@ void FASTCALL MappedMemoryWriteWord(u32 addr, u16 val)
    }
 }
 
+void FASTCALL MappedMemoryWriteWordSh2(u32 addr, u16 val, SH2_struct* sh2)
+{
+#ifdef USE_CACHE
+   if ((addr >> 29) == 0)
+   {
+      if (MSH2->onchip.CCR & 1)
+      {
+         WriteWordList[(addr >> 16) & 0xFFF](addr, val);
+         UpdateLine(addr, sh2);
+         return;
+      }
+   }
+#endif
+   CheckIt(addr, val, 0, 1);
+   MappedMemoryWriteWord(addr, val);
+}
+
 //////////////////////////////////////////////////////////////////////////////
 
 void FASTCALL MappedMemoryWriteLong(u32 addr, u32 val)
 {
+   if (addr == 0x06001fd8)
+   {
+      int i = 0;
+   }
    switch (addr >> 29)
    {
       case 0x0:
@@ -836,6 +1183,30 @@ void FASTCALL MappedMemoryWriteLong(u32 addr, u32 val)
          return;
       }
    }
+}
+
+void FASTCALL MappedMemoryWriteLongSh2(u32 addr, u32 val, SH2_struct* sh2)
+{
+#ifdef USE_CACHE
+   switch (addr >> 29)
+   {
+   case 0x0:
+      if (MSH2->onchip.CCR & 1)
+      {
+         WriteLongList[(addr >> 16) & 0xFFF](addr, val);
+         UpdateLine(addr, sh2);
+         return;
+      }
+   case 0x2:
+   {
+      PurgeLine(addr, sh2);
+      return;
+   }
+   }
+#endif
+
+   CheckIt(addr, val, 0, 2);
+   MappedMemoryWriteLong(addr, val);
 }
 
 //////////////////////////////////////////////////////////////////////////////

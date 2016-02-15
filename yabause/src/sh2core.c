@@ -166,8 +166,8 @@ void SH2Reset(SH2_struct *context)
 
 void SH2PowerOn(SH2_struct *context) {
    u32 VBR = SH2Core->GetVBR(context);
-   SH2Core->SetPC(context, MappedMemoryReadLong(VBR));
-   SH2Core->SetGPR(context, 15, MappedMemoryReadLong(VBR+4));
+   SH2Core->SetPC(context, MappedMemoryReadLongSh2(VBR,context));
+   SH2Core->SetGPR(context, 15, MappedMemoryReadLongSh2(VBR + 4, context));
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -1402,6 +1402,10 @@ void FASTCALL OnchipWriteByte(u32 addr, u8 val) {
          return;
       case 0x092:
          CurrentSH2->onchip.CCR = val & 0xCF;
+         if (val & (1 << 4))
+         {
+            PurgeCache();
+         }
          return;
       case 0x0E0:
          CurrentSH2->onchip.ICR = ((val & 0x1) << 8) | (CurrentSH2->onchip.ICR & 0xFEFF);
@@ -1676,7 +1680,7 @@ void FASTCALL OnchipWriteLong(u32 addr, u32 val)  {
          // and CHCR's DE bit is set and TE bit is cleared,
          // do a dma transfer
          if ((CurrentSH2->onchip.DMAOR & 7) == 1 && (val & 0x3) == 1)
-            DMAExec();
+            DMAExec(CurrentSH2);
          return;
       case 0x190:
          CurrentSH2->onchip.SAR1 = val;
@@ -1694,7 +1698,7 @@ void FASTCALL OnchipWriteLong(u32 addr, u32 val)  {
          // and CHCR's DE bit is set and TE bit is cleared,
          // do a dma transfer
          if ((CurrentSH2->onchip.DMAOR & 7) == 1 && (val & 0x3) == 1)
-            DMAExec();
+            DMAExec(CurrentSH2);
          return;
       case 0x1A0:
          CurrentSH2->onchip.VCRDMA0 = val & 0xFFFF;
@@ -1709,7 +1713,7 @@ void FASTCALL OnchipWriteLong(u32 addr, u32 val)  {
          // and CHCR's DE bit is set and TE bit is cleared,
          // do a dma transfer
          if ((val & 7) == 1)
-            DMAExec();
+            DMAExec(CurrentSH2);
          return;
       case 0x1E0:
          CurrentSH2->onchip.BCR1 &= 0x8000;
@@ -1885,7 +1889,7 @@ void WDTExec(u32 cycles) {
 
 //////////////////////////////////////////////////////////////////////////////
 
-void DMAExec(void) {
+void DMAExec(SH2_struct* sh) {
    // If AE and NMIF bits are set, we can't continue
    if (CurrentSH2->onchip.DMAOR & 0x6)
       return;
@@ -1895,31 +1899,31 @@ void DMAExec(void) {
          LOG("dma\t: FIXME: two channel dma - round robin priority not properly implemented\n");
          DMATransfer(&CurrentSH2->onchip.CHCR0, &CurrentSH2->onchip.SAR0,
 		     &CurrentSH2->onchip.DAR0,  &CurrentSH2->onchip.TCR0,
-		     &CurrentSH2->onchip.VCRDMA0);
+           &CurrentSH2->onchip.VCRDMA0, sh);
          DMATransfer(&CurrentSH2->onchip.CHCR1, &CurrentSH2->onchip.SAR1,
 		     &CurrentSH2->onchip.DAR1,  &CurrentSH2->onchip.TCR1,
-                     &CurrentSH2->onchip.VCRDMA1);
+                     &CurrentSH2->onchip.VCRDMA1, sh);
       }
       else { // channel 0 > channel 1 priority
          DMATransfer(&CurrentSH2->onchip.CHCR0, &CurrentSH2->onchip.SAR0,
 		     &CurrentSH2->onchip.DAR0,  &CurrentSH2->onchip.TCR0,
-		     &CurrentSH2->onchip.VCRDMA0);
+           &CurrentSH2->onchip.VCRDMA0, sh);
          DMATransfer(&CurrentSH2->onchip.CHCR1, &CurrentSH2->onchip.SAR1,
 		     &CurrentSH2->onchip.DAR1,  &CurrentSH2->onchip.TCR1,
-		     &CurrentSH2->onchip.VCRDMA1);
+           &CurrentSH2->onchip.VCRDMA1, sh);
       }
    }
    else { // only one channel wants DMA
       if (CurrentSH2->onchip.CHCR0 & 0x1) { // DMA for channel 0
          DMATransfer(&CurrentSH2->onchip.CHCR0, &CurrentSH2->onchip.SAR0,
 		     &CurrentSH2->onchip.DAR0,  &CurrentSH2->onchip.TCR0,
-		     &CurrentSH2->onchip.VCRDMA0);
+           &CurrentSH2->onchip.VCRDMA0, sh);
          return;
       }
       if (CurrentSH2->onchip.CHCR1 & 0x1) { // DMA for channel 1
          DMATransfer(&CurrentSH2->onchip.CHCR1, &CurrentSH2->onchip.SAR1,
 		     &CurrentSH2->onchip.DAR1,  &CurrentSH2->onchip.TCR1,
-		     &CurrentSH2->onchip.VCRDMA1);
+           &CurrentSH2->onchip.VCRDMA1, sh);
          return;
       }
    }
@@ -1927,7 +1931,7 @@ void DMAExec(void) {
 
 //////////////////////////////////////////////////////////////////////////////
 
-void DMATransfer(u32 *CHCR, u32 *SAR, u32 *DAR, u32 *TCR, u32 *VCRDMA)
+void DMATransfer(u32 *CHCR, u32 *SAR, u32 *DAR, u32 *TCR, u32 *VCRDMA, SH2_struct *sh)
 {
    int size;
    u32 i, i2;
@@ -1953,7 +1957,7 @@ void DMATransfer(u32 *CHCR, u32 *SAR, u32 *DAR, u32 *TCR, u32 *VCRDMA)
       switch (size = ((*CHCR & 0x0C00) >> 10)) {
          case 0:
             for (i = 0; i < *TCR; i++) {
-               MappedMemoryWriteByte(*DAR, MappedMemoryReadByte(*SAR));
+               MappedMemoryWriteByteSh2(*DAR, MappedMemoryReadByteSh2(*SAR, sh), sh);
                *SAR += srcInc;
                *DAR += destInc;
             }
@@ -1965,7 +1969,7 @@ void DMATransfer(u32 *CHCR, u32 *SAR, u32 *DAR, u32 *TCR, u32 *VCRDMA)
             srcInc *= 2;
 
             for (i = 0; i < *TCR; i++) {
-               MappedMemoryWriteWord(*DAR, MappedMemoryReadWord(*SAR));
+               MappedMemoryWriteWordSh2(*DAR, MappedMemoryReadWordSh2(*SAR, sh), sh);
                *SAR += srcInc;
                *DAR += destInc;
             }
@@ -1977,7 +1981,7 @@ void DMATransfer(u32 *CHCR, u32 *SAR, u32 *DAR, u32 *TCR, u32 *VCRDMA)
             srcInc *= 4;
 
             for (i = 0; i < *TCR; i++) {
-               MappedMemoryWriteLong(*DAR, MappedMemoryReadLong(*SAR));
+               MappedMemoryWriteLongSh2(*DAR, MappedMemoryReadLongSh2(*SAR, sh), sh);
                *DAR += destInc;
                *SAR += srcInc;
             }
@@ -1990,7 +1994,7 @@ void DMATransfer(u32 *CHCR, u32 *SAR, u32 *DAR, u32 *TCR, u32 *VCRDMA)
 
             for (i = 0; i < *TCR; i+=4) {
                for(i2 = 0; i2 < 4; i2++) {
-                  MappedMemoryWriteLong(*DAR, MappedMemoryReadLong(*SAR));
+                  MappedMemoryWriteLongSh2(*DAR, MappedMemoryReadLongSh2(*SAR, sh), sh);
                   *DAR += destInc;
                   *SAR += srcInc;
                }

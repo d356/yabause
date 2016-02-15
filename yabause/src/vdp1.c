@@ -60,16 +60,49 @@ u32 FASTCALL Vdp1RamReadLong(u32 addr) {
 }
 
 //////////////////////////////////////////////////////////////////////////////
-
+#include "sh2core.h"
+extern SH2_struct *MSH2;
 void FASTCALL Vdp1RamWriteByte(u32 addr, u8 val) {
    addr &= 0x7FFFF;
+   //0x060170dc
+   if (addr < 1000 && MSH2->regs.PC != 0x060170d2)
+   {
+      int qq = 0;
+   }
    T1WriteByte(Vdp1Ram, addr, val);
 }
 
 //////////////////////////////////////////////////////////////////////////////
-
+int go = 0;
 void FASTCALL Vdp1RamWriteWord(u32 addr, u16 val) {
    addr &= 0x7FFFF;
+   if (addr < 1000)
+   {
+      int qq = 0;
+   }
+
+   if (
+      (val << 3) == 0x7FFE0)
+   {
+      int i = 0;
+   }
+
+   //incorrect helmet val
+   if (
+      (val << 3) == 0x7FF20)
+   {
+      int i = 0;
+   }
+   
+   if (
+      (val << 3) == 0x7FF80)
+   {
+      int i = 0;
+      go = 1;
+   }
+   //if (go)
+   //   DebugPrintf(MainLog, __FILE__, __LINE__, "pc: %0x addr: %0x val: %0x", MSH2->regs.PC, addr, val);
+   //
    T1WriteWord(Vdp1Ram, addr, val);
 }
 
@@ -77,6 +110,10 @@ void FASTCALL Vdp1RamWriteWord(u32 addr, u16 val) {
 
 void FASTCALL Vdp1RamWriteLong(u32 addr, u32 val) {
    addr &= 0x7FFFF;
+   if (addr < 1000)
+   {
+      int qq = 0;
+   }
    T1WriteLong(Vdp1Ram, addr, val);
 }
 

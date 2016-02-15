@@ -362,6 +362,13 @@ typedef struct
         u32 shift;
    } wdt;
 
+   struct
+   {
+      u32 tag;
+      u8 data[16];
+      u32 valid;
+   }cache[64][4];
+
    interrupt_struct interrupts[MAX_INTERRUPTS];
    u32 NumberOfInterrupts;
    u32 AddressArray[0x100];
@@ -502,8 +509,8 @@ u32 *SH2GetBacktraceList(SH2_struct *context, int *size);
 void SH2HandleStepOverOut(SH2_struct *context);
 void SH2HandleTrackInfLoop(SH2_struct *context);
 
-void DMAExec(void);
-void DMATransfer(u32 *CHCR, u32 *SAR, u32 *DAR, u32 *TCR, u32 *VCRDMA);
+void DMAExec(SH2_struct* sh);
+void DMATransfer(u32 *CHCR, u32 *SAR, u32 *DAR, u32 *TCR, u32 *VCRDMA, SH2_struct* sh);
 
 u8 FASTCALL OnchipReadByte(u32 addr);
 u16 FASTCALL OnchipReadWord(u32 addr);

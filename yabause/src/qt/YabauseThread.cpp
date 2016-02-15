@@ -97,13 +97,127 @@ bool YabauseThread::pauseEmulation( bool pause, bool reset )
 	
 	VolatileSettings * vs = QtYabause::volatileSettings();
 
+
+   //char str[100000] = { 0 };
+
+#if 0
+
+   FILE *f;
+   f = fopen("C:/yabause/stuff.txt", "w");
+
+
+   fprintf(f, "struct Sh2ResultsAll sh2_results = \r\n{\r\n  {\r\n");
+
+   int num_test_vals = 2;
+   int num_instrs = 2;
+
+   for (int j = 0; j < num_instrs; j++)
+   {
+      fprintf(f, "    { { ");
+
+      int total_reg_vals = num_test_vals;
+
+      for (int i = 0; i < total_reg_vals; i++)
+      {
+         fprintf(f, "{ { 0x%08x, 0x%08x, 0x%08x, 0x%08x, 0x%08x } }", 1, 2, 3, 4, 5);
+
+         if (i == total_reg_vals - 1)
+         {
+            fprintf(f, " } },\r\n");
+         }
+         else
+         {
+            fprintf(f, ", ");
+         }
+      }
+
+      if (j == num_instrs - 1)
+      {
+         
+         fprintf(f, "  }\r\n}; ");
+      }
+   }
+
+   fclose(f);
+
+   exit(0);
+
+#else
+   //FILE *in;
+   //in = fopen("C:/yabause/results.bin", "rb");
+
+   //FILE *out;
+   //out = fopen("C:/yabause/results.txt", "w");
+
+   //fprintf(out, "struct Sh2ResultsAll sh2_results = \r\n{\r\n  {\r\n");
+
+   //int num_test_vals = 12;
+   //int num_instrs = 23+13;
+
+   //for (int j = 0; j < num_instrs; j++)
+   //{
+   //   fprintf(out, "    { { ");
+
+   //   int total_reg_vals = num_test_vals*num_test_vals;
+
+   //   for (int i = 0; i < total_reg_vals; i++)
+   //   {
+   //      u32 a, b, a_out, b_out, sr;
+
+   //      fread(&a, sizeof(u32), 1, in);
+   //      fread(&b, sizeof(u32), 1, in);
+   //      fread(&a_out, sizeof(u32), 1, in);
+   //      fread(&b_out, sizeof(u32), 1, in);
+   //      fread(&sr, sizeof(u32), 1, in);
+
+   //      a = BSWAP32(a);
+   //      b = BSWAP32(b);
+   //      a_out = BSWAP32(a_out);
+   //      b_out = BSWAP32(b_out);
+   //      sr = BSWAP32(sr);
+
+   //      //0x67452301
+
+   //      fprintf(out, "{ { 0x%08x, 0x%08x, 0x%08x, 0x%08x, 0x%08x } }", a, b, a_out, b_out, sr);
+
+   //      if (i == total_reg_vals - 1)
+   //      {
+   //         fprintf(out, " } },\r\n");
+   //      }
+   //      else
+   //      {
+   //         fprintf(out, ", ");
+   //      }
+   //   }
+
+   //   if (j == num_instrs - 1)
+   //   {
+
+   //      fprintf(out, "  }\r\n}; ");
+   //   }
+   //}
+
+   //fclose(out);
+   //fclose(in);
+   //exit(0);
+
+#endif
+
 	if (vs->value("autostart").toBool())
 	{
-		if (vs->value("autostart/binary").toBool()) {
+#if 1
+		if (1){//vs->value("autostart/binary").toBool()) {
 			MappedMemoryLoadExec(
-				vs->value("autostart/binary/filename").toString().toLocal8Bit().constData(),
+            "C:\\yabause-3\\yabause\\yabauseut\\build\\src\\YabauseUT.elf",//vs->value().toString().toLocal8Bit().constData(),
 				vs->value("autostart/binary/address").toUInt());
 		}
+#else
+      if (vs->value("autostart/binary").toBool()) {
+         MappedMemoryLoadExec(
+            vs->value("autostart/binary/filename").toString().toLocal8Bit().constData(),
+            vs->value("autostart/binary/address").toUInt());
+      }
+#endif
 		else if (vs->value("autostart/load").toBool()) {
 			YabLoadStateSlot( QtYabause::volatileSettings()->value( "General/SaveStates", getDataDirPath() ).toString().toLatin1().constData(), vs->value("autostart/load/slot").toInt() );
 		}

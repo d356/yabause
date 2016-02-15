@@ -24,6 +24,10 @@
 
 #include <stdlib.h>
 
+#include "C:/Users/d/Downloads/ispc-v1.8.2-windows/stuff_ispc.h"
+
+#define WANT_VIDSOFT_PRIORITY_THREADING 1
+
 /* private */
 typedef u32 (*TitanBlendFunc)(u32 top, u32 bottom);
 typedef int FASTCALL (*TitanTransFunc)(u32 pixel);
@@ -39,6 +43,17 @@ struct PixelData
    u8 shadow_type;
    u8 shadow_enabled;
 };
+
+struct PixelDataSoa
+{
+   u32 pixel[6];
+   u8 priority[6];
+   u8 linescreen[6];
+   u8 shadow_type[6];
+   u8 shadow_enabled[6];
+};
+
+struct PixelDataSoa soa_thing[704 * 256];
 
 static struct TitanContext {
    int inited;
@@ -191,6 +206,124 @@ static INLINE int FASTCALL TitanTransAlpha(u32 pixel)
 static INLINE int FASTCALL TitanTransBit(u32 pixel)
 {
    return pixel & 0x80000000;
+}
+
+void kernel(int pos, struct PixelData *pixel_stack, struct PixelData * vdp2framebuffer[6], struct PixelData* back_screen)
+{
+   int priority;
+   int pixel_stack_pos = 0;
+
+   //sort the pixels from highest to lowest priority
+   for (priority = 7; priority > 0; priority--)
+   {
+      int which_layer;
+
+      for (which_layer = TITAN_SPRITE; which_layer >= 0; which_layer--)
+      {
+         if (vdp2framebuffer[which_layer][pos].priority == priority)
+         {
+            pixel_stack[pixel_stack_pos] = vdp2framebuffer[which_layer][pos];
+            pixel_stack_pos++;
+
+            if (pixel_stack_pos == 2)
+               return;
+         }
+      }
+   }
+
+   pixel_stack[pixel_stack_pos] = back_screen[pos];
+}
+
+struct PixelData make_pixel(struct PixelDataSoa input, int which)
+{
+   struct PixelData data = { 0 };
+
+   data.linescreen = input.linescreen[which];
+   data.pixel = input.pixel[which];
+   data.priority = input.priority[which];
+   data.shadow_enabled = input.shadow_enabled[which];
+   data.shadow_type = input.shadow_type[which];
+
+   return data;
+}
+
+void kernel_soa(int pos, struct PixelData *pixel_stack, struct PixelDataSoa vdp2framebuffer, struct PixelData* back_screen)
+{
+   int priority;
+   int pixel_stack_pos = 0;
+
+   //sort the pixels from highest to lowest priority
+   for (priority = 7; priority > 0; priority--)
+   {
+      int which_layer;
+
+      for (which_layer = TITAN_SPRITE; which_layer >= 0; which_layer--)
+      {
+         if (vdp2framebuffer.priority[which_layer] == priority)
+         {
+            pixel_stack[pixel_stack_pos] = make_pixel(vdp2framebuffer, which_layer);//vdp2framebuffer[which_layer][pos];
+            pixel_stack_pos++;
+
+            if (pixel_stack_pos == 2)
+               return;
+         }
+      }
+   }
+
+   pixel_stack[pixel_stack_pos] = back_screen[pos];
+}
+
+void set_pixel(u32 *pixel,
+   u8 *priority,
+   u8 *linescreen,
+   u8 *shadow_type,
+   u8 *shadow_enabled, struct PixelDataSoa vdp2framebuffer, int which_layer)
+{
+   *linescreen = vdp2framebuffer.linescreen[which_layer];
+   *pixel = vdp2framebuffer.pixel[which_layer];
+   *priority = vdp2framebuffer.priority[which_layer];
+   *shadow_enabled = vdp2framebuffer.shadow_enabled[which_layer];
+   *shadow_type = vdp2framebuffer.shadow_type[which_layer];
+
+   //*linescreen = *linescreen + 1;
+   //*pixel = *pixel + 1;
+   //*priority = *priority + 1;
+   //*shadow_enabled = *shadow_enabled + 1;
+   //*shadow_type = *shadow_type + 1;
+}
+
+void kernel_soa_arr(int pos, 
+u32 *pixel,
+u8 *priority,
+u8 *linescreen,
+u8 *shadow_type,
+u8 *shadow_enabled,
+struct PixelDataSoa vdp2framebuffer, 
+struct PixelData* back_screen)
+{
+   int priority_;
+   int pixel_stack_pos = 0;
+
+   //sort the pixels from highest to lowest priority
+   for (priority_ = 7; priority_ > 0; priority_--)
+   {
+      int which_layer;
+
+      for (which_layer = TITAN_SPRITE; which_layer >= 0; which_layer--)
+      {
+         if (vdp2framebuffer.priority[which_layer] == priority_)
+         {
+            set_pixel(pixel, priority, linescreen, shadow_type, shadow_enabled, vdp2framebuffer, which_layer);
+
+            pixel_stack_pos++;
+
+            if (pixel_stack_pos == 2)
+               return;
+         }
+      }
+   }
+
+//   pixel_stack[pixel_stack_pos] = back_screen[pos];
 }
 
 static u32 TitanDigPixel(int pos, int y)
@@ -420,6 +553,30 @@ void TitanPutHLine(int priority, s32 x, s32 y, s32 width, u32 color)
 
       for (i = 0; i < width; i++)
          buffer[i].pixel = color;
+   }
+}
+
+struct PixelData pixels[704 * 256][2] = { 0 };
+
+void make_soa(int y, int start_line, int interlace_line, int end_line, int line_increment)
+{
+   int x, screen;
+
+   for (y = start_line + interlace_line; y < end_line; y += line_increment)
+   {
+      for (x = 0; x < tt_context.vdp2width; x++)
+      {
+         int i = (y * tt_context.vdp2width) + x;
+
+         for (screen = 0; screen < 6; screen++)
+         {
+            soa_thing[i].linescreen[screen] = tt_context.vdp2framebuffer[screen][i].linescreen;
+            soa_thing[i].pixel[screen] = tt_context.vdp2framebuffer[screen][i].pixel;
+            soa_thing[i].priority[screen] = tt_context.vdp2framebuffer[screen][i].priority;
+            soa_thing[i].shadow_enabled[screen] = tt_context.vdp2framebuffer[screen][i].shadow_enabled;
+            soa_thing[i].shadow_type[screen] = tt_context.vdp2framebuffer[screen][i].shadow_type;
+         }
+      }
    }
 }
 

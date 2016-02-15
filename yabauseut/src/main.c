@@ -191,6 +191,22 @@ int main()
 
    yabauseut_init();
 
+   //instruction_test();
+
+   vdp2_stuff();
+
+   //command_timing();
+
+   vdp2_bad_cycle_pattern_test();
+
+   vdp2_all_scroll_test_swapped();
+
+   vdp2_all_scroll_test();
+
+   vdp2_bad_cycle_pattern_test();
+
+   vdp2_all_scroll_test();
+
    auto_test_do_selected_test(auto_test_selection);
 
    // Display Main Menu

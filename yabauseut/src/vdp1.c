@@ -227,6 +227,208 @@ void vdp1_framebuffer_write_test()
 
 //////////////////////////////////////////////////////////////////////////////
 
+int current_command = 0;
+
+void write_test_vals(volatile u16* p)
+{
+   int i;
+   for (i = 0; i < 15; i++)
+   {
+      p[i] = i;
+   }
+}
+
+void test_draw_end()
+{
+   volatile u16 * p = (volatile u16*)(VDP1_RAM + (current_command * 0x20));
+
+   //write_test_vals(p);
+
+   p[0] = 0x8000;
+
+   current_command++;
+}
+
+void test_system_clipping()
+{
+   volatile u16 * p = (volatile u16*)(VDP1_RAM + (current_command * 0x20));
+
+   p[0] = 0x9;
+   p[10] = 320;
+   p[11] = 224;
+
+   current_command++;
+}
+
+void test_user_clipping()
+{
+   volatile u16 * p = (volatile u16*)(VDP1_RAM + (current_command * 0x20));
+
+   p[0] = 0x8;
+
+   p[6] = 0;
+   p[7] = 0;
+
+   p[10] = 320;
+   p[11] = 224;
+
+   current_command++;
+}
+
+void test_local_coordinate()
+{
+   volatile u16 * p = (volatile u16*)(VDP1_RAM + (current_command * 0x20));
+
+   p[0] = 0xa;
+
+   p[6] = 0;
+   p[7] = 0;
+
+   current_command++;
+}
+#if 0
+void write_test_sprite()
+{
+   int location = 1024;
+   volatile u32 * spr_p = (volatile u32*)(VDP1_RAM + (location * 0x20));
+   int i;
+   int j;
+   int width = 8;
+   int height = 8;
+
+   u32 spr[] = 
+   {
+      0x00010002,
+      0x00030004,
+      0x00050006,
+      0x00070008,
+      0x0009000a,
+      0x000b000c,
+      0x000d000e,
+      0x000f0002 
+   };
+
+   for (i = 0; i < 8; i++)
+   {
+      spr_p[i] = spr[i];
+   }
+
+   volatile u16 * p = (volatile u16*)(VDP1_RAM + (current_command * 0x20));
+
+   p[0] = 0x0;
+
+   p[6] = 0x4;//x = 4
+   p[7] = 0xc;//y = 12
+
+   current_command++;
+}
+#endif
+
+void test_line(u32 x1, u32 y1, u32 x2, u32 y2)
+{
+   volatile u16 * p = (volatile u16*)(VDP1_RAM + (current_command * 0x20));
+
+   p[0] = 0x6;
+   p[2] = 0x8000;
+   p[3] = 0xffff;
+
+   p[6] = x1;//x
+   p[7] = y1;//y
+
+   p[8] = x2;//x
+   p[9] = y2;//y
+
+   current_command++;
+}
+
+void test_normal_sprite()
+{
+   volatile u16 * p = (volatile u16*)(VDP1_RAM + (current_command * 0x20));
+
+   p[0] = 0x0;
+
+   p[6] = 0x4;//x = 4
+   p[7] = 0xc;//y = 12
+
+   current_command++;
+}
+
+void command_timing()
+{
+
+   //vdp2_sprite_window_test();
+
+   VDP1_REG_PTMR = 0x02;
+   VDP1_REG_FBCR = 0;
+   VDP2_REG_SPCTL = (1 << 5) | 7;
+   VDP2_REG_PRISA = 2 | (2 << 8);
+   VDP2_REG_PRISB = 2 | (2 << 8);
+   VDP2_REG_PRISC = 2 | (2 << 8);
+   VDP2_REG_PRISD = 2 | (2 << 8);
+
+   VDP2_REG_WPSX0 = 0;
+   VDP2_REG_WPSY0 = 0;
+   VDP2_REG_WPEX0 = 320;
+   VDP2_REG_WPEY0 = 224;
+
+   VDP2_REG_WPSX1 = 0;
+   VDP2_REG_WPSY1 = 0;
+   VDP2_REG_WPEX1 = 320;
+   VDP2_REG_WPEY1 = 224;
+
+   vdp1_clip_test();
+
+   u16* p = (u16 *)(0x25C00000);
+
+   p[1] = 1;
+   p[2] = 2;
+   p[3] = 3;
+   p[4] = 4;
+   p[5] = 5;
+   p[6] = 6;
+   p[7] = 7;
+   p[8] = 8;
+
+   int i;
+
+   for (i = 0; i < 1024; i++)
+   {
+      p[i] = 0;
+   }
+
+
+
+   test_system_clipping();
+   test_user_clipping();
+   test_local_coordinate();
+   test_line(4, 4,8,8);
+   //test_line(4, 4, 128, 128);
+   //test_line(4, 4, 8, 8);
+   test_draw_end();
+
+   for (;;)
+   {
+      vdp_vsync();
+#if 0
+      p[1] = 1;
+      p[2] = 2;
+      p[3] = 3;
+      p[4] = 4;
+      p[5] = 5;
+      p[6] = 6;
+      p[7] = 7;
+      p[8] = 8;
+#endif
+
+      if (per[0].but_push_once & PAD_Y)
+      {
+         reset_system();
+      }
+   }
+}
+
+//////////////////////////////////////////////////////////////////////////////
+
 void vdp1_framebuffer_tests()
 {
    auto_test_section_start("Vdp1 framebuffer tests");

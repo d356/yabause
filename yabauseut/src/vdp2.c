@@ -460,6 +460,195 @@ void vdp2_basic_tile_scroll_deinit()
 
 //////////////////////////////////////////////////////////////////////////////
 
+#define VDP2_REG_CYCA0         (*(volatile u32 *)0x25F80010)
+#define VDP2_REG_CYCA1         (*(volatile u32 *)0x25F80014)
+#define VDP2_REG_CYCB0         (*(volatile u32 *)0x25F80018)
+#define VDP2_REG_CYCB1         (*(volatile u32 *)0x25F8001C)
+
+struct
+{
+   u32 nbg_pattern_addr[4];
+   u32 nbg_char_addr[4];
+};
+
+void ram_setup()
+{
+
+}
+
+#define LOCATION_VRAM_A0 1
+#define LOCATION_VRAM_A1 2
+#define LOCATION_VRAM_B0 3
+#define LOCATION_VRAM_B1 4
+
+void set_cycle_regs(u32 location, u32 setting)
+{
+   if (location == LOCATION_VRAM_A0)
+      VDP2_REG_CYCA0 = setting;
+   else if (location == LOCATION_VRAM_A1)
+      VDP2_REG_CYCA1 = setting;
+   else if (location == LOCATION_VRAM_B0)
+      VDP2_REG_CYCB0 = setting;
+   else if (location == LOCATION_VRAM_B1)
+      VDP2_REG_CYCB1 = setting;
+}
+
+void vdp2_all_scroll_test_var(u32 tile_address, u32 * pattern_name_addrs, u32 cyclea0, u32 cycleb0, u32 cyclea1, u32 cycleb1, u32 a_split, u32 b_split, u32 pattern_loc, u32 char_loc)
+{
+   int i;
+
+   auto_test_sub_test_start("All scroll screen test");
+
+   vdp2_basic_tile_scroll_setup(tile_address);
+
+   VDP2_REG_CYCA0 = cyclea0;
+   VDP2_REG_CYCB0 = cycleb0;
+   VDP2_REG_CYCA1 = cyclea1;
+   VDP2_REG_CYCB1 = cycleb1;
+
+   volatile u32 *vram_ptr = (volatile u32 *)(VDP2_RAM);
+
+   for (i = 0; i < 0x80000 / 4; i++)
+   {
+      vram_ptr[i] = 0;
+   }
+
+   load_font_8x8_to_vram_1bpp_to_4bpp(tile_address, VDP2_RAM);
+
+   for (i = 4; i < 64; i += 4)
+   {
+      write_str_as_pattern_name_data_special(0, i,     "012345 NBG0 ", 3, pattern_name_addrs[0], tile_address, 0, 0, 1);
+      write_str_as_pattern_name_data_special(0, i + 1, "012345 NBG1 ", 4, pattern_name_addrs[1], tile_address, 0, 0, 1);
+      write_str_as_pattern_name_data_special(0, i + 2, "012345 NBG2 ", 5, pattern_name_addrs[2], tile_address, 0, 0, 1);
+      write_str_as_pattern_name_data_special(0, i + 3, "012345 NBG3 ", 6, pattern_name_addrs[3], tile_address, 0, 0, 1);
+   }
+
+   int pattern_pos = 0;
+   int char_pos = 0;
+
+   char status_str[64] = { 0 };
+
+   u32 pattern_setting = 0;
+   u32 char_setting = 0;
+
+   int pattern_num = 0;
+   int char_num = 4;
+
+   u16 ramctl = 0;
+
+   VDP2_REG_RAMCTL = ramctl = (a_split << 8) | (b_split << 9);
+
+   VDP2_REG_PNCN0 = 0xc000 | (tile_address >> 15);
+   VDP2_REG_PNCN1 = 0xc000 | (tile_address >> 15);
+   VDP2_REG_PNCN2 = 0xc000 | (tile_address >> 15);
+   VDP2_REG_PNCN3 = 0xc000 | (tile_address >> 15);
+
+   VDP2_REG_MPABN0 = (pattern_name_addrs[0] >> 13);
+   VDP2_REG_MPABN1 = (pattern_name_addrs[1] >> 13);
+   VDP2_REG_MPABN2 = (pattern_name_addrs[2] >> 13);
+   VDP2_REG_MPABN3 = (pattern_name_addrs[3] >> 13);
+
+   int mpoff = 7;
+
+   VDP2_REG_MPOFN = (mpoff << 12) | (mpoff << 8) | (mpoff << 4) | (mpoff);
+   
+#ifdef BUILD_AUTOMATED_TESTING
+   auto_test_take_screenshot(1);
+#else
+   for (;;)
+   {
+
+      vdp_vsync();
+
+
+      if (per[0].but_push_once & PAD_A)
+      {
+         break;
+      }
+
+      if (per[0].but_push_once & PAD_X)
+      {
+         u32 pattern_cycles = (pattern_num << 28) >> (pattern_pos * 4);
+         u32 char_cycles = (char_num << 28) >> (char_pos * 4);
+
+         //set unused cycles to "no access"
+         pattern_setting = pattern_cycles | (~(0xF0000000 >> (pattern_pos * 4)));
+         char_setting = char_cycles | (~(0xF0000000 >> (char_pos * 4)));
+
+         set_cycle_regs(pattern_loc, pattern_setting);
+
+         set_cycle_regs(char_loc, char_setting);
+
+         //if (char_loc == LOCATION_VRAM_A0)
+         //   VDP2_REG_CYCA0 = char_setting;
+         //else if (char_loc == LOCATION_VRAM_A1)
+         //   VDP2_REG_CYCA1 = char_setting;
+         //else if (char_loc == LOCATION_VRAM_B0)
+         //   VDP2_REG_CYCB0 = char_setting;
+         //else if (char_loc == LOCATION_VRAM_B1)
+         //   VDP2_REG_CYCB1 = char_setting;
+
+         char_pos++;
+
+         if (char_pos > 7)
+         {
+            char_pos = 0;
+            pattern_pos++;
+         }
+
+         sprintf(status_str, "%d %d", pattern_pos, char_pos);
+         write_str_as_pattern_name_data_special(3, 1, status_str, 3, pattern_name_addrs[pattern_num], tile_address, 0, 0, 1);
+         sprintf(status_str, "%08X %08X %04X", char_setting, pattern_setting, ramctl);
+         write_str_as_pattern_name_data_special(3, 2, status_str, 3, pattern_name_addrs[pattern_num], tile_address, 0, 0, 1);
+      }
+
+      if (per[0].but_push_once & PAD_Y)
+      {
+         char_num++;
+         pattern_num++;
+
+         if (char_num == 8)
+         {
+            char_num = 0;
+            pattern_num = 0;
+         }
+      }
+
+      if (per[0].but_push_once & PAD_Z)
+      {
+         VDP2_REG_RAMCTL = ramctl = 0x1200;
+      }
+
+      if (per[0].but_push_once & PAD_START)
+      {
+         reset_system();
+      }
+   }
+#endif
+
+   vdp2_basic_tile_scroll_deinit();
+}
+
+void vdp2_all_scroll_test_swapped()
+{
+   //no split, patterns in vram-b
+   u32 patterns1[] = { 0x040000, 0x044000, 0x048000, 0x04C000 };
+   vdp2_all_scroll_test_var(0x0, patterns1, 0xF4F5FF76, 0x0123FFFF, 0, 0, 0, 0, LOCATION_VRAM_B0, LOCATION_VRAM_A0);
+
+   //no split, patterns in vram-a
+   u32 patterns2[] = { 0x000000, 0x004000, 0x008000, 0x00C000 };
+   vdp2_all_scroll_test_var(0x040000, patterns2, 0x0123FFFF, 0xF4F5FF76, 0, 0, 0, 0, LOCATION_VRAM_A0, LOCATION_VRAM_B0);
+
+   //vram-a split, patterns in vram-a1, chars in vram-b
+   u32 patterns3[] = { 0x020000, 0x024000, 0x028000, 0x02C000 };
+   vdp2_all_scroll_test_var(0x040000, patterns3, 0, 0xF4F5FF76, 0x0123FFFF, 0, 1, 0, LOCATION_VRAM_A1, LOCATION_VRAM_B0);
+
+   //VRAM-B split, patterns in vram-b1, chars in vram-a
+   u32 patterns4[] = { 0x060000, 0x064000, 0x068000, 0x06C000 };
+   vdp2_all_scroll_test_var(0x0, patterns4, 0xF4F5FF76, 0, 0, 0x0123FFFF, 0, 1, LOCATION_VRAM_B1, LOCATION_VRAM_A0);
+}
+
+
 void vdp2_all_scroll_test()
 {
    int i;
@@ -469,17 +658,54 @@ void vdp2_all_scroll_test()
 
    vdp2_basic_tile_scroll_setup(tile_address);
 
-   for (i = 0; i < 64; i += 4)
+   int pattern_name_addrs[] = { 0x000000, 0x004000, 0x008000, 0x00C000 };
+
+   int offset = 2;
+
+   //VDP2_REG_MPABN0 = offset;
+   //VDP2_REG_MPABN1 = offset;
+   //VDP2_REG_MPABN2 = offset;
+   //VDP2_REG_MPABN3 = offset;
+
+   VDP2_REG_MPOFN = (offset << 12) | (offset << 8) | (offset << 4) | (offset);
+
+
+   volatile u32 *p = (volatile u32 *)(VDP2_RAM + 0);
+   p[0] = 0x000a0001;
+   p[0x004000 / 4] = 0x000b0002;
+   p[0x008000 / 4] = 0x000c0003;
+   p[0x00C000 / 4] = 0x000d0004;
+   //64 cells across in the plane
+   //p[(y_pos * 64) + offset] = (special_priority << 29) |
+   //   (special_color << 28) | (tile_start_address >> 5) | name |
+   //   (palette << 16);
+
+   //write_str_as_pattern_name_data(0, i, "012345ton: Start scrolling. NBG0. Testing NBG0. This is NBG0.... ", 3, 0x000000, tile_address);
+
+   for (i = 4; i < 64; i += 4)
    {
-      write_str_as_pattern_name_data(0, i, "A button: Start scrolling. NBG0. Testing NBG0. This is NBG0.... ", 3, 0x000000, tile_address);
-      write_str_as_pattern_name_data(0, i + 1, "B button: Stop scrolling.  NBG1. Testing NBG1. This is NBG1.... ", 4, 0x004000, tile_address);
-      write_str_as_pattern_name_data(0, i + 2, "C button: Reset.           NBG2. Testing NBG2. This is NBG2.... ", 5, 0x008000, tile_address);
-      write_str_as_pattern_name_data(0, i + 3, "Start:    Exit.            NBG3. Testing NBG3. This is NBG3.... ", 6, 0x00C000, tile_address);
+      write_str_as_pattern_name_data(0, i,     "012345ton: Start scrolling. NBG0. Testing NBG0. This is NBG0.... ", 3, 0x000000, tile_address);
+      write_str_as_pattern_name_data(0, i + 1, "012345 button: Stop scrolling.  NBG1. Testing NBG1. This is NBG1.", 4, 0x004000, tile_address);
+      write_str_as_pattern_name_data(0, i + 2, "012345 button: Reset.           NBG2. Testing NBG2. This is NBG2.", 5, 0x008000, tile_address);
+      write_str_as_pattern_name_data(0, i + 3, "012345Start:    Exit.            NBG3. Testing NBG3. This is NBG3", 6, 0x00C000, tile_address);
    }
 
    int do_scroll = 0;
    int scroll_pos = 0;
    int framecount = 0;
+
+   int pattern_pos = 0;
+   int char_pos = 0;
+
+   char status_str[64] = { 0 };
+
+   u32 a0 = 0;
+   u32 b0 = 0;
+
+   int pattern_num = 0;
+   int char_num =    4;
+
+   u16 ramctl = 0;
 
 #ifdef BUILD_AUTOMATED_TESTING
    auto_test_take_screenshot(1);
@@ -509,6 +735,49 @@ void vdp2_all_scroll_test()
          do_scroll = 0;
       }
 
+      if (per[0].but_push_once & PAD_X)
+      {
+         u32 a0num = (pattern_num << 28) >> (pattern_pos * 4);
+         u32 b0num = (char_num << 28) >> (char_pos * 4);
+
+         //set unused cycles to "no access"
+         a0 = a0num | (~(0xF0000000 >> (pattern_pos * 4)));
+         b0 = b0num | (~(0xF0000000 >> (char_pos * 4)));
+
+         VDP2_REG_CYCA0 = a0;
+         VDP2_REG_CYCB0 = b0;
+
+         char_pos++;
+
+         if (char_pos > 7)
+         {
+            char_pos = 0;
+            pattern_pos++;
+         }
+
+         sprintf(status_str, "%d %d", pattern_pos, char_pos);
+         write_str_as_pattern_name_data(3, 1, status_str, 3, pattern_name_addrs[pattern_num], tile_address);
+         sprintf(status_str, "%08X %08X %04X", b0, a0, ramctl);
+         write_str_as_pattern_name_data(3, 2, status_str, 3, pattern_name_addrs[pattern_num], tile_address);
+      }
+
+      if (per[0].but_push_once & PAD_Y)
+      {
+         char_num++;
+         pattern_num++;
+
+         if (char_num == 8)
+         {
+            char_num = 0;
+            pattern_num = 0;
+         }
+      }
+
+      if (per[0].but_push_once & PAD_Z)
+      {
+         VDP2_REG_RAMCTL = ramctl = 0x1200;
+      }
+
       if (per[0].but_push_once & PAD_C)
       {
          do_scroll = 0;
@@ -517,17 +786,258 @@ void vdp2_all_scroll_test()
       }
 
       if (per[0].but_push_once & PAD_START)
-         break;
+      {
+         reset_system();
+      }
    }
 #endif
 
    vdp2_basic_tile_scroll_deinit();
 }
 
-#define VDP2_REG_CYCA0         (*(volatile u32 *)0x25F80010)
-#define VDP2_REG_CYCA1         (*(volatile u32 *)0x25F80014)
-#define VDP2_REG_CYCB0         (*(volatile u32 *)0x25F80018)
-#define VDP2_REG_CYCB1         (*(volatile u32 *)0x25F8001C)
+
+void vdp2_line_color_screen_test_set_up_line_screen(const u32 table_address);
+
+void vdp2_all_scroll_test_as()
+{
+   int i;
+   const u32 tile_address = 0x10000;
+
+   auto_test_sub_test_start("All scroll screen test");
+
+   vdp2_basic_tile_scroll_setup(tile_address);
+
+   int pattern_name_addrs[] = { 0x000000, 0x004000, 0x008000, 0x00C000 };
+
+   int offset = 2;
+
+   //VDP2_REG_MPABN0 = offset;
+   //VDP2_REG_MPABN1 = offset;
+   //VDP2_REG_MPABN2 = offset;
+   //VDP2_REG_MPABN3 = offset;
+
+   int exccen = 0;
+   int ccrtmd = 0;
+   int ccmd = 0;
+   int lcccen = 1;
+   int lnclen = 0xf;
+   int lcclmd = 1;
+   u32 line_screen_table_address = 0x14000;
+
+   u32 line_scroll_table_address = 0x18000;
+
+   int want_scroll = 0;
+
+   if (want_scroll)
+   {
+      *(volatile u32 *)0x25F800A0 = (line_scroll_table_address / 2);
+      *(volatile u32 *)0x25F800A4 = ((line_scroll_table_address + 0x1000) / 2);
+
+      VDP2_REG_SCRCTL = (0xe << 8) | 0xe;
+   }
+
+   VDP2_REG_CCCTL = (exccen << 10) | (ccrtmd << 9) | (ccmd << 8) | (lcccen << 5) | 0xf;
+   VDP2_REG_LNCLEN = lnclen;
+   *(volatile u32 *)0x25F800A8 = (lcclmd << 31) | (line_screen_table_address / 2);
+
+
+   //const int line_palette_start = 256;
+   vdp2_line_color_screen_test_set_up_line_screen(line_screen_table_address);
+
+
+#if 0
+   volatile u16 *color_table_ptr = (volatile u16 *)(VDP2_RAM + line_screen_table_address);
+
+   for (i = 0; i < 224; i++)
+   {
+      color_table_ptr[i] = i + line_palette_start;
+   }
+
+#endif
+
+#define VDP2_REG_BK        (*(volatile u32 *)0x25F800AC)
+
+   u32 back_table_address = 0x15000;
+
+   volatile u16 *back_ptr = (volatile u16 *)(VDP2_RAM + back_table_address);
+
+   int r=0, g=0, b=0;
+   for (i = 0; i < 224; i++)
+   {
+      if ((i % 8) == 0)
+      {
+         r++;
+         b--;
+      }
+      back_ptr[i] = RGB555(r, g, b);
+   }
+
+   VDP2_REG_BK = (0x80000000) | (back_table_address >> 1) ;
+   VDP2_REG_TVMD = 0x8000 | (1 << 8);
+   VDP2_REG_MPOFN = (offset << 12) | (offset << 8) | (offset << 4) | (offset);
+
+   int line_window_enable[2] = { 1, 1 };
+   u32 line_window_table_address[2] = { 0x16000, 0x17000 };
+
+   *(volatile u32 *)0x25F800D8 = (line_window_enable[0] << 31) | (line_window_table_address[0] / 2);
+   *(volatile u32 *)0x25F800DC = (line_window_enable[1] << 31) | (line_window_table_address[1] / 2);
+
+
+   volatile u32 *p = (volatile u32 *)(VDP2_RAM + 0);
+   //p[0] = 0x000a0001;
+   //p[0x004000 / 4] = 0x000b0002;
+   //p[0x008000 / 4] = 0x000c0003;
+   //p[0x00C000 / 4] = 0x000d0004;
+
+   u32 counter = 0x11112222;
+   for (i = 0; i < 256; i+=8)
+   {
+      p[(tile_address / 4) + i] = counter;
+      counter += 0x11111111;
+   }
+
+   int y_pos = 0;
+   for (i = 0; i < 64; i++)
+   {
+      int names[] = { 1, 2, 3, 4 };
+      int palette[] = { 0xa, 0xb, 0xc, 0xd };
+      p[(y_pos * 64) + i] = (tile_address >> 5) | names[i & 3] | (palette[i & 3] << 16);
+   }
+   int ok_setting = 0;
+   if (ok_setting)
+   {
+      VDP2_REG_CYCA0L = 0x0123;
+      VDP2_REG_CYCA0U = 0x4567;
+   }
+   else
+   {
+      VDP2_REG_CYCA0L = 0xf123;
+      VDP2_REG_CYCA0U = 0x0467;
+   }
+
+   VDP2_REG_CYCB0L = 0xFFFF;
+   VDP2_REG_CYCB0U = 0xFFFF;
+   //64 cells across in the plane
+
+
+   //write_str_as_pattern_name_data(0, i, "012345ton: Start scrolling. NBG0. Testing NBG0. This is NBG0.... ", 3, 0x000000, tile_address);
+
+   for (i = 4; i < 64; i += 4)
+   {
+      //40th tile wraps around
+      //                                    0123456789ABCDEF0123456789ABCDEF012345678
+      write_str_as_pattern_name_data(0, i, "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ!@#$\n^&*()_+", 3, 0x000000, tile_address);
+      write_str_as_pattern_name_data(0, i + 1, "012345 button: Stop scrolling.  NBG1. Testing NBG1. This is NBG1.", 4, 0x004000, tile_address);
+      write_str_as_pattern_name_data(0, i + 2, "012345 button: Reset.           NBG2. Testing NBG2. This is NBG2.", 5, 0x008000, tile_address);
+      write_str_as_pattern_name_data(0, i + 3, "012345Start:    Exit.            NBG3. Testing NBG3. This is NBG3", 6, 0x00C000, tile_address);
+   }
+
+   int do_scroll = 0;
+   int scroll_pos = 0;
+   int framecount = 0;
+
+   int pattern_pos = 0;
+   int char_pos = 0;
+
+   char status_str[64] = { 0 };
+
+   u32 a0 = 0;
+   u32 b0 = 0;
+
+   int pattern_num = 0;
+   int char_num = 4;
+
+   u16 ramctl = 0;
+
+#ifdef BUILD_AUTOMATED_TESTING
+   auto_test_take_screenshot(1);
+#else
+   for (;;)
+   {
+
+      vdp_vsync();
+
+      framecount++;
+
+      if (do_scroll)
+      {
+         if ((framecount % 3) == 0)
+            scroll_pos++;
+
+         vdp2_scroll_test_set_scroll(scroll_pos);
+      }
+
+      if (per[0].but_push_once & PAD_A)
+      {
+         do_scroll = 1;
+      }
+
+      if (per[0].but_push_once & PAD_B)
+      {
+         do_scroll = 0;
+      }
+
+      if (per[0].but_push_once & PAD_X)
+      {
+         u32 a0num = (pattern_num << 28) >> (pattern_pos * 4);
+         u32 b0num = (char_num << 28) >> (char_pos * 4);
+
+         //set unused cycles to "no access"
+         a0 = a0num | (~(0xF0000000 >> (pattern_pos * 4)));
+         b0 = b0num | (~(0xF0000000 >> (char_pos * 4)));
+
+         VDP2_REG_CYCA0 = a0;
+         VDP2_REG_CYCB0 = b0;
+
+         char_pos++;
+
+         if (char_pos > 7)
+         {
+            char_pos = 0;
+            pattern_pos++;
+         }
+
+         sprintf(status_str, "%d %d", pattern_pos, char_pos);
+         write_str_as_pattern_name_data(3, 1, status_str, 3, pattern_name_addrs[pattern_num], tile_address);
+         sprintf(status_str, "%08X %08X %04X", b0, a0, ramctl);
+         write_str_as_pattern_name_data(3, 2, status_str, 3, pattern_name_addrs[pattern_num], tile_address);
+      }
+
+      if (per[0].but_push_once & PAD_Y)
+      {
+         char_num++;
+         pattern_num++;
+
+         if (char_num == 8)
+         {
+            char_num = 0;
+            pattern_num = 0;
+         }
+      }
+
+      if (per[0].but_push_once & PAD_Z)
+      {
+         VDP2_REG_RAMCTL = ramctl = 0x1200;
+      }
+
+      if (per[0].but_push_once & PAD_C)
+      {
+         do_scroll = 0;
+         scroll_pos = 0;
+         vdp2_scroll_test_set_scroll(scroll_pos);
+      }
+
+      if (per[0].but_push_once & PAD_START)
+      {
+         reset_system();
+      }
+   }
+#endif
+
+   vdp2_basic_tile_scroll_deinit();
+}
+
+
 
 void vdp2_bad_cycle_pattern_test()
 {
@@ -570,7 +1080,7 @@ void vdp2_bad_cycle_pattern_test()
 
    for (i = 0; i < 64; i += 4)
    {
-      write_str_as_pattern_name_data_special(3, i + 3, "NBG3 Bad cycle pattern", 6, nbg3_pattern_name, nbg3_tile_addr, 0, 0, 1);
+      write_str_as_pattern_name_data_special(3, i + 3, "012345NBG3 Bad cycle pattern", 6, nbg3_pattern_name, nbg3_tile_addr, 0, 0, 1);
    }
 
    int pattern_pos = 0;
@@ -581,6 +1091,8 @@ void vdp2_bad_cycle_pattern_test()
    u32 a0 = 0;
    u32 b0 = 0;
 
+   int new_way = 0;
+
 #ifdef BUILD_AUTOMATED_TESTING
    auto_test_take_screenshot(1);
 #else
@@ -588,10 +1100,25 @@ void vdp2_bad_cycle_pattern_test()
    {
       vdp_vsync();
 
+      int pattern_num = 3;
+      int char_num = 7;
+
       if (per[0].but_push_once & PAD_A)
       {
-         VDP2_REG_CYCA0 = a0 = 0x70000000 >> char_pos * 4;
-         VDP2_REG_CYCB0 = b0 = 0x30000000 >> pattern_pos*4;
+         if (new_way)
+         {
+            u32 b0num = (pattern_num << 28) >> (pattern_pos * 4);
+            u32 a0num = (char_num << 28) >> (char_pos * 4);
+
+            //set unused cycles to "no access"
+            VDP2_REG_CYCA0 = a0 = a0num | (~(0xF0000000 >> (char_pos * 4)));
+            VDP2_REG_CYCB0 = b0 = b0num | (~(0xF0000000 >> (pattern_pos * 4)));
+         }
+         else
+         {
+            VDP2_REG_CYCA0 = a0 = 0x70000000 >> char_pos * 4;
+            VDP2_REG_CYCB0 = b0 = 0x30000000 >> pattern_pos * 4;
+         }
 
          char_pos++;
 
@@ -2829,6 +3356,14 @@ void vdp2_sprite_window_test()
          reset_system();
       }
    }
+}
+
+#include "C:\yabause\docs\vdp1\vdp1_timing.c"
+
+void vdp2_stuff()
+{
+   vdp2_all_scroll_test_as();
+   vdp1_timing_tests(_4_BIT_NORMAL_SPRITE, 1, 1, 0);
 }
 
 //////////////////////////////////////////////////////////////////////////////

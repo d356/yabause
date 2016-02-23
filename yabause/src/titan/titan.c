@@ -110,7 +110,7 @@ static INLINE u32 TitanCreatePixel(u8 alpha, u8 red, u8 green, u8 blue) { return
 
 void TitanRenderLinesSimplified(pixel_t * dispbuffer, int start_line, int end_line)
 {
-   int x, y, i, layer;
+   int x, y, i, layer, j;
    int line_increment, interlace_line;
    int sorted_layers[8] = { 0 };
    int num_layers = 0;
@@ -143,7 +143,7 @@ void TitanRenderLinesSimplified(pixel_t * dispbuffer, int start_line, int end_li
 
          dispbuffer[i] = 0;
 
-         for (int j = 0; j < num_layers; j++)
+         for (j = 0; j < num_layers; j++)
          {
             struct PixelData sprite = tt_context.vdp2framebuffer[TITAN_SPRITE][i];
 

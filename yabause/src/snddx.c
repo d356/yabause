@@ -29,6 +29,11 @@
 #include "snddx.h"
 #include "error.h"
 
+#if (_MSC_VER == 1900)//visual studio 2015
+//dxerr deprecation workaround
+int (WINAPIV * __vsnprintf)(char*, size_t, const char*, va_list) = _vsnprintf;
+#endif
+
 int SNDDXInit(void);
 void SNDDXDeInit(void);
 int SNDDXReset(void);

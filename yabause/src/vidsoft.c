@@ -3113,6 +3113,26 @@ static void drawQuad(s16 tl_x, s16 tl_y, s16 bl_x, s16 bl_y, s16 tr_x, s16 tr_y,
 	}
 }
 
+//bresenham algorithm not needed
+void DrawNormalSpriteSimple(int topLeftx, int topLefty, int spriteWidth, int spriteHeight, u8 * ram, Vdp1* regs, vdp1cmd_struct * cmd, u8* back_framebuffer)
+{
+   characterWidth = spriteWidth;
+   characterHeight = spriteHeight;
+
+   for (int j = 0; j < spriteHeight; j++)
+   {
+      for (int i = 0; i < spriteWidth; i++)
+      {
+         getpixel(j, i, cmd, ram);
+
+         if (vdp1pixelsize == 2)
+            putpixel(topLeftx + i, topLefty + j, regs, cmd, back_framebuffer);
+         else
+            putpixel8(topLeftx + i, topLefty + j, regs, cmd, back_framebuffer);
+      }
+   }
+}
+
 void VIDSoftVdp1NormalSpriteDraw(u8 * ram, Vdp1 * regs, u8 * back_framebuffer) {
 
 	s16 topLeftx,topLefty,topRightx,topRighty,bottomRightx,bottomRighty,bottomLeftx,bottomLefty;
@@ -3132,8 +3152,12 @@ void VIDSoftVdp1NormalSpriteDraw(u8 * ram, Vdp1 * regs, u8 * back_framebuffer) {
 	bottomRighty = topLefty + (spriteHeight - 1);
 	bottomLeftx = topLeftx;
 	bottomLefty = topLefty + (spriteHeight - 1);
-
-   drawQuad(topLeftx, topLefty, bottomLeftx, bottomLefty, topRightx, topRighty, bottomRightx, bottomRighty, ram, regs, &cmd, back_framebuffer);
+#if 0
+   if (((cmd.CMDPMOD & 0x7) != 4) && ((cmd.CMDPMOD & 0x80) == 0x80))//not gouraud, endcodes disabled
+      DrawNormalSpriteSimple(topLeftx, topLefty, spriteWidth, spriteHeight, ram, regs, &cmd, back_framebuffer);
+   else
+#endif
+      drawQuad(topLeftx, topLefty, bottomLeftx, bottomLefty, topRightx, topRighty, bottomRightx, bottomRighty, ram, regs, &cmd, back_framebuffer);
 }
 
 void VIDSoftVdp1ScaledSpriteDraw(u8* ram, Vdp1*regs, u8 * back_framebuffer){

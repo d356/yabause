@@ -390,9 +390,7 @@ void do_regression_color(int regressions)
 std::string int_to_string(const int input)
 {
    std::stringstream s;
-
    s << input;
-
    return s.str();
 }
 
@@ -575,7 +573,6 @@ namespace game_testing
    {
       std::ifstream file(path_filename.c_str());
       
-      //for (auto &current_game_data : game_data)
       for(int i = 0; i < game_data.size(); i++)
       {
          std::string str;
@@ -984,7 +981,7 @@ namespace yabauseut
 }
 
 //usage
-//no spaces in paths allowed
+//no spaces in paths allowed, include final / on directories
 //yabause game check game_data_file path_file screenshot_path fail_path
 //yabause game dump game_data_file path_file output_path
 //yabause yabauseut check yabause_ut_binary_path screenshot_path framebuffer_path
@@ -1016,11 +1013,9 @@ int main(int argc, char *argv[])
    if (args.at(1) == "game")
    {
       //game mode
-
       if (args.at(2) == "check")
       {
          //verify images
-
          if (args.size() < 7)
          {
             std::cout << "Not enough arguments for game checking mode." << std::endl;
@@ -1043,7 +1038,6 @@ int main(int argc, char *argv[])
       else if (args.at(2) == "dump")
       {
          //dump images
-
          if (args.size() < 6)
          {
             std::cout << "Not enough arguments for game dumping mode." << std::endl;
@@ -1072,11 +1066,9 @@ int main(int argc, char *argv[])
    else if (args.at(1) == "yabauseut")
    {
       //yabauseut mode
-
       if (args.at(2) == "check")
       {
          //verify images
-
          if (args.size() < 6)
          {
             std::cout << "Not enough arguments for yabauseut checking mode." << std::endl;
@@ -1092,7 +1084,6 @@ int main(int argc, char *argv[])
       else if (args.at(2) == "dump")
       {
          //dump images
-
          if (args.size() < 5)
          {
             std::cout << "Not enough arguments for yabauseut dumping mode." << std::endl;

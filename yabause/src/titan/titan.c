@@ -57,7 +57,8 @@ static struct TitanContext {
    { NULL, NULL, NULL, NULL },
    320,
    224,
-   NULL,NULL,NULL
+   NULL,NULL,NULL,
+   {0,0,0,0,0,0}
 };
 
 struct
@@ -402,11 +403,14 @@ int TitanInit()
          priority_thread_context.need_draw[i] = 0;
       }
 
-      YabThreadStart(YAB_THREAD_VIDSOFT_PRIORITY_0, VidsoftPriorityThread0, NULL);
-      YabThreadStart(YAB_THREAD_VIDSOFT_PRIORITY_1, VidsoftPriorityThread1, NULL);
-      YabThreadStart(YAB_THREAD_VIDSOFT_PRIORITY_2, VidsoftPriorityThread2, NULL);
-      YabThreadStart(YAB_THREAD_VIDSOFT_PRIORITY_3, VidsoftPriorityThread3, NULL);
-      YabThreadStart(YAB_THREAD_VIDSOFT_PRIORITY_4, VidsoftPriorityThread4, NULL);
+      if (vidsoft_num_priority_threads > 0)
+      {
+         YabThreadStart(YAB_THREAD_VIDSOFT_PRIORITY_0, VidsoftPriorityThread0, NULL);
+         YabThreadStart(YAB_THREAD_VIDSOFT_PRIORITY_1, VidsoftPriorityThread1, NULL);
+         YabThreadStart(YAB_THREAD_VIDSOFT_PRIORITY_2, VidsoftPriorityThread2, NULL);
+         YabThreadStart(YAB_THREAD_VIDSOFT_PRIORITY_3, VidsoftPriorityThread3, NULL);
+         YabThreadStart(YAB_THREAD_VIDSOFT_PRIORITY_4, VidsoftPriorityThread4, NULL);
+      }
 
       tt_context.inited = 1;
    }
@@ -580,7 +584,7 @@ void TitanStartPriorityThread(int which)
 
 void TitanWaitForPriorityThread(int which)
 {
-   while (!priority_thread_context.draw_finished[which]){}
+//   while (!priority_thread_context.draw_finished[which]){}
 }
 
 void TitanRenderThreads(pixel_t * dispbuffer, int can_use_simplified)

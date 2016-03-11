@@ -2052,7 +2052,7 @@ void VidsoftWaitForVdp1Thread()
 {
    if (vidsoft_vdp1_thread_enabled)
    {
-      while (!vidsoft_vdp1_thread_context.draw_finished){}
+//      while (!vidsoft_vdp1_thread_context.draw_finished){}
    }
 }
 
@@ -2115,14 +2115,20 @@ int VIDSoftInit(void)
 
    vidsoft_vdp1_thread_context.need_draw = 0;
    vidsoft_vdp1_thread_context.draw_finished = 1;
-   YabThreadStart(YAB_THREAD_VIDSOFT_VDP1, VidsoftVdp1Thread, 0);
 
-   YabThreadStart(YAB_THREAD_VIDSOFT_LAYER_RBG0, VidsoftRbg0Thread, 0);
-   YabThreadStart(YAB_THREAD_VIDSOFT_LAYER_NBG0, VidsoftNbg0Thread, 0);
-   YabThreadStart(YAB_THREAD_VIDSOFT_LAYER_NBG1, VidsoftNbg1Thread, 0);
-   YabThreadStart(YAB_THREAD_VIDSOFT_LAYER_NBG2, VidsoftNbg2Thread, 0);
-   YabThreadStart(YAB_THREAD_VIDSOFT_LAYER_NBG3, VidsoftNbg3Thread, 0);
-   YabThreadStart(YAB_THREAD_VIDSOFT_LAYER_SPRITE, VidsoftSpriteThread, 0);
+   
+   if(vidsoft_vdp1_thread_enabled)
+      YabThreadStart(YAB_THREAD_VIDSOFT_VDP1, VidsoftVdp1Thread, 0);
+
+   if (vidsoft_num_layer_threads > 0)
+   {
+      YabThreadStart(YAB_THREAD_VIDSOFT_LAYER_RBG0, VidsoftRbg0Thread, 0);
+      YabThreadStart(YAB_THREAD_VIDSOFT_LAYER_NBG0, VidsoftNbg0Thread, 0);
+      YabThreadStart(YAB_THREAD_VIDSOFT_LAYER_NBG1, VidsoftNbg1Thread, 0);
+      YabThreadStart(YAB_THREAD_VIDSOFT_LAYER_NBG2, VidsoftNbg2Thread, 0);
+      YabThreadStart(YAB_THREAD_VIDSOFT_LAYER_NBG3, VidsoftNbg3Thread, 0);
+      YabThreadStart(YAB_THREAD_VIDSOFT_LAYER_SPRITE, VidsoftSpriteThread, 0);
+   }
 
    return 0;
 }
@@ -3860,12 +3866,12 @@ void VIDSoftVdp2DrawEnd(void)
 {
    if (vidsoft_num_layer_threads > 0)
    {
-      while (!vidsoft_thread_context.draw_finished[TITAN_NBG0]){}
-      while (!vidsoft_thread_context.draw_finished[TITAN_NBG1]){}
-      while (!vidsoft_thread_context.draw_finished[TITAN_NBG2]){}
-      while (!vidsoft_thread_context.draw_finished[TITAN_NBG3]){}
-      while (!vidsoft_thread_context.draw_finished[TITAN_RBG0]){}
-      while (!vidsoft_thread_context.draw_finished[TITAN_SPRITE]){}
+      //while (!vidsoft_thread_context.draw_finished[TITAN_NBG0]){}
+      //while (!vidsoft_thread_context.draw_finished[TITAN_NBG1]){}
+      //while (!vidsoft_thread_context.draw_finished[TITAN_NBG2]){}
+      //while (!vidsoft_thread_context.draw_finished[TITAN_NBG3]){}
+      //while (!vidsoft_thread_context.draw_finished[TITAN_RBG0]){}
+      //while (!vidsoft_thread_context.draw_finished[TITAN_SPRITE]){}
    }
 
    TitanRender(dispbuffer);

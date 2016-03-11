@@ -166,7 +166,7 @@ Vdp1External_struct Vdp1External;
 //////////////////////////////////////////////////////////////////////////////
 
 int Vdp1Init(void) {
-   if ((Vdp1Regs = (Vdp1 *) malloc(sizeof(Vdp1))) == NULL)
+   if ((Vdp1Regs = (Vdp1 *) calloc(1, sizeof(Vdp1))) == NULL)
       return -1;
 
    if ((Vdp1Ram = T1MemoryInit(0x80000)) == NULL)

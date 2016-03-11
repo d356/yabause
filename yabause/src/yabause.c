@@ -457,6 +457,8 @@ int YabauseExec(void) {
 int saved_centicycles;
 #endif
 
+int framecount = 0;
+
 int YabauseEmulate(void) {
    int oneframeexec = 0;
 
@@ -483,6 +485,9 @@ int YabauseEmulate(void) {
 #endif
 
    DoMovie();
+
+//   if(framecount++ == 120)
+
 
    #if defined(SH2_DYNAREC)
    if(SH2Core->id==2) {

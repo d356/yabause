@@ -40,6 +40,8 @@ extern u8 *vdp1backframebuffer;
 #include "lodepng/lodepng.cpp"
 
 #include <string>
+#include <iostream>
+#include <vector>
 
 #define AUTO_TEST_SELECT_ADDRESS 0x7F000
 #define AUTO_TEST_STATUS_ADDRESS 0x7F004
@@ -63,6 +65,7 @@ extern "C"
 
    CDInterface *CDCoreList[] = {
       &DummyCD,
+      &ISOCD,
       NULL
    };
 
@@ -144,8 +147,6 @@ const char* tests_expected_to_fail[] =
    NULL
 };
 
-pixel_t runner_dispbuffer[704 * 512];
-
 void read_second_part(char*source, char*dest)
 {
    int pos = (int)strlen(source) + 1;
@@ -192,7 +193,7 @@ bool do_pixel_test(int x, int y, u32 test_color, u32 correct_color)
    return true;
 }
 
-bool handle_screenshot(bool write_images, std::string test_name, std::string path, int preset)
+bool handle_screenshot(bool write_images, std::string test_name, std::string path, int preset, pixel_t * runner_dispbuffer)
 {
    std::string screenshot_filename = make_screenshot_filename(test_name, path, preset);
 
@@ -300,9 +301,9 @@ bool handle_framebuffer(char * stored_test_name, std::string framebuffer_path)
       correct_framebuffer_swapped[i] = ((correct_framebuffer[i] & 0xff) << 8) | ((correct_framebuffer[i] >> 8) & 0xff);
    }
 
-   for (int y = 0; y < height; y++)
+   for (unsigned y = 0; y < height; y++)
    {
-      for (int x = 0; x < height; x++)
+      for (unsigned x = 0; x < height; x++)
       {
          int pos = ((y * 320) + x) * 2;
          u16 correct_pixel = correct_framebuffer_swapped[((y * 320) + x)];
@@ -385,6 +386,304 @@ void do_regression_color(int regressions)
       set_color(text_green);
 }
 
+namespace game_testing
+{
+   struct GameData
+   {
+      std::string name;
+      std::string path;
+      std::vector<int> screenshot_frames;
+      std::vector<int> start_press_frames;
+   };
+
+   std::vector<GameData> game_data =
+   {
+      {
+         { "Dracula X" },
+         {""},
+         { 200, 500, 600, 900 },
+         {300, 510, 610}
+      },
+      {
+         { "Albert Odyssey" },
+         { "" },
+         { 600,1100},
+         {200,400,600,800}
+      }
+   };
+
+   std::string get_screenshot_filename(const std::string current_game, const std::string output_path,  int frame_count, bool is_failure)
+   {
+      if(!is_failure)
+         return output_path + current_game + " " + std::to_string(frame_count) + ".png";
+      else
+         return output_path + current_game + " " + std::to_string(frame_count) + " FAIL" + ".png";
+   }
+
+   void lodepng_print_error(unsigned error)
+   {
+      std::cout << "Lodepng error " << error << " " << lodepng_error_text(error) << std::endl;
+   }
+
+   bool take_screenshot(std::string screenshot_filename, pixel_t * runner_dispbuffer)
+   {
+      int width = 0, height = 0;
+
+      TitanGetResolution(&width, &height);
+      TitanRender(runner_dispbuffer);
+
+      unsigned error = lodepng::encode(screenshot_filename, (unsigned char*)runner_dispbuffer, width, height);
+
+      if (error)
+      {
+         lodepng_print_error(error);
+         return false;
+      }
+      else
+      {
+         std::cout << screenshot_filename << " written." << std::endl;
+      }
+
+      return true;
+   }
+
+   bool check_width_height(unsigned correct_width, unsigned correct_height, int test_width, int test_height)
+   {
+      if (test_width != correct_width)
+      {
+         printf("Width was %d. %d was expected.\n", test_width, correct_width);
+         return false;
+      }
+
+      if (test_height != correct_height)
+      {
+         printf("Height was %d. %d was expected.\n", test_height, correct_height);
+         return false;
+      }
+      return true;
+   }
+
+   void byte_swap_image(std::vector<u32> &correct_image_u32, const std::vector<unsigned char> correct_image, const unsigned correct_width, const unsigned correct_height)
+   {
+      int j = 0;
+
+      for (unsigned int i = 0; i < correct_width*correct_height * 4; i += 4)
+      {
+         correct_image_u32[j] = (correct_image[i + 3] << 24) | (correct_image[i + 2] << 16) | (correct_image[i + 1] << 8) | correct_image[i + 0];
+         j++;
+      }
+   }
+
+   bool compare_all_pixels(const std::vector<u32> correct_image_u32, const unsigned correct_width, const unsigned correct_height, pixel_t * runner_dispbuffer)
+   {
+      for (unsigned int y = 0; y < correct_height; y++)
+      {
+         for (unsigned int x = 0; x < correct_width; x++)
+         {
+            u32 correct_color = correct_image_u32[(y * correct_width) + x];
+            u32 test_color = runner_dispbuffer[(y * correct_width) + x];
+
+            bool result = do_pixel_test(x, y, test_color, correct_color);
+
+            if (!result)
+               return false;
+         }
+      }
+
+      return true;
+   }
+
+   bool check_screenshot(std::string screenshot_filename, pixel_t * runner_dispbuffer)
+   {
+      std::vector<unsigned char> correct_image;
+      std::vector<u32> correct_image_u32;
+
+      unsigned correct_width, correct_height;
+
+      unsigned error = lodepng::decode(correct_image, correct_width, correct_height, screenshot_filename);
+
+      if (error)
+      {
+         lodepng_print_error(error);
+         return false;
+      }
+
+      int test_width = 0, test_height = 0;
+
+      TitanGetResolution(&test_width, &test_height);
+      TitanRender(runner_dispbuffer);
+
+      bool check_failed = false;
+
+      if (!check_width_height(correct_width, correct_height, test_width, test_height))
+         return false;
+
+      correct_image_u32.resize(correct_width*correct_height);
+
+      byte_swap_image(correct_image_u32, correct_image, correct_width, correct_height);
+
+      if (!compare_all_pixels(correct_image_u32, correct_width, correct_height, runner_dispbuffer))
+      {
+         return false;
+      }
+
+      return true;
+   }
+
+   int init_game(std::string full_path)
+   {
+      yabauseinit_struct yinit = { 0 };
+
+      yinit.percoretype = PERCORE_DUMMY;
+      yinit.sh2coretype = SH2CORE_INTERPRETER;
+      yinit.vidcoretype = VIDCORE_SOFT;
+      yinit.m68kcoretype = M68KCORE_C68K;
+      yinit.sndcoretype = SNDCORE_DUMMY;
+      yinit.cdcoretype = CDCORE_ISO;
+      yinit.carttype = CART_NONE;
+      yinit.regionid = REGION_AUTODETECT;
+      yinit.biospath = emulate_bios ? NULL : bios;
+      yinit.cdpath = full_path.c_str();
+      yinit.buppath = NULL;
+      yinit.mpegpath = NULL;
+      yinit.cartpath = NULL;
+      yinit.frameskip = 0;
+      yinit.videoformattype = VIDEOFORMATTYPE_NTSC;
+      yinit.clocksync = 0;
+      yinit.basetime = 0;
+      yinit.skip_load = 0;
+      yinit.numthreads = 0;
+      yinit.usethreads = 0;
+
+      YabauseDeInit();
+
+      if (YabauseInit(&yinit) != 0)
+         return -1;
+
+      return 1;
+   }
+
+   bool load_game_paths(std::string path_filename)
+   {
+      std::ifstream file(path_filename);
+      
+      for (auto &current_game_data : game_data)
+      {
+         std::string str;
+
+         if (std::getline(file, str))
+         {
+            if (current_game_data.name == str)//key match
+            {
+               if (std::getline(file, str))
+               {
+                  current_game_data.path = str;
+               }
+               else
+               {
+                  std::cout << current_game_data.name << " didn't have a matching path" << std::endl;
+                  return false;
+               }
+            }
+            else
+            {
+               std::cout << "Keys didn't match while loading game paths." << std::endl;
+               std::cout << "Expected: " << current_game_data.name << "Found: " << str << std::endl;
+               return false;
+            }
+         }
+      }
+      return true;
+   }
+
+   int start(const std::string screenshot_path, const std::string path_filename, const std::string failures_path, bool check_images)
+   {
+      std::cout << "Game testing" << std::endl;
+
+      if (!load_game_paths(path_filename))
+      {
+         std::cout << "Failed to load game paths." << std::endl;
+         return false;
+      }
+
+      for (auto current_game_data : game_data)
+      {
+         pixel_t * runner_dispbuffer = (pixel_t*)calloc(1, sizeof(pixel_t) * 704 * 512);
+
+         if (!init_game(current_game_data.path))
+         {
+            std::cout << "Couldn't init game" << std::endl;
+            return 0;
+         }
+
+         if(check_images)
+            std::cout << "Testing " << current_game_data.name << "..." << std::endl;
+         else
+            std::cout << "Generating images for " << current_game_data.name << "..." << std::endl;
+
+         int frame_count = 0;
+         int frame_pos = 0;
+
+         PerPortReset();
+         PerPad_struct* pad1 = PerPadAdd(&PORTDATA1);
+
+         for (;;)
+         {
+            //handle start presses
+            if (current_game_data.start_press_frames.size() > 0)
+            {
+               if (frame_count == current_game_data.start_press_frames.at(0))
+               {
+                  *pad1->padbits &= 0xF7;//press start
+                  current_game_data.start_press_frames.erase(current_game_data.start_press_frames.begin() + 0);
+               }
+               else
+                  *pad1->padbits |= 0x08;//undo press
+            }
+            else
+               *pad1->padbits |= 0x08;//undo press
+
+            PERCore->HandleEvents();
+
+            if (frame_pos >= current_game_data.screenshot_frames.size())
+               break;
+
+            if (frame_count == current_game_data.screenshot_frames.at(frame_pos))
+            {
+               if (check_images)
+               {
+                  std::string screenshot_filename = get_screenshot_filename(current_game_data.name, screenshot_path, frame_count, false);
+
+                  if (!check_screenshot(screenshot_filename, runner_dispbuffer))
+                  {
+                     std::cout << "Frame " << frame_count << ": FAIL " << std::endl;
+                     std::string screenshot_filename_fail = get_screenshot_filename(current_game_data.name, failures_path, frame_count, true);
+                     take_screenshot(screenshot_filename_fail, runner_dispbuffer);//take a picture of the failure
+                  }
+                  else
+                  {
+                     std::cout << "Frame " << frame_count << ": PASS " << std::endl;
+                  }
+               }
+               else
+               {
+                  std::string screenshot_filename = get_screenshot_filename(current_game_data.name, screenshot_path, frame_count, false);
+                  take_screenshot(screenshot_filename, runner_dispbuffer);
+               }
+
+               frame_pos++;
+            }
+
+            frame_count++;
+         }
+
+         if (runner_dispbuffer)
+            free(runner_dispbuffer);
+      }
+      return 1;
+   }
+}
+
 int main(int argc, char *argv[])
 {
    yabauseinit_struct yinit = { 0 };
@@ -393,8 +692,17 @@ int main(int argc, char *argv[])
    char * filename = argv[1];
    char * screenshot_path = argv[2];
    char * framebuffer_path = argv[3];
+   char * game_mode = argv[4];
+   char * screenshots_path = argv[5];
+   char * path_file = argv[6];
+   char * screenshot_fail_path = argv[7];
 
    struct Stats stats = { 0 };
+
+   if (game_mode)
+   {
+      return game_testing::start(std::string(screenshots_path), std::string(path_file), std::string(screenshot_fail_path), true);
+   }
 
    if (!filename)
    {
@@ -448,6 +756,8 @@ int main(int argc, char *argv[])
    int screenshot_preset = 0;
    bool is_screenshot = false;
 
+   pixel_t * runner_dispbuffer = (pixel_t*)calloc(1, sizeof(pixel_t) * 704 * 512);
+
    for (;;)
    {
       int status = 0;
@@ -472,7 +782,7 @@ int main(int argc, char *argv[])
          {
             stats.screenshot.total++;
 
-            if (handle_screenshot(write_images, stored_test_name, screenshot_path, screenshot_preset))
+            if (handle_screenshot(write_images, stored_test_name, screenshot_path, screenshot_preset, runner_dispbuffer))
             {
                //screenshot matches
                if (!write_images)

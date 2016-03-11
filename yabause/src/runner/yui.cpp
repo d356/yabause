@@ -396,6 +396,14 @@ std::string int_to_string(const int input)
    return s.str();
 }
 
+int string_to_int(const std::string input)
+{
+   int i;
+   std::stringstream s(input);
+   s >> i;
+   return i;
+}
+
 namespace game_testing
 {
    struct GameData
@@ -625,7 +633,7 @@ namespace game_testing
       {
          std::string str = input.at(i);
          
-         results.push_back(std::stoi(str));
+         results.push_back(string_to_int(str));
       }
       return results;
    }

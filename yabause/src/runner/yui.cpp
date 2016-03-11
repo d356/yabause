@@ -387,14 +387,14 @@ void do_regression_color(int regressions)
       set_color(text_green);
 }
 
-//std::string int_to_string(int input)
-//{
-//   std::stringstream s;
-//
-//   s << input;
-//
-//   return s.str();
-//}
+std::string int_to_string(const int input)
+{
+   std::stringstream s;
+
+   s << input;
+
+   return s.str();
+}
 
 namespace game_testing
 {
@@ -411,9 +411,9 @@ namespace game_testing
    std::string get_screenshot_filename(const std::string current_game, const std::string output_path,  int frame_count, bool is_failure)
    {
       if(!is_failure)
-         return output_path + current_game + " " + std::to_string(frame_count) + ".png";
+         return output_path + current_game + " " + int_to_string(frame_count) + ".png";
       else
-         return output_path + current_game + " " + std::to_string(frame_count) + " FAIL" + ".png";
+         return output_path + current_game + " " + int_to_string(frame_count) + " FAIL" + ".png";
    }
 
    void lodepng_print_error(unsigned error)
@@ -567,28 +567,29 @@ namespace game_testing
    {
       std::ifstream file(path_filename);
       
-      for (auto &current_game_data : game_data)
+      //for (auto &current_game_data : game_data)
+      for(int i = 0; i < game_data.size(); i++)
       {
          std::string str;
 
          if (std::getline(file, str))
          {
-            if (current_game_data.name == str)//key match
+            if (game_data.at(i).name == str)//key match
             {
                if (std::getline(file, str))
                {
-                  current_game_data.path = str;
+                  game_data.at(i).path = str;
                }
                else
                {
-                  std::cout << current_game_data.name << " didn't have a matching path" << std::endl;
+                  std::cout << game_data.at(i).name << " didn't have a matching path" << std::endl;
                   return false;
                }
             }
             else
             {
                std::cout << "Keys didn't match while loading game paths." << std::endl;
-               std::cout << "Expected: " << current_game_data.name << "Found: " << str << std::endl;
+               std::cout << "Expected: " << game_data.at(i).name << "Found: " << str << std::endl;
                return false;
             }
          }
@@ -620,8 +621,10 @@ namespace game_testing
    {
       std::vector<int> results;
 
-      for (auto & str : input)
+      for (int i = 0; i < input.size(); i++)
       {
+         std::string str = input.at(i);
+         
          results.push_back(std::stoi(str));
       }
       return results;
@@ -643,12 +646,12 @@ namespace game_testing
 
             if (std::getline(file, str))
             {
-               auto screen_vec = tokenize(str);
+               std::vector<std::string> screen_vec = tokenize(str);
                current.screenshot_frames = string_vector_to_int(screen_vec);
 
                if (std::getline(file, str))
                {
-                  auto start_vec = tokenize(str);
+                  std::vector<std::string> start_vec = tokenize(str);
                   if (start_vec.size() > 0 && start_vec.at(0)[0] != 'n')//check for null
                      current.start_press_frames = string_vector_to_int(start_vec);
                }
@@ -689,20 +692,21 @@ namespace game_testing
          return false;
       }
 
-      for (auto current_game_data : game_data)
+      //for (auto current_game_data : game_data)
+      for(int i = 0; i < game_data.size(); i++)
       {
          pixel_t * runner_dispbuffer = (pixel_t*)calloc(1, sizeof(pixel_t) * 704 * 512);
 
-         if (!init_game(current_game_data.path))
+         if (!init_game(game_data.at(i).path))
          {
             std::cout << "Couldn't init game" << std::endl;
             return 0;
          }
 
          if(check_images)
-            std::cout << "Testing " << current_game_data.name << "..." << std::endl;
+            std::cout << "Testing " << game_data.at(i).name << "..." << std::endl;
          else
-            std::cout << "Generating images for " << current_game_data.name << "..." << std::endl;
+            std::cout << "Generating images for " << game_data.at(i).name << "..." << std::endl;
 
          int frame_count = 0;
          int frame_pos = 0;
@@ -713,12 +717,12 @@ namespace game_testing
          for (;;)
          {
             //handle start presses
-            if (current_game_data.start_press_frames.size() > 0)
+            if (game_data.at(i).start_press_frames.size() > 0)
             {
-               if (frame_count == current_game_data.start_press_frames.at(0))
+               if (frame_count == game_data.at(i).start_press_frames.at(0))
                {
                   *pad1->padbits &= 0xF7;//press start
-                  current_game_data.start_press_frames.erase(current_game_data.start_press_frames.begin() + 0);
+                  game_data.at(i).start_press_frames.erase(game_data.at(i).start_press_frames.begin() + 0);
                }
                else
                   *pad1->padbits |= 0x08;//undo press
@@ -728,19 +732,19 @@ namespace game_testing
 
             PERCore->HandleEvents();
 
-            if (frame_pos >= current_game_data.screenshot_frames.size())
+            if (frame_pos >= game_data.at(i).screenshot_frames.size())
                break;
 
-            if (frame_count == current_game_data.screenshot_frames.at(frame_pos))
+            if (frame_count == game_data.at(i).screenshot_frames.at(frame_pos))
             {
                if (check_images)
                {
-                  std::string screenshot_filename = get_screenshot_filename(current_game_data.name, screenshot_path, frame_count, false);
+                  std::string screenshot_filename = get_screenshot_filename(game_data.at(i).name, screenshot_path, frame_count, false);
 
                   if (!check_screenshot(screenshot_filename, runner_dispbuffer))
                   {
                      std::cout << "Frame " << frame_count << ": FAIL " << std::endl;
-                     std::string screenshot_filename_fail = get_screenshot_filename(current_game_data.name, failures_path, frame_count, true);
+                     std::string screenshot_filename_fail = get_screenshot_filename(game_data.at(i).name, failures_path, frame_count, true);
                      take_screenshot(screenshot_filename_fail, runner_dispbuffer);//take a picture of the failure
                   }
                   else
@@ -750,7 +754,7 @@ namespace game_testing
                }
                else
                {
-                  std::string screenshot_filename = get_screenshot_filename(current_game_data.name, screenshot_path, frame_count, false);
+                  std::string screenshot_filename = get_screenshot_filename(game_data.at(i).name, screenshot_path, frame_count, false);
                   take_screenshot(screenshot_filename, runner_dispbuffer);
                }
 

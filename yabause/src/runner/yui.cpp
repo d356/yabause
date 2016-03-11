@@ -399,6 +399,12 @@ namespace game_testing
    std::vector<GameData> game_data =
    {
       {
+         { "Scorcher" },
+         { "" },
+         { 500, 600, 1100,1300},
+         { }
+      },
+      {
          { "Dracula X" },
          {""},
          { 200, 500, 600, 900 },
@@ -696,12 +702,21 @@ int main(int argc, char *argv[])
    char * screenshots_path = argv[5];
    char * path_file = argv[6];
    char * screenshot_fail_path = argv[7];
+   char * check_images = argv[8];
 
    struct Stats stats = { 0 };
 
+   //screenshots_path = "C:/saturn iso/";
+   //screenshot_fail_path = "C:/saturn iso/failures/";
+   //path_file = "C:/saturn iso/paths.txt";
+   //check_images = "y";
+
    if (game_mode)
    {
-      return game_testing::start(std::string(screenshots_path), std::string(path_file), std::string(screenshot_fail_path), true);
+      bool check = false;
+      if (check_images[0] == 'y')
+         check = true;
+      return game_testing::start(std::string(screenshots_path), std::string(path_file), std::string(screenshot_fail_path), check);
    }
 
    if (!filename)

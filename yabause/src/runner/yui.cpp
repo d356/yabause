@@ -565,7 +565,7 @@ namespace game_testing
 
    bool load_game_paths(std::string path_filename)
    {
-      std::ifstream file(path_filename);
+      std::ifstream file(path_filename.c_str());
       
       //for (auto &current_game_data : game_data)
       for(int i = 0; i < game_data.size(); i++)
@@ -632,7 +632,7 @@ namespace game_testing
 
    bool load_game_data(std::string game_data_filename)
    {
-      std::ifstream file(game_data_filename);
+      std::ifstream file(game_data_filename.c_str());
 
       std::string str;
 

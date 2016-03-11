@@ -631,6 +631,8 @@ void TitanRender(pixel_t * dispbuffer)
 {
    int can_use_simplified_rendering = 1;
 
+   return;
+
    if (!tt_context.inited || (!tt_context.trans))
    {
       return;

@@ -44,10 +44,10 @@ init:
 before_build:
   # fetch appropriate sdl lib for visual studio or mingw
   - cd c:\
-  - appveyor DownloadFile https://www.libsdl.org/release/%sdl_filename%
+  - if NOT ["%compiler_type%"]==["msys2-mingw-w64-x86_64"] appveyor DownloadFile https://www.libsdl.org/release/%sdl_filename%
 
   # decompress it, shorten 7z output with FIND
-  - 7z x %sdl_filename%  | FIND /V "ing  "
+  - if NOT ["%compiler_type%"]==["msys2-mingw-w64-x86_64"] 7z x %sdl_filename%  | FIND /V "ing  "
 
   # mingw version is a tar.gz, decompress again
   - if [%sdl_filename%]==[SDL2-devel-2.0.3-mingw.tar.gz] 7z x SDL2-devel-2.0.3-mingw.tar | FIND /V "ing  "

@@ -28,6 +28,9 @@ environment:
     # included directx headers incompatible with mingw
       cmake_args: "-DYAB_NETWORK=ON -DYAB_WANT_GDBSTUB=ON"
 
+    # MSYS2 x86_64 build
+    - compiler_type: "msys2-mingw-w64-x86_64"
+
 shallow_clone: true
 
 init:
@@ -53,10 +56,16 @@ before_build:
   - cd C:\projects\yabause\yabause
   - mkdir build
   - cd build
-  - cmake -G "%generator%" %cmake_args% -DSDL2MAIN_LIBRARY=C:/SDL2-2.0.3/lib/%sdl_arch%/SDL2main.lib -DSDL2_INCLUDE_DIR=C:/SDL2-2.0.3/include/ -DSDL2_LIBRARY=C:/SDL2-2.0.3/lib/%sdl_arch%/SDL2.lib ..
+  - if NOT ["%compiler_type%"]==["msys2-mingw-w64-x86_64"] cmake -G "%generator%" %cmake_args% -DSDL2MAIN_LIBRARY=C:/SDL2-2.0.3/lib/%sdl_arch%/SDL2main.lib -DSDL2_INCLUDE_DIR=C:/SDL2-2.0.3/include/ -DSDL2_LIBRARY=C:/SDL2-2.0.3/lib/%sdl_arch%/SDL2.lib ..
+
+  #MSYS2
+  - if ["%compiler_type%"]==["msys2-mingw-w64-x86_64"] set MSYSTEM=MINGW64
+  - if ["%compiler_type%"]==["msys2-mingw-w64-x86_64"] C:\msys64\usr\bin\bash -lc "pacman --noconfirm -Sy" | C:\msys64\usr\bin\bash -lc "pacman --noconfirm -S mingw64/mingw-w64-x86_64-gcc mingw64/mingw-w64-x86_64-gcc-libs mingw64/mingw-w64-x86_64-qt5 mingw64/mingw-w64-x86_64-cmake mingw64/mingw-w64-x86_64-SDL2 mingw-w64-x86_64-binutils mingw-w64-x86_64-crt-git mingw-w64-x86_64-headers-git mingw-w64-x86_64-make mingw64/mingw-w64-x86_64-jasper mingw64/mingw-w64-x86_64-libwebp make cmake"
 
 build_script:
   - if ["%compiler_type%"]==["mingw32"] cmake --build .
+
+  - if ["%compiler_type%"]==["msys2-mingw-w64-x86_64"] C:\msys64\usr\bin\bash -lc "cmake -G"MSYS Makefiles" -DDirectX_INCLUDE_DIR=C:/msys64/mingw64/x86_64-w64-mingw32/include -DYAB_WANT_DIRECTSOUND=OFF -DYAB_WANT_DIRECTINPUT=OFF -DYAB_NETWORK=ON -DYAB_WANT_GDBSTUB=ON -DMSYS2_BUILD=ON -DCMAKE_PREFIX_PATH="C:/msys64/mingw64/bin" -DSDL2MAIN_LIBRARY=C:/msys64/mingw64/lib/libSDL2main.a .. "
 
   # force a release build and only show errors to shorten output
   - if ["%compiler_type%"]==["vs12-x64"] msbuild yabause.sln /p:configuration=Release /logger:"C:\Program Files\AppVeyor\BuildAgent\Appveyor.MSBuildLogger.dll"

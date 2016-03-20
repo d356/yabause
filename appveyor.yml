@@ -60,7 +60,8 @@ before_build:
 
   #MSYS2
   - if ["%compiler_type%"]==["msys2-mingw-w64-x86_64"] set MSYSTEM=MINGW64
-  - if ["%compiler_type%"]==["msys2-mingw-w64-x86_64"] C:\msys64\usr\bin\bash -lc "pacman --noconfirm -Sy" | C:\msys64\usr\bin\bash -lc "pacman --noconfirm -S mingw64/mingw-w64-x86_64-gcc mingw64/mingw-w64-x86_64-gcc-libs mingw64/mingw-w64-x86_64-qt5 mingw64/mingw-w64-x86_64-cmake mingw64/mingw-w64-x86_64-SDL2 mingw-w64-x86_64-binutils mingw-w64-x86_64-crt-git mingw-w64-x86_64-headers-git mingw-w64-x86_64-make mingw64/mingw-w64-x86_64-jasper mingw64/mingw-w64-x86_64-libwebp make cmake"
+  - if ["%compiler_type%"]==["msys2-mingw-w64-x86_64"] C:\msys64\usr\bin\bash -lc "pacman --noconfirm -Sy"
+  - if ["%compiler_type%"]==["msys2-mingw-w64-x86_64"] C:\msys64\usr\bin\bash -lc "pacman --noconfirm -S mingw64/mingw-w64-x86_64-gcc mingw64/mingw-w64-x86_64-gcc-libs mingw64/mingw-w64-x86_64-qt5 mingw64/mingw-w64-x86_64-cmake mingw64/mingw-w64-x86_64-SDL2 mingw-w64-x86_64-binutils mingw-w64-x86_64-crt-git mingw-w64-x86_64-headers-git mingw-w64-x86_64-make mingw64/mingw-w64-x86_64-jasper mingw64/mingw-w64-x86_64-libwebp make cmake"
 
 build_script:
   - if ["%compiler_type%"]==["mingw32"] cmake --build .

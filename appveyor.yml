@@ -67,8 +67,8 @@ before_build:
 
 build_script:
   - if ["%compiler_type%"]==["mingw32"] cmake --build .
-
-  - if ["%compiler_type%"]==["msys2-mingw-w64-x86_64"] C:\msys64\usr\bin\bash -lc "cmake -G"MSYS Makefiles" -DDirectX_INCLUDE_DIR=C:/msys64/mingw64/x86_64-w64-mingw32/include -DYAB_WANT_DIRECTSOUND=OFF -DYAB_WANT_DIRECTINPUT=OFF -DYAB_NETWORK=ON -DYAB_WANT_GDBSTUB=ON -DMSYS2_BUILD=ON -DCMAKE_PREFIX_PATH="C:/msys64/mingw64/bin" -DSDL2MAIN_LIBRARY=C:/msys64/mingw64/lib/libSDL2main.a .. "
+  #C:\msys64\usr\bin\bash -lc
+  - if ["%compiler_type%"]==["msys2-mingw-w64-x86_64"] C:\msys64\mingw64_shell.bat "cmake -G"MSYS Makefiles" -DDirectX_INCLUDE_DIR=C:/msys64/mingw64/x86_64-w64-mingw32/include -DYAB_WANT_DIRECTSOUND=OFF -DYAB_WANT_DIRECTINPUT=OFF -DYAB_NETWORK=ON -DYAB_WANT_GDBSTUB=ON -DMSYS2_BUILD=ON -DCMAKE_PREFIX_PATH="C:/msys64/mingw64/bin" -DSDL2MAIN_LIBRARY=C:/msys64/mingw64/lib/libSDL2main.a .. "
 
   # force a release build and only show errors to shorten output
   - if ["%compiler_type%"]==["vs12-x64"] msbuild yabause.sln /p:configuration=Release /logger:"C:\Program Files\AppVeyor\BuildAgent\Appveyor.MSBuildLogger.dll"

@@ -60,8 +60,10 @@ before_build:
 
   #MSYS2
   - if ["%compiler_type%"]==["msys2-mingw-w64-x86_64"] set MSYSTEM=MINGW64
+  - if ["%compiler_type%"]==["msys2-mingw-w64-x86_64"] set PATH=C:\msys64\mingw64\bin;C:\msys64\usr\bin;C:\msys64;%PATH%
   - if ["%compiler_type%"]==["msys2-mingw-w64-x86_64"] C:\msys64\usr\bin\bash -lc "pacman --noconfirm -Sy"
-  - if ["%compiler_type%"]==["msys2-mingw-w64-x86_64"] C:\msys64\usr\bin\bash -lc "pacman --noconfirm -S mingw64/mingw-w64-x86_64-qt5 mingw64/mingw-w64-x86_64-SDL2 mingw-w64-x86_64-binutils mingw-w64-x86_64-crt-git mingw-w64-x86_64-headers-git mingw64/mingw-w64-x86_64-libwebp make cmake"
+  # mingw64/mingw-w64-x86_64-qt5 
+  - if ["%compiler_type%"]==["msys2-mingw-w64-x86_64"] C:\msys64\usr\bin\bash -lc "pacman --noconfirm -S mingw64/mingw-w64-x86_64-SDL2 mingw-w64-x86_64-binutils mingw-w64-x86_64-crt-git mingw-w64-x86_64-headers-git mingw64/mingw-w64-x86_64-libwebp"
 
 build_script:
   - if ["%compiler_type%"]==["mingw32"] cmake --build .

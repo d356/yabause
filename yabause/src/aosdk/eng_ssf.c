@@ -70,10 +70,14 @@ Sega driver commands:
 #include <stdlib.h>
 
 #include "ao.h"
-#include "eng_protos.h"
+//#include "eng_protos.h"
 #include "corlett.h"
-#include "sat_hw.h"
-#include "scsp.h"
+//#include "sat_hw.h"
+//#include "scsp.h"
+//#include "sat_hw.h"
+#include "../yabause/m68kcore.h"
+#include "../yabause/scsp.h"
+
 
 #define DEBUG_LOADER	(0)
 
@@ -93,8 +97,11 @@ int32 ssf_start(uint8 *buffer, uint32 length)
 	char *libfile;
 	int i;
 
+	M68KInit(M68KCORE_C68K);
+	ScspInit(SNDCORE_DUMMY);
+
 	// clear Saturn work RAM before we start scribbling in it
-	memset(sat_ram, 0, 512*1024);
+	memset((void *)SoundRam, 0, 0x80000);
 
 	// Decode the current SSF
 	if (corlett_decode(buffer, length, &file, &file_len, &c) != AO_SUCCESS)
@@ -140,7 +147,7 @@ int32 ssf_start(uint8 *buffer, uint32 length)
 			{
 				lib_len = 0x80000-offset+4;
 			}
-			memcpy(&sat_ram[offset], lib_decoded+4, lib_len-4);
+			memcpy(&SoundRam[offset], lib_decoded+4, lib_len-4);
 
 			// Dispose the corlett structure for the lib - we don't use it
 			free(lib);
@@ -156,7 +163,7 @@ int32 ssf_start(uint8 *buffer, uint32 length)
 		file_len = 0x80000-offset+4;
 	}
 
-	memcpy(&sat_ram[offset], file+4, file_len-4);
+	memcpy(&SoundRam[offset], file+4, file_len-4);
 
 	free(file);
 	
@@ -186,12 +193,12 @@ int32 ssf_start(uint8 *buffer, uint32 length)
 	{
 		uint8 temp;
 
-		temp = sat_ram[i];
-		sat_ram[i] = sat_ram[i+1];
-		sat_ram[i+1] = temp;
+		temp = SoundRam[i];
+		SoundRam[i] = SoundRam[i+1];
+		SoundRam[i+1] = temp;
 	}
 
-	sat_hw_init();
+	M68KStart ();
 
 	// now figure out the time in samples for the length/fade
 	lengthMS = psfTimeToMS(c->inf_length);
@@ -223,17 +230,22 @@ int32 ssf_gen(int16 *buffer, uint32 samples)
 {	
 	int i;
 	int16 output[44100/30], output2[44100/30];
-	int16 *stereo[2];
+	//int16 *stereo[2];
 	int16 *outp = buffer;
 	int opos;
 
 	opos = 0;
 	for (i = 0; i < samples; i++)
 	{
-		m68k_execute((11300000/60)/735);
-		stereo[0] = &output[opos];
-		stereo[1] = &output2[opos];
-		SCSP_Update(NULL, NULL, stereo, 1);
+		s32 bufL=0, bufR=0;
+		s16 buf16[2];
+		M68KExec((11300000/60)/735);
+		scsp_update_timer(1);
+		scsp_update(&bufL, &bufR, 1);
+		scsp_update_monitor();
+		ScspConvert32uto16s (&bufL, &bufR, buf16, 1);
+		output[opos] = buf16[0];
+		output2[opos] = buf16[1];
 		opos++;		
 	}
 
@@ -247,6 +259,7 @@ int32 ssf_gen(int16 *buffer, uint32 samples)
 				// song is done here, call out as necessary to make your player stop
 				output[i] = 0;
 				output2[i] = 0;
+				return AO_FAIL;
 			}
 			else
 			{

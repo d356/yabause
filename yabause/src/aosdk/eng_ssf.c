@@ -70,13 +70,9 @@ Sega driver commands:
 #include <stdlib.h>
 
 #include "ao.h"
-//#include "eng_protos.h"
 #include "corlett.h"
-//#include "sat_hw.h"
-//#include "scsp.h"
-//#include "sat_hw.h"
-#include "../yabause/m68kcore.h"
-#include "../yabause/scsp.h"
+#include "../m68kcore.h"
+#include "../scsp.h"
 
 
 #define DEBUG_LOADER	(0)
@@ -85,10 +81,7 @@ static corlett_t	*c = NULL;
 static char 		psfby[256];
 static uint32		decaybegin, decayend, total_samples;
 
-void *scsp_start(const void *config);
-void SCSP_Update(void *param, INT16 **inputs, INT16 **buf, int samples);
-
-int32 ssf_start(uint8 *buffer, uint32 length)
+int32 ssf_start(uint8 *buffer, uint32 length, int m68k_core, int sndcore)
 {
 	uint8 *file, *lib_decoded, *lib_raw_file;
 	uint32 offset, plength, lengthMS, fadeMS;
@@ -97,8 +90,8 @@ int32 ssf_start(uint8 *buffer, uint32 length)
 	char *libfile;
 	int i;
 
-	M68KInit(M68KCORE_C68K);
-	ScspInit(SNDCORE_DUMMY);
+   M68KInit(m68k_core);
+   ScspInit(sndcore);
 
 	// clear Saturn work RAM before we start scribbling in it
 	memset((void *)SoundRam, 0, 0x80000);

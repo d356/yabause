@@ -47,6 +47,29 @@ else()
 	set(yabause_SOURCES ${yabause_SOURCES} yglcache.c)
 endif()
 
+option(YAB_USE_SSF "Include SSF player." ON)
+if (YAB_USE_SSF)
+  find_package(ZLIB)
+
+  add_definitions(-DLSB_FIRST=1)
+  add_definitions(-DYAB_WANT_SSF=1)
+  
+  if (ZLIB_FOUND)
+    include_directories(${ZLIB_INCLUDE_DIRS})
+    set(YABAUSE_LIBRARIES ${YABAUSE_LIBRARIES} ${ZLIB_LIBRARIES})
+
+    set(yabause_SOURCES ${yabause_SOURCES} 
+      aosdk/corlett.c
+      aosdk/eng_ssf.c
+      aosdk/ssf.c)
+
+    set(yabause_HEADERS ${yabause_HEADERS} 
+      aosdk/ao.h
+      aosdk/corlett.h
+      aosdk/eng_protos.h)
+  endif()
+endif()
+
 # new SCSP
 option(YAB_USE_SCSP2 "Use the new SCSP implementation.")
 if (YAB_USE_SCSP2)

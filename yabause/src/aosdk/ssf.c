@@ -27,12 +27,14 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include "ctype.h"
 
 #include "ao.h"
 #include "eng_protos.h"
 
 /* file types */
 static uint32 type;
+ao_display_info ssf_info;
 
 /* ao_get_lib: called to load secondary files */
 int ao_get_lib(char *filename, uint8 **buffer, uint64 *length)
@@ -40,6 +42,7 @@ int ao_get_lib(char *filename, uint8 **buffer, uint64 *length)
 	uint8 *filebuf;
 	uint32 size;
 	FILE *auxfile;
+   size_t fread_val = 0;
 
 	auxfile = fopen(filename, "rb");
 	if (!auxfile)
@@ -61,7 +64,7 @@ int ao_get_lib(char *filename, uint8 **buffer, uint64 *length)
 		return AO_FAIL;
 	}
 
-	fread(filebuf, size, 1, auxfile);
+   fread_val = fread(filebuf, size, 1, auxfile);
 	fclose(auxfile);
 
 	*buffer = filebuf;
@@ -70,12 +73,27 @@ int ao_get_lib(char *filename, uint8 **buffer, uint64 *length)
 	return AO_SUCCESS;
 }
 
-int load_ssf(char *filename)
+//osd core doesn't have lower case
+void upper_case(char * str)
+{
+   if (str)
+   {
+      size_t len = strlen(str);
+      int i;
+
+      for (i = 0; i < len; i++)
+         str[i] = toupper(str[i]);
+   }
+}
+
+int load_ssf(char *filename, int m68k_core, int sndcore)
 {
 	long size;
 	FILE *fp = fopen(filename, "rb");
 	unsigned char *buffer;
 	int ret;
+   int i;
+   size_t fread_val = 0;
 
 	if (!fp)
 		return FALSE;
@@ -93,7 +111,7 @@ int load_ssf(char *filename)
 		return FALSE;
 	}
 
-	fread(buffer, 1, size, fp);
+   fread_val = fread(buffer, 1, size, fp);
 	fclose(fp);
 
 	// Read ID
@@ -104,11 +122,27 @@ int load_ssf(char *filename)
 		return FALSE;
 	}
 
-	if ((ret = ssf_start(buffer, size)) != AO_SUCCESS)
+	if ((ret = ssf_start(buffer, size, m68k_core, sndcore)) != AO_SUCCESS)
 	{
 		free(buffer);
 		return ret;
 	}
 
+   ssf_fill_info(&ssf_info);
+
+   for (i = 0; i < 9; i++)
+   {
+      upper_case(ssf_info.title[i]);
+      upper_case(ssf_info.info[i]);
+   }
+
 	return TRUE;
+}
+
+void get_ssf_info(int num, char * data_out)
+{
+   if (!data_out)
+      return;
+
+   strcpy(data_out, ssf_info.info[num]);
 }

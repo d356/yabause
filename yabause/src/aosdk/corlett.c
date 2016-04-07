@@ -332,7 +332,7 @@ uint32 psfTimeToMS(char *str)
 	strncpy(s,str,100);
 	s[99]=0;
 
-	for (x=strlen(s); x>=0; x--)
+	for (x=(int)strlen(s); x>=0; x--)
 	{
 		if (s[x]=='.' || s[x]==',')
 		{

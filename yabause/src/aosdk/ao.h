@@ -72,8 +72,12 @@ typedef unsigned char ao_bool;
 #define FALSE (0)
 #endif
 
+#ifndef true
 #define true (1)
+#endif
+#ifndef false
 #define false (0)
+#endif
 
 #define xmalloc(a) malloc(a)
 
@@ -90,6 +94,8 @@ typedef struct
 	char title[9][MAX_DISP_INFO_LENGTH];
 	char info[9][MAX_DISP_INFO_LENGTH];
 } ao_display_info;
+
+extern ao_display_info ssf_info;
 
 typedef unsigned char		uint8;
 typedef unsigned char		UINT8;

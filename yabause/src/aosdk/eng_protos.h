@@ -9,7 +9,7 @@
 // eng_protos.h
 //
 
-int32 ssf_start(uint8 *, uint32 length);
+int32 ssf_start(uint8 *buffer, uint32 length, int m68k_core, int sndcore);
 int32 ssf_gen(int16 *, uint32);
 int32 ssf_stop(void);
 int32 ssf_command(int32, int32);

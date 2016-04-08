@@ -30,7 +30,6 @@
 #include "ctype.h"
 
 #include "ao.h"
-#include "eng_protos.h"
 
 /* file types */
 static u32 type;

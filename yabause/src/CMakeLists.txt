@@ -51,7 +51,6 @@ option(YAB_USE_SSF "Include SSF player." ON)
 if (YAB_USE_SSF)
   find_package(ZLIB)
 
-  add_definitions(-DLSB_FIRST=1)
   add_definitions(-DYAB_WANT_SSF=1)
   
   if (ZLIB_FOUND)
@@ -66,7 +65,7 @@ if (YAB_USE_SSF)
     set(yabause_HEADERS ${yabause_HEADERS} 
       aosdk/ao.h
       aosdk/corlett.h
-      aosdk/eng_protos.h)
+      aosdk/ssf.h)
   endif()
 endif()
 

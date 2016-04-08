@@ -4496,7 +4496,7 @@ ScspInit (int coreid)
 
   // Allocate enough memory for each channel buffer(may have to change)
   scspsoundlen = 44100 / 60; // assume it's NTSC timing
-  scsplines = 213;
+  scsplines = 263;
   scspsoundbufs = 10; // should be enough to prevent skipping
   scspsoundbufsize = scspsoundlen * scspsoundbufs;
   if (scsp_alloc_bufs () < 0)

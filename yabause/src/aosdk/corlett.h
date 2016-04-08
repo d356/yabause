@@ -26,10 +26,10 @@ typedef struct {
 	char tag_name[MAX_UNKNOWN_TAGS][256];
 	char tag_data[MAX_UNKNOWN_TAGS][256];
 
-	uint32 *res_section;
-	uint32 res_size;
+	u32 *res_section;
+	u32 res_size;
 } corlett_t;
 
-int corlett_decode(uint8 *input, uint32 input_len, uint8 **output, uint64 *size, corlett_t **c);
-uint32 psfTimeToMS(char *str);
+int corlett_decode(u8 *input, u32 input_len, u8 **output, u64 *size, corlett_t **c);
+u32 psfTimeToMS(char *str);
 

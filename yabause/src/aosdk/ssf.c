@@ -33,14 +33,14 @@
 #include "eng_protos.h"
 
 /* file types */
-static uint32 type;
+static u32 type;
 ao_display_info ssf_info;
 
 /* ao_get_lib: called to load secondary files */
-int ao_get_lib(char *filename, uint8 **buffer, uint64 *length)
+int ao_get_lib(char *filename, u8 **buffer, u64 *length)
 {
-	uint8 *filebuf;
-	uint32 size;
+	u8 *filebuf;
+	u32 size;
 	FILE *auxfile;
    size_t fread_val = 0;
 
@@ -68,7 +68,7 @@ int ao_get_lib(char *filename, uint8 **buffer, uint64 *length)
 	fclose(auxfile);
 
 	*buffer = filebuf;
-	*length = (uint64)size;
+	*length = (u64)size;
 
 	return AO_SUCCESS;
 }
@@ -96,7 +96,7 @@ int load_ssf(char *filename, int m68k_core, int sndcore)
    size_t fread_val = 0;
 
 	if (!fp)
-		return FALSE;
+		return 0;//false
 
 	// Get file size
 	fseek(fp, 0, SEEK_END);
@@ -108,7 +108,7 @@ int load_ssf(char *filename, int m68k_core, int sndcore)
 	if (buffer == NULL)
 	{
 		fclose(fp);
-		return FALSE;
+		return 0;//false
 	}
 
    fread_val = fread(buffer, 1, size, fp);
@@ -119,7 +119,7 @@ int load_ssf(char *filename, int m68k_core, int sndcore)
 		buffer[2] != 0x46 || buffer[3] != 0x11)
 	{
 		// Can't identify file
-		return FALSE;
+		return 0;//false
 	}
 
 	if ((ret = ssf_start(buffer, size, m68k_core, sndcore)) != AO_SUCCESS)
@@ -136,7 +136,7 @@ int load_ssf(char *filename, int m68k_core, int sndcore)
       upper_case(ssf_info.info[i]);
    }
 
-	return TRUE;
+	return 1;//true
 }
 
 void get_ssf_info(int num, char * data_out)

@@ -81,15 +81,15 @@ The following data is optional and may be omitted:
 
 #define DECOMP_MAX_SIZE		((32 * 1024 * 1024) + 12)
 
-int corlett_decode(uint8 *input, uint32 input_len, uint8 **output, uint64 *size, corlett_t **c)
+int corlett_decode(u8 *input, u32 input_len, u8 **output, u64 *size, corlett_t **c)
 {
-	uint32 *buf;
-	uint32 res_area, comp_crc,  actual_crc;
-	uint8 *decomp_dat, *tag_dec;
+	u32 *buf;
+	u32 res_area, comp_crc,  actual_crc;
+	u8 *decomp_dat, *tag_dec;
 	uLongf decomp_length, comp_length;
 	
 	// 32-bit pointer to data
-	buf = (uint32 *)input;
+	buf = (u32 *)input;
 	
 	// Check we have a PSF format file.
 	if ((input[0] != 'P') || (input[1] != 'S') || (input[2] != 'F'))
@@ -172,7 +172,7 @@ int corlett_decode(uint8 *input, uint32 input_len, uint8 **output, uint64 *size,
 		input_len -= 5;
 
 		tag = 0;
-		data = false;
+		data = 0;//false
 		num_tags = 0;
 		l = 0;
 		while (input_len && (num_tags < MAX_UNKNOWN_TAGS))
@@ -182,7 +182,7 @@ int corlett_decode(uint8 *input, uint32 input_len, uint8 **output, uint64 *size,
 				if ((*tag_dec == 0xA) || (*tag_dec == 0x00))
 				{
 					(*c)->tag_data[num_tags][l] = 0;
-					data = false;
+					data = 0;//false
 					num_tags++;
 					l = 0;
 				}
@@ -197,7 +197,7 @@ int corlett_decode(uint8 *input, uint32 input_len, uint8 **output, uint64 *size,
 				{
 					(*c)->tag_name[num_tags][l] = 0;
 					l = 0;
-					data = true;
+					data = 1;//true
 				}
 				else
 				{
@@ -323,10 +323,10 @@ int corlett_decode(uint8 *input, uint32 input_len, uint8 **output, uint64 *size,
 	return AO_SUCCESS;
 }
 
-uint32 psfTimeToMS(char *str)
+u32 psfTimeToMS(char *str)
 {
 	int x, c=0;
-	uint32 acc=0;
+	u32 acc=0;
 	char s[100];
 
 	strncpy(s,str,100);

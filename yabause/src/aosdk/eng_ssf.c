@@ -79,13 +79,13 @@ Sega driver commands:
 
 static corlett_t	*c = NULL;
 static char 		psfby[256];
-static uint32		decaybegin, decayend, total_samples;
+static u32		decaybegin, decayend, total_samples;
 
-int32 ssf_start(uint8 *buffer, uint32 length, int m68k_core, int sndcore)
+s32 ssf_start(u8 *buffer, u32 length, int m68k_core, int sndcore)
 {
-	uint8 *file, *lib_decoded, *lib_raw_file;
-	uint32 offset, plength, lengthMS, fadeMS;
-	uint64 file_len, lib_len, lib_raw_length;
+	u8 *file, *lib_decoded, *lib_raw_file;
+	u32 offset, lengthMS, fadeMS;
+	u64 file_len, lib_len, lib_raw_length;
 	corlett_t *lib;
 	char *libfile;
 	int i;
@@ -112,7 +112,7 @@ int32 ssf_start(uint8 *buffer, uint32 length, int m68k_core, int sndcore)
 		libfile = i ? c->libaux[i-1] : c->lib;
 		if (libfile[0] != 0)
 		{
-			uint64 tmp_length;
+			u64 tmp_length;
 	
 			#if DEBUG_LOADER	
 			printf("Loading library: %s\n", c->lib);
@@ -184,7 +184,7 @@ int32 ssf_start(uint8 *buffer, uint32 length, int m68k_core, int sndcore)
 	// now flip everything (this makes sense because he's using starscream)
 	for (i = 0; i < 512*1024; i+=2)
 	{
-		uint8 temp;
+		u8 temp;
 
 		temp = SoundRam[i];
 		SoundRam[i] = SoundRam[i+1];
@@ -219,12 +219,12 @@ int32 ssf_start(uint8 *buffer, uint32 length, int m68k_core, int sndcore)
 	return AO_SUCCESS;
 }
 
-int32 ssf_gen(int16 *buffer, uint32 samples)
+s32 ssf_gen(s16 *buffer, u32 samples)
 {	
 	int i;
-	int16 output[44100/30], output2[44100/30];
-	//int16 *stereo[2];
-	int16 *outp = buffer;
+	s16 output[44100/30], output2[44100/30];
+	//s16 *stereo[2];
+	s16 *outp = buffer;
 	int opos;
 
 	opos = 0;
@@ -256,7 +256,7 @@ int32 ssf_gen(int16 *buffer, uint32 samples)
 			}
 			else
 			{
-				int32 fader = 256 - (256*(total_samples - decaybegin)/(decayend-decaybegin));
+				s32 fader = 256 - (256*(total_samples - decaybegin)/(decayend-decaybegin));
 				output[i] = (output[i] * fader)>>8;
 				output2[i] = (output2[i] * fader)>>8;
 
@@ -275,12 +275,12 @@ int32 ssf_gen(int16 *buffer, uint32 samples)
 	return AO_SUCCESS;
 }
 
-int32 ssf_stop(void)
+s32 ssf_stop(void)
 {
 	return AO_SUCCESS;
 }
 
-int32 ssf_command(int32 command, int32 parameter)
+s32 ssf_command(s32 command, s32 parameter)
 
 {
 	switch (command)
@@ -292,7 +292,7 @@ int32 ssf_command(int32 command, int32 parameter)
 	return AO_FAIL;
 }
 
-int32 ssf_fill_info(ao_display_info *info)
+s32 ssf_fill_info(ao_display_info *info)
 {
 	if (c == NULL)
 		return AO_FAIL;

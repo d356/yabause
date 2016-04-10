@@ -487,30 +487,29 @@ endif(YAB_WANT_C68K)
 
 option(YAB_WANT_MUSASHI "Enable musashi 68k" ON)
 if (YAB_WANT_MUSASHI)
-    set (MUSASHI_GENERATED_FILES 
-        ${CMAKE_CURRENT_BINARY_DIR}/musashi/m68kopac.c 
-        ${CMAKE_CURRENT_BINARY_DIR}/musashi/m68kopdm.c 
-        ${CMAKE_CURRENT_BINARY_DIR}/musashi/m68kopnz.c 
-        ${CMAKE_CURRENT_BINARY_DIR}/musashi/m68kops.c 
-        ${CMAKE_CURRENT_BINARY_DIR}/musashi/m68kops.h)
+    set (MUSASHI_GENERATED_SOURCES 
+        ${CMAKE_CURRENT_BINARY_DIR}/m68kopac.c 
+        ${CMAKE_CURRENT_BINARY_DIR}/m68kopdm.c 
+        ${CMAKE_CURRENT_BINARY_DIR}/m68kopnz.c 
+        ${CMAKE_CURRENT_BINARY_DIR}/m68kops.c)
+
+    set (MUSASHI_GENERATED_HEADERS
+        ${CMAKE_CURRENT_BINARY_DIR}/m68kops.h)
 
     add_executable(m68kmake musashi/m68kmake.c)
-    add_custom_command(OUTPUT ${MUSASHI_GENERATED_FILES}
-                       COMMAND m68kmake ${CMAKE_CURRENT_BINARY_DIR}/musashi ${CMAKE_CURRENT_SOURCE_DIR}/musashi/m68k_in.c
+    add_custom_command(OUTPUT ${MUSASHI_GENERATED_SOURCES} ${MUSASHI_GENERATED_HEADERS}
+                       COMMAND m68kmake ${CMAKE_CURRENT_BINARY_DIR}/ ${CMAKE_CURRENT_SOURCE_DIR}/musashi/m68k_in.c
                        DEPENDS m68kmake
                        COMMENT "Generating musashi 68k core"
                        VERBATIM)
 
 	include_directories(
-      ${CMAKE_CURRENT_BINARY_DIR}/musashi
+      ${CMAKE_CURRENT_BINARY_DIR}/
       ${CMAKE_CURRENT_SOURCE_DIR}/musashi
     )
 
 	set(yabause_SOURCES ${yabause_SOURCES} 
-      ${CMAKE_CURRENT_BINARY_DIR}/musashi/m68kopac.c #generated
-      ${CMAKE_CURRENT_BINARY_DIR}/musashi/m68kopdm.c #generated
-      ${CMAKE_CURRENT_BINARY_DIR}/musashi/m68kopnz.c #generated
-      ${CMAKE_CURRENT_BINARY_DIR}/musashi/m68kops.c #generated
+      ${MUSASHI_GENERATED_SOURCES}
       musashi/m68kdasm.c
       musashi/m68kcpu.c
       m68kmusashi.c
@@ -519,7 +518,7 @@ if (YAB_WANT_MUSASHI)
 	set(yabause_HEADERS 
       ${yabause_HEADERS} 
       musashi/m68k.h 
-      ${CMAKE_CURRENT_BINARY_DIR}/musashi/m68kops.h #generated
+      ${MUSASHI_GENERATED_HEADERS}
       m68kmusashi.h
       )
 

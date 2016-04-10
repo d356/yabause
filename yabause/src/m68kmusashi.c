@@ -93,15 +93,15 @@ static void M68KMusashiSetPC(u32 val) {
 }
 
 static void M68KMusashiSetSR(u32 val) {
-   return m68k_set_reg(M68K_REG_SR, val);
+   m68k_set_reg(M68K_REG_SR, val);
 }
 
 static void M68KMusashiSetUSP(u32 val) {
-   return m68k_set_reg(M68K_REG_USP, val);
+   m68k_set_reg(M68K_REG_USP, val);
 }
 
 static void M68KMusashiSetMSP(u32 val) {
-   return m68k_set_reg(M68K_REG_MSP, val);
+   m68k_set_reg(M68K_REG_MSP, val);
 }
 
 static void M68KMusashiSetFetch(u32 low_adr, u32 high_adr, pointer fetch_adr) {

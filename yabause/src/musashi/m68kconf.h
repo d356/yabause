@@ -32,8 +32,6 @@
 #ifndef M68KCONF__HEADER
 #define M68KCONF__HEADER
 
-#include "../core.h"//definition of INLINE
-
 /* Configuration switches.
  * Use OPT_SPECIFY_HANDLER for configuration options that allow callbacks.
  * OPT_SPECIFY_HANDLER causes the core to link directly to the function
@@ -175,7 +173,11 @@
  * NOTE: not enabling inline functions will SEVERELY slow down emulation.
  */
 #ifndef INLINE
-#define INLINE static __inline__
+#ifdef _MSC_VER
+#define INLINE _inline
+#else
+#define INLINE static inline
+#endif
 #endif /* INLINE */
 
 #endif /* M68K_COMPILE_FOR_MAME */

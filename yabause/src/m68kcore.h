@@ -74,6 +74,7 @@ int M68KInit(int coreid);
 
 extern M68K_struct M68KDummy;
 extern M68K_struct M68KC68K;
+extern M68K_struct M68KMusashi;
 extern M68K_struct M68KQ68;
 
 #endif

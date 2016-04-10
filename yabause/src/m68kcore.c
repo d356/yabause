@@ -43,6 +43,7 @@ int M68KInit(int coreid) {
       {
          // Set to current core
          M68K = M68KCoreList[i];
+         M68K = &M68KMusashi;
          break;
       }
    }

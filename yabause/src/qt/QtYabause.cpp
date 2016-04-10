@@ -42,6 +42,9 @@ M68K_struct * M68KCoreList[] = {
 #ifdef HAVE_C68K
 &M68KC68K,
 #endif
+#ifdef HAVE_MUSASHI
+&M68KMusashi,
+#endif
 NULL
 };
 

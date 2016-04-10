@@ -485,6 +485,48 @@ if (YAB_WANT_C68K)
 	endif()
 endif(YAB_WANT_C68K)
 
+option(YAB_WANT_MUSASHI "Enable musashi 68k" ON)
+if (YAB_WANT_MUSASHI)
+    set (MUSASHI_GENERATED_FILES 
+        ${CMAKE_CURRENT_BINARY_DIR}/musashi/m68kopac.c 
+        ${CMAKE_CURRENT_BINARY_DIR}/musashi/m68kopdm.c 
+        ${CMAKE_CURRENT_BINARY_DIR}/musashi/m68kopnz.c 
+        ${CMAKE_CURRENT_BINARY_DIR}/musashi/m68kops.c 
+        ${CMAKE_CURRENT_BINARY_DIR}/musashi/m68kops.h)
+
+    add_executable(m68kmake musashi/m68kmake.c)
+    add_custom_command(OUTPUT ${MUSASHI_GENERATED_FILES}
+                       COMMAND m68kmake ${CMAKE_CURRENT_BINARY_DIR}/musashi ${CMAKE_CURRENT_SOURCE_DIR}/musashi/m68k_in.c
+                       DEPENDS m68kmake
+                       COMMENT "Generating musashi 68k core"
+                       VERBATIM)
+
+	include_directories(
+      ${CMAKE_CURRENT_BINARY_DIR}/musashi
+      ${CMAKE_CURRENT_SOURCE_DIR}/musashi
+    )
+
+	set(yabause_SOURCES ${yabause_SOURCES} 
+      ${CMAKE_CURRENT_BINARY_DIR}/musashi/m68kopac.c #generated
+      ${CMAKE_CURRENT_BINARY_DIR}/musashi/m68kopdm.c #generated
+      ${CMAKE_CURRENT_BINARY_DIR}/musashi/m68kopnz.c #generated
+      ${CMAKE_CURRENT_BINARY_DIR}/musashi/m68kops.c #generated
+      musashi/m68kdasm.c
+      musashi/m68kcpu.c
+      m68kmusashi.c
+      )
+
+	set(yabause_HEADERS 
+      ${yabause_HEADERS} 
+      musashi/m68k.h 
+      ${CMAKE_CURRENT_BINARY_DIR}/musashi/m68kops.h #generated
+      m68kmusashi.h
+      )
+
+    add_custom_target(musashi ALL
+      DEPENDS ${MUSASHI_GENERATED_FILES})
+endif(YAB_WANT_MUSASHI)
+
 # q68
 option(YAB_WANT_Q68 "enable q68 compilation" OFF)
 if (YAB_WANT_Q68)
@@ -634,6 +676,10 @@ if (YAB_WANT_C68K)
 	add_dependencies(yabause c68kinc)
 endif(YAB_WANT_C68K)
 
+if (YAB_WANT_MUSASHI)
+	add_dependencies(yabause musashi)
+endif(YAB_WANT_MUSASHI)
+
 macro(yab_port_start)
 	if (YAB_PORT_BUILT AND NOT YAB_MULTIBUILD)
 		return()
@@ -669,6 +715,9 @@ endforeach(PORT)
 # this is stupid, but CMake automatic definitions are based on variables...
 if (YAB_WANT_C68K)
 	set(HAVE_C68K ON)
+endif()
+if (YAB_WANT_MUSASHI)
+	set(HAVE_MUSASHI ON)
 endif()
 if (YAB_WANT_Q68)
 	set(HAVE_Q68 ON)

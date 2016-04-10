@@ -498,7 +498,7 @@ if (YAB_WANT_MUSASHI)
 
     add_executable(m68kmake musashi/m68kmake.c)
     add_custom_command(OUTPUT ${MUSASHI_GENERATED_SOURCES} ${MUSASHI_GENERATED_HEADERS}
-                       COMMAND m68kmake ${CMAKE_CURRENT_BINARY_DIR}/ ${CMAKE_CURRENT_SOURCE_DIR}/musashi/m68k_in.c
+                       COMMAND ${CMAKE_CURRENT_BINARY_DIR}/m68kmake ${CMAKE_CURRENT_BINARY_DIR}/ ${CMAKE_CURRENT_SOURCE_DIR}/musashi/m68k_in.c
                        DEPENDS m68kmake
                        COMMENT "Generating musashi 68k core"
                        VERBATIM)

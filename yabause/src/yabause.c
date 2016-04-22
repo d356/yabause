@@ -670,6 +670,7 @@ int YabauseEmulate(void) {
       yabsys.UsecFrac &= YABSYS_TIMING_MASK;
 
 #ifndef USE_SCSP2
+#if 0
       {
          int cycles;
 
@@ -683,6 +684,7 @@ int YabauseEmulate(void) {
          M68KExec(cycles);
          PROFILE_STOP("68K");
       }
+#endif
 #endif
 
       PROFILE_STOP("Total Emulation");

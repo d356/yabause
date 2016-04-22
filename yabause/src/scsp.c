@@ -4980,6 +4980,7 @@ ScspReceiveCDDA (const u8 *sector)
 void
 ScspExec ()
 {
+#if 0
   u32 audiosize;
 
   ScspInternalVars->scsptiming2 +=
@@ -5069,7 +5070,39 @@ ScspExec ()
         }
     }  // if (scspframeaccurate)
 
-  scsp_update_monitor ();
+  scsp_update_monitor();
+#else
+  u16 num_samples = 0;
+  int outbuf_pos = 0;
+  s32 outbuf_l[900] = { 0 };
+  s32 outbuf_r[900] = { 0 };
+
+  ScspInternalVars->scsptiming2 +=
+     ((scspsoundlen << 16) + scsplines / 2) / scsplines;
+  num_samples = ScspInternalVars->scsptiming2 >> 16;
+  ScspInternalVars->scsptiming2 &= 0xFFFF; // Keep fractional part
+  ScspInternalVars->scsptiming1++;
+
+  while (num_samples)
+  {
+     s16 out_l = 0;
+     s16 out_r = 0;
+
+     s16 cd_in_l = 0;
+     s16 cd_in_r = 0;
+
+     scsp_update_timer(1);
+     generate_sample(&new_scsp, scsp.rbp, scsp.rbl, &out_l, &out_r, scsp.mvol, cd_in_l, cd_in_r);
+     outbuf_l[outbuf_pos] = out_l;
+     outbuf_r[outbuf_pos] = out_r;
+     scsp_update_monitor();
+     M68KExec(256);//m68k runs at 256 cycles per sample
+     num_samples--;
+     outbuf_pos++;
+  }
+
+  SNDCore->UpdateAudio(&outbuf_l[0], &outbuf_r[0], outbuf_pos);
+#endif
 }
 
 //////////////////////////////////////////////////////////////////////////////

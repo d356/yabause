@@ -3084,7 +3084,7 @@ int do_map_r_branch(int map, int c, u32 addr, int *jaddr)
   return map;
 }
 
-int gen_tlb_addr_r(int ar, int map) {
+void gen_tlb_addr_r(int ar, int map) {
   if(map>=0) {
     assem_debug("add %s,%s,%s lsl #2\n",regname[ar],regname[ar],regname[map]);
     output_w32(0xe0800100|rd_rn_rm(ar,ar,map));
@@ -3116,7 +3116,7 @@ int do_map_w(int s,int ar,int map,int cache,int x,int c,u32 addr)
   }
   return map;
 }
-int do_map_w_branch(int map, int c, u32 addr, int *jaddr)
+void do_map_w_branch(int map, int c, u32 addr, int *jaddr)
 {
   if(!c||can_direct_write(addr)) {
     emit_testimm(map,0x40000000);
@@ -3141,7 +3141,7 @@ int gen_orig_addr_w(int ar, int map) {
 }
 
 // Generate the address of the memory_map entry, relative to dynarec_local
-generate_map_const(u32 addr,int reg) {
+void generate_map_const(u32 addr,int reg) {
   //printf("generate_map_const(%x,%s)\n",addr,regname[reg]);
   emit_movimm((addr>>12)+(((u32)memory_map-(u32)&dynarec_local)>>2),reg);
 }

@@ -3429,7 +3429,7 @@ int do_map_r_branch(int map, int c, u32 addr, int *jaddr)
   return map;
 }
 
-int gen_tlb_addr_r(int ar, int map) {
+void gen_tlb_addr_r(int ar, int map) {
   if(map>=0) {
     emit_leairrx4(0,ar,map,ar);
   }
@@ -3455,7 +3455,7 @@ int do_map_w(int s,int ar,int map,int cache,int x,int c,u32 addr)
   emit_shlimm64(map,2,map);
   return map;
 }
-int do_map_w_branch(int map, int c, u32 addr, int *jaddr)
+void do_map_w_branch(int map, int c, u32 addr, int *jaddr)
 {
   if(!c||can_direct_write(addr)) {
     *jaddr=(int)out;
@@ -3470,7 +3470,7 @@ int gen_tlb_addr_w(int ar, int map) {
 }
 
 // We don't need this for x86
-generate_map_const(u32 addr,int reg) {
+void generate_map_const(u32 addr,int reg) {
   // void *mapaddr=memory_map+(addr>>12);
 }
 

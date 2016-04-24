@@ -797,7 +797,7 @@ void *check_addr(u32 vaddr)
 void remove_hash(int vaddr)
 {
   //printf("remove hash: %x\n",vaddr);
-  int *ht_bin=hash_table[(((vaddr)>>16)^vaddr)&0xFFFF];
+  u32 *ht_bin=hash_table[(((vaddr)>>16)^vaddr)&0xFFFF];
   if(ht_bin[2]==vaddr) {
     ht_bin[2]=ht_bin[3]=-1;
   }
@@ -833,7 +833,7 @@ void ll_clear(struct ll_entry **head)
 {
   struct ll_entry *cur;
   struct ll_entry *next;
-  if(cur=*head) {
+  if((cur=*head)) {
     *head=0;
     while(cur) {
       next=cur->next;
@@ -1079,7 +1079,7 @@ void clean_blocks(u32 page)
           if(!inv) {
             void * clean_addr=(void *)get_clean_addr((int)head->addr);
             if((((u32)clean_addr-(u32)out)<<(32-TARGET_SIZE_2))>0x60000000+(MAX_OUTPUT_BLOCK_SIZE<<(32-TARGET_SIZE_2))) {
-              int *ht_bin;
+              u32 *ht_bin;
               inv_debug("INV: Restored %x (%x/%x)\n",head->vaddr, (int)head->addr, (int)clean_addr);
               //printf("page=%x, addr=%x\n",page,head->vaddr);
               //assert(head->vaddr>>12==(page|0x80000));

@@ -2332,7 +2332,7 @@ void YglRender(void) {
    glDisable(GL_SCISSOR_TEST);
    YuiSwapBuffers();
    glBindBuffer(GL_PIXEL_UNPACK_BUFFER, _Ygl->pixelBufferID);
-   YglTM->texture = (int*)glMapBufferRange(GL_PIXEL_UNPACK_BUFFER, 0, 2048 * 1024 * 4, GL_MAP_WRITE_BIT);
+   YglTM->texture = (unsigned int*)glMapBufferRange(GL_PIXEL_UNPACK_BUFFER, 0, 2048 * 1024 * 4, GL_MAP_WRITE_BIT);
    if (YglTM->texture == NULL){
 	   abort();
    }

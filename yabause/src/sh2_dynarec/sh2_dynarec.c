@@ -270,7 +270,7 @@ void *get_addr(u32 vaddr)
     if(head->vaddr==vaddr) {
   //printf("TRACE: count=%d next=%d (get_addr match %x: %x)\n",Count,next_interupt,vaddr,(int)head->addr);
   //printf("TRACE: (get_addr match %x: %x)\n",vaddr,(int)head->addr);
-      int *ht_bin=hash_table[((vaddr>>16)^vaddr)&0xFFFF];
+      u32 *ht_bin=hash_table[((vaddr>>16)^vaddr)&0xFFFF];
       ht_bin[3]=ht_bin[1];
       ht_bin[2]=ht_bin[0];
       ht_bin[1]=(int)head->addr;
@@ -288,7 +288,7 @@ void *get_addr(u32 vaddr)
       if((((u32)head->addr-(u32)out)<<(32-TARGET_SIZE_2))>0x60000000+(MAX_OUTPUT_BLOCK_SIZE<<(32-TARGET_SIZE_2)))
       if(verify_dirty((pointer)head->addr)) {
         u32 start,end;
-        int *ht_bin;
+        u32 *ht_bin;
         //printf("restore candidate: %x (%d) d=%d\n",vaddr,page,(cached_code[vaddr>>15]>>((vaddr>>12)&7))&1);
         //invalid_code[vaddr>>12]=0;
         cached_code[vaddr>>15]|=1<<((vaddr>>12)&7);
@@ -345,7 +345,7 @@ void *get_addr_ht(u32 vaddr)
 {
   //printf("TRACE: count=%d next=%d (get_addr_ht %x)\n",Count,next_interupt,vaddr);
   //if(vaddr>>12==0x60a0) printf("TRACE: (get_addr_ht %x)\n",vaddr);
-  int *ht_bin=hash_table[((vaddr>>16)^vaddr)&0xFFFF];
+  u32 *ht_bin=hash_table[((vaddr>>16)^vaddr)&0xFFFF];
   //if(vaddr>>12==0x60a0) printf("%x %x %x %x\n",ht_bin[0],ht_bin[1],ht_bin[2],ht_bin[3]);
   if(ht_bin[0]==vaddr) return (void *)ht_bin[1];
   if(ht_bin[2]==vaddr) return (void *)ht_bin[3];

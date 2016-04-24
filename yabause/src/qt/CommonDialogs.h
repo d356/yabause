@@ -19,10 +19,17 @@
 #ifndef COMMONDIALOGS_H
 #define COMMONDIALOGS_H
 
+#ifdef __clang__
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wuninitialized"
+#endif
 #include <QApplication>
 #include <QMessageBox>
 #include <QInputDialog>
 #include <QFileDialog>
+#ifdef __clang__
+#pragma clang diagnostic pop
+#endif
 
 namespace CommonDialogs
 {

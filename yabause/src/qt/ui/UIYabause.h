@@ -24,10 +24,10 @@
 #ifdef __clang__
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wuninitialized"
+#endif
 #include "ui_UIYabause.h"
+#ifdef __clang__
 #pragma clang diagnostic pop
-#else
-#include "ui_UIYabause.h"
 #endif
 #include "../YabauseThread.h"
 #include "UICheatSearch.h"

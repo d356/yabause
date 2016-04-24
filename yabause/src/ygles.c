@@ -715,7 +715,7 @@ int YglGLInit(int width, int height) {
 
    _Ygl->pFrameBuffer = NULL;
 
-   if( strstr(glGetString(GL_EXTENSIONS),"packed_depth_stencil") != NULL )
+   if( strstr((const char*)glGetString(GL_EXTENSIONS),"packed_depth_stencil") != NULL )
    {
       if( _Ygl->rboid_depth != 0 ) glDeleteRenderbuffers(1,&_Ygl->rboid_depth);
       glGenRenderbuffers(1, &_Ygl->rboid_depth);
@@ -857,7 +857,7 @@ int YglInit(int width, int height, unsigned int depth) {
    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 
-    if( strstr(glGetString(GL_EXTENSIONS),"packed_depth_stencil") != NULL )
+    if( strstr((const char*)glGetString(GL_EXTENSIONS),"packed_depth_stencil") != NULL )
    {
       if( _Ygl->rboid_depth != 0 ) glDeleteRenderbuffers(1,&_Ygl->rboid_depth);
       glGenRenderbuffers(1, &_Ygl->rboid_depth);

@@ -83,8 +83,9 @@ void set_jump_target(pointer addr,pointer target)
   u8 *ptr=(u8 *)addr;
   if(*ptr==0x0f)
   {
+    u32 *ptr2 = NULL;
     assert(ptr[1]>=0x80&&ptr[1]<=0x8f);
-    u32 *ptr2=(u32 *)(ptr+2);
+    ptr2=(u32 *)(ptr+2);
     *ptr2=target-(u32)ptr2-4;
   }
   else if(*ptr==0xe8||*ptr==0xe9) {
@@ -93,8 +94,9 @@ void set_jump_target(pointer addr,pointer target)
   }
   else
   {
+    u32 *ptr2 = NULL;
     assert(*ptr==0xc7); /* mov immediate (store address) */
-    u32 *ptr2=(u32 *)(ptr+6);
+    ptr2=(u32 *)(ptr+6);
     *ptr2=target;
   }
 }

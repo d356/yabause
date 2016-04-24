@@ -21,7 +21,14 @@
 #ifndef UIYABAUSE_H
 #define UIYABAUSE_H
 
+#ifdef __clang__
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wuninitialized"
 #include "ui_UIYabause.h"
+#pragma clang diagnostic pop
+#else
+#include "ui_UIYabause.h"
+#endif
 #include "../YabauseThread.h"
 #include "UICheatSearch.h"
 #include <QTimer>

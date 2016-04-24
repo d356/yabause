@@ -8000,7 +8000,7 @@ int sh2_recompile_block(int addr)
 
   /* Pass 9 - Linker */
   {
-  int *ht_bin;
+  u32 *ht_bin;
   int entry_point;
   u32 alignedlen;
   u32 alignedstart;

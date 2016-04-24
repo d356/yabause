@@ -189,10 +189,12 @@ void get_bounds(pointer addr,u32 *start,u32 *end)
     *start=source;
     *end=source+len;
   }else{
+    u64 source = 0;
+    u32 len = 0;
     assert(ptr[0]==0x48&&ptr[1]==0xB8);
-    u64 source=*(u64 *)(ptr+2);
+    source=*(u64 *)(ptr+2);
     //32 copy=*(u32 *)(ptr+11);
-    u32 len=*(u32 *)(ptr+16);
+    len=*(u32 *)(ptr+16);
     assert(ptr[26]==0xE8); // call instruction
     *start=source;
     *end=source+len;
@@ -207,6 +209,8 @@ void alloc_reg(struct regstat *cur,int i,signed char reg)
 {
   int r,hr;
   int preferred_reg = (reg&3)+(reg>21)*4+(reg==24)+(reg==28)+(reg==32);
+  unsigned char hsn[MAXREG + 1] = {0};
+  int j = 0;
   if(reg==CCREG) preferred_reg=HOST_CCREG;
   
   // Don't allocate unused registers
@@ -287,9 +291,7 @@ void alloc_reg(struct regstat *cur,int i,signed char reg)
   
   // Ok, now we have to evict someone
   // Pick a register we hopefully won't need soon
-  unsigned char hsn[MAXREG+1];
-  memset(hsn,10,sizeof(hsn));
-  int j;
+  memset(hsn, 10, sizeof(hsn));
   lsn(hsn,i,&preferred_reg);
   //printf("hsn(%x): %d %d %d %d %d %d %d\n",start+i*4,hsn[cur->regmap[0]&63],hsn[cur->regmap[1]&63],hsn[cur->regmap[2]&63],hsn[cur->regmap[3]&63],hsn[cur->regmap[5]&63],hsn[cur->regmap[6]&63],hsn[cur->regmap[7]&63]);
   if(i>0) {
@@ -373,7 +375,8 @@ void alloc_reg_temp(struct regstat *cur,int i,signed char reg)
 {
   int r,hr;
   int preferred_reg = -1;
-  
+  unsigned char hsn[MAXREG + 1] = { 0 };
+  int j = 0;
   // see if it's already allocated
   for(hr=0;hr<HOST_REGS;hr++)
   {
@@ -411,9 +414,8 @@ void alloc_reg_temp(struct regstat *cur,int i,signed char reg)
   // Pick a register we hopefully won't need soon
   // TODO: we might want to follow unconditional jumps here
   // TODO: get rid of dupe code and make this into a function
-  unsigned char hsn[MAXREG+1];
+  
   memset(hsn,10,sizeof(hsn));
-  int j;
   lsn(hsn,i,&preferred_reg);
   //printf("hsn: %d %d %d %d %d %d %d\n",hsn[cur->regmap[0]&63],hsn[cur->regmap[1]&63],hsn[cur->regmap[2]&63],hsn[cur->regmap[3]&63],hsn[cur->regmap[5]&63],hsn[cur->regmap[6]&63],hsn[cur->regmap[7]&63]);
   if(i>0) {
@@ -529,27 +531,30 @@ void output_byte(u8 byte)
 }
 void output_modrm(u8 mod,u8 rm,u8 ext)
 {
+  u8 byte = 0;
   assert(mod<4);
   assert(rm<8);
   assert(ext<8);
-  u8 byte=(mod<<6)|(ext<<3)|rm;
+  byte=(mod<<6)|(ext<<3)|rm;
   *(out++)=byte;
 }
 void output_sib(u8 scale,u8 index,u8 base)
 {
+  u8 byte = 0;
   assert(scale<4);
   assert(index<8);
   assert(base<8);
-  u8 byte=(scale<<6)|(index<<3)|base;
+  byte=(scale<<6)|(index<<3)|base;
   *(out++)=byte;
 }
 void output_rex(u8 w,u8 r,u8 x,u8 b)
 {
+  u8 byte = 0;
   assert(w<2);
   assert(r<2);
   assert(x<2);
   assert(b<2);
-  u8 byte=0x40|(w<<3)|(r<<2)|(x<<1)|b;
+  byte=0x40|(w<<3)|(r<<2)|(x<<1)|b;
   *(out++)=byte;
 }
 void output_w32(u32 word)
@@ -2968,9 +2973,11 @@ unsigned int count_bits(u32 reglist)
 // usual locations
 void save_regs(u32 reglist)
 {
+  int hr = 0; 
+  int count = 0;
   reglist&=0xC7; // only save the caller-save registers, %eax, %ecx, %edx, %esi, %edi
-  int hr;
-  int count=count_bits(reglist);
+  
+  count=count_bits(reglist);
   if(count) {
     for(hr=0;hr<HOST_REGS;hr++) {
       if(hr!=EXCLUDE_REG) {
@@ -2986,9 +2993,11 @@ void save_regs(u32 reglist)
 // Restore registers after function call
 void restore_regs(u32 reglist)
 {
+  int hr = 0;
+  int count = 0;
   reglist&=0xC7; // only save the caller-save registers, %eax, %ecx, %edx, %esi, %edi
-  int hr;
-  int count=count_bits(reglist);
+  
+  count=count_bits(reglist);
   if(slave) emit_addimm64(ESP,(6-count)*8,ESP);
   else emit_addimm64(ESP,(7-count)*8,ESP);
   if(count) {

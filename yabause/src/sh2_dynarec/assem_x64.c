@@ -500,7 +500,7 @@ void alloc_x86_reg(struct regstat *cur,int i,signed char reg,char hr)
 }
 
 // Alloc cycle count into dedicated register
-alloc_cc(struct regstat *cur,int i)
+void alloc_cc(struct regstat *cur,int i)
 {
   alloc_x86_reg(cur,i,CCREG,ESI);
 }
@@ -3013,7 +3013,7 @@ void restore_regs(u32 reglist)
 
 /* Stubs/epilogue */
 
-emit_extjump(pointer addr, int target)
+void emit_extjump(pointer addr, int target)
 {
   u8 *ptr=(u8 *)addr;
   if(*ptr==0x0f)
@@ -3042,7 +3042,7 @@ emit_extjump(pointer addr, int target)
   emit_jmp((pointer)dyna_linker);
 }
 
-do_readstub(int n)
+void do_readstub(int n)
 {
   int type = 0, i = 0, rs = 0, addr = 0, rt = 0;
   signed char *i_regmap = NULL;
@@ -3149,7 +3149,7 @@ do_readstub(int n)
   emit_jmp(stubs[n][2]); // return address
 }
 
-inline_readstub(int type, int i, u32 addr, signed char regmap[], int target, int adj, u32 reglist)
+void inline_readstub(int type, int i, u32 addr, signed char regmap[], int target, int adj, u32 reglist)
 {
   int rt = 0;
   assem_debug("inline_readstub\n");
@@ -3182,7 +3182,7 @@ inline_readstub(int type, int i, u32 addr, signed char regmap[], int target, int
   restore_regs(reglist);
 }
 
-do_writestub(int n)
+void do_writestub(int n)
 {
   int type = 0, i = 0, rs = 0, addr = 0, rt = 0;
   struct regstat *i_regs = NULL;
@@ -3252,7 +3252,7 @@ do_writestub(int n)
   emit_jmp(stubs[n][2]); // return address
 }
 
-inline_writestub(int type, int i, u32 addr, signed char regmap[], int target, int adj, u32 reglist)
+void inline_writestub(int type, int i, u32 addr, signed char regmap[], int target, int adj, u32 reglist)
 {
   int rt = 0;
   assem_debug("inline_writestub\n");
@@ -3273,7 +3273,7 @@ inline_writestub(int type, int i, u32 addr, signed char regmap[], int target, in
   restore_regs(reglist);
 }
 
-do_rmwstub(int n)
+void do_rmwstub(int n)
 {
   int type = 0, i = 0, rs = 0, addr = 0;
   struct regstat *i_regs = NULL;
@@ -3364,7 +3364,7 @@ do_rmwstub(int n)
   emit_jmp(stubs[n][2]); // return address
 }
 
-do_unalignedwritestub(int n)
+void do_unalignedwritestub(int n)
 {
   set_jump_target(stubs[n][1],(int)out);
   output_byte(0xCC);

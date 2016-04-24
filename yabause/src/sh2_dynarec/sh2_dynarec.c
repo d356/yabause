@@ -5206,8 +5206,8 @@ void disassemble_inst(int i)
         printf (" %x: %s r%d,r%d\n",start+i*2,insn[i],rs1[i],rs2[i]);
         break;
       case SHIFTIMM:
-        if(rs2[i]>=0) printf (" %x: %s r%d,r%d\n",start+i*2,insn[i],rs1[i],rs2[i],imm[i]);
-        else printf (" %x: %s r%d\n",start+i*2,insn[i],rt1[i],imm[i]);
+        if(rs2[i]>=0) printf (" %x: %s r%d,r%d #%d\n",start+i*2,insn[i],rs1[i],rs2[i],imm[i]);
+        else printf (" %x: %s r%d #%d\n",start+i*2,insn[i],rt1[i],imm[i]);
         break;
       case MOV:
         printf (" %x: %s r%d,r%d\n",start+i*2,insn[i],rs1[i],rt1[i]);

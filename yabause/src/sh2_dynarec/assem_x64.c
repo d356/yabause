@@ -3044,16 +3044,19 @@ emit_extjump(pointer addr, int target)
 
 do_readstub(int n)
 {
+  int type = 0, i = 0, rs = 0, addr = 0, rt = 0;
+  signed char *i_regmap = NULL;
+  struct regstat *i_regs = NULL;
+  u32 reglist = 0;
   assem_debug("do_readstub %x\n",start+stubs[n][3]*2);
   set_jump_target(stubs[n][1],(int)out);
-  int type=stubs[n][0];
-  int i=stubs[n][3];
-  int rs=stubs[n][4];
-  struct regstat *i_regs=(struct regstat *)stubs[n][5];
-  u32 reglist=stubs[n][7];
-  signed char *i_regmap=i_regs->regmap;
-  int addr=get_reg(i_regmap,AGEN1+(i&1));
-  int rt;
+  type=stubs[n][0];
+  i=stubs[n][3];
+  rs=stubs[n][4];
+  i_regs=(struct regstat *)stubs[n][5];
+  reglist=stubs[n][7];
+  i_regmap=i_regs->regmap;
+  addr=get_reg(i_regmap,AGEN1+(i&1));
   
   rt=get_reg(i_regmap,rt1[i]==TBIT?-1:rt1[i]);
   assert(rs>=0);
@@ -3148,9 +3151,10 @@ do_readstub(int n)
 
 inline_readstub(int type, int i, u32 addr, signed char regmap[], int target, int adj, u32 reglist)
 {
+  int rt = 0;
   assem_debug("inline_readstub\n");
   //int rs=get_reg(regmap,target);
-  int rt=get_reg(regmap,target);
+  rt=get_reg(regmap,target);
   //if(rs<0) rs=get_reg(regmap,-1);
   if(rt<0) rt=get_reg(regmap,-1);
   assert(rt>=0);

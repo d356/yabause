@@ -143,13 +143,15 @@ int verify_dirty(pointer addr)
   }
   assert(ptr[0]==0x48&&ptr[1]==0xB8);
   /* 64-bit source pointer */
-  u64 source=*(u64 *)(ptr+2);
-  u32 copy=*(u32 *)(ptr+11);
-  u32 len=*(u32 *)(ptr+16);
-  //printf("source=%x source-rdram=%x\n",source,source-(int)rdram);
-  assert(ptr[26]==0xE8); // call instruction
-  //printf("verify_dirty: %x %x %x\n",source,copy,len);
-  return !memcmp((void *)source,(void *)copy,len);
+  {
+     u64 source = *(u64 *)(ptr + 2);
+     u32 copy = *(u32 *)(ptr + 11);
+     u32 len = *(u32 *)(ptr + 16);
+     //printf("source=%x source-rdram=%x\n",source,source-(int)rdram);
+     assert(ptr[26] == 0xE8); // call instruction
+     //printf("verify_dirty: %x %x %x\n",source,copy,len);
+     return !memcmp((void *)source, (void *)copy, len);
+  }
 }
 
 // This doesn't necessarily find all clean entry points, just
@@ -3169,16 +3171,20 @@ inline_readstub(int type, int i, u32 addr, signed char regmap[], int target, int
 
 do_writestub(int n)
 {
+  int type = 0, i = 0, rs = 0, addr = 0, rt = 0;
+  struct regstat *i_regs = NULL;
+  signed char *i_regmap = NULL;
+  u32 reglist = 0;
   assem_debug("do_writestub %x\n",start+stubs[n][3]*2);
   set_jump_target(stubs[n][1],(int)out);
-  int type=stubs[n][0];
-  int i=stubs[n][3];
-  int rs=stubs[n][4];
-  struct regstat *i_regs=(struct regstat *)stubs[n][5];
-  u32 reglist=stubs[n][7];
-  signed char *i_regmap=i_regs->regmap;
-  int addr=get_reg(i_regmap,AGEN1+(i&1));
-  int rt=get_reg(i_regmap,rs1[i]);
+  type=stubs[n][0];
+  i=stubs[n][3];
+  rs=stubs[n][4];
+  i_regs=(struct regstat *)stubs[n][5];
+  reglist=stubs[n][7];
+  i_regmap=i_regs->regmap;
+  addr=get_reg(i_regmap,AGEN1+(i&1));
+  rt=get_reg(i_regmap,rs1[i]);
   assert(rs>=0);
   assert(rt>=0);
   if(addr<0) addr=get_reg(i_regmap,-1);
@@ -3235,9 +3241,10 @@ do_writestub(int n)
 
 inline_writestub(int type, int i, u32 addr, signed char regmap[], int target, int adj, u32 reglist)
 {
+  int rt = 0;
   assem_debug("inline_writestub\n");
   //int rs=get_reg(regmap,-1);
-  int rt=get_reg(regmap,target);
+  rt=get_reg(regmap,target);
   //assert(rs>=0);
   assert(rt>=0);
   save_regs(reglist);
@@ -3255,15 +3262,19 @@ inline_writestub(int type, int i, u32 addr, signed char regmap[], int target, in
 
 do_rmwstub(int n)
 {
+  int type = 0, i = 0, rs = 0, addr = 0;
+  struct regstat *i_regs = NULL;
+  u32 reglist = 0;
+  signed char *i_regmap = NULL;
   assem_debug("do_rmwstub %x\n",start+stubs[n][3]*2);
   set_jump_target(stubs[n][1],(int)out);
-  int type=stubs[n][0];
-  int i=stubs[n][3];
-  int rs=stubs[n][4];
-  struct regstat *i_regs=(struct regstat *)stubs[n][5];
-  u32 reglist=stubs[n][7];
-  signed char *i_regmap=i_regs->regmap;
-  int addr=get_reg(i_regmap,AGEN1+(i&1));
+  type=stubs[n][0];
+  i=stubs[n][3];
+  rs=stubs[n][4];
+  i_regs=(struct regstat *)stubs[n][5];
+  reglist=stubs[n][7];
+  i_regmap=i_regs->regmap;
+  addr=get_reg(i_regmap,AGEN1+(i&1));
   //int rt=get_reg(i_regmap,rs1[i]);
   assert(rs>=0);
   //assert(rt>=0);
@@ -3354,8 +3365,10 @@ void printregs(int edi,int esi,int ebp,int esp,int b,int d,int c,int a)
 
 int do_dirty_stub(int i)
 {
+  u32 alignedlen = 0;
+  int entry = 0;
   assem_debug("do_dirty_stub %x\n",start+i*2);
-  u32 alignedlen=((((u32)source)+slen*2+2)&~2)-(u32)alignedsource;
+  alignedlen=((((u32)source)+slen*2+2)&~2)-(u32)alignedsource;
   if((u64)source<=0xFFFFFFFF)
     emit_movimm(((u32)source)&~3,EAX); //alignedsource
   else
@@ -3364,7 +3377,7 @@ int do_dirty_stub(int i)
   emit_movimm((((u32)source+slen*2+2)&~3)-((u32)source&~3),ECX);
   emit_movimm(start+i*2+slave,12);
   emit_call((int)&verify_code);
-  int entry=(int)out;
+  entry=(int)out;
   load_regs_entry(i);
   if(entry==(int)out) entry=instr_addr[i];
   emit_jmp(instr_addr[i]);

@@ -1107,7 +1107,7 @@ void clean_blocks(u32 page)
 }
 
 
-do_consts(int i,u32 *isconst,u32 *constmap)
+void do_consts(int i,u32 *isconst,u32 *constmap)
 {
   switch(itype[i]) {
     case LOAD:
@@ -1789,7 +1789,7 @@ void delayslot_alloc(struct regstat *current,int i)
   }
 }
 
-add_stub(int type,int addr,int retaddr,int a,int b,int c,int d,int e)
+void add_stub(int type,int addr,int retaddr,int a,int b,int c,int d,int e)
 {
   stubs[stubcount][0]=type;
   stubs[stubcount][1]=addr;
@@ -1830,7 +1830,7 @@ void wb_register(signed char r,signed char regmap[],u32 dirty)
   }
   return sum;
 }
-/*int rchecksum()
+int rchecksum()
 {
   int i;
   int sum=0;
@@ -1838,15 +1838,15 @@ void wb_register(signed char r,signed char regmap[],u32 dirty)
     sum^=((u_int *)reg)[i];
   return sum;
 }
-/*int fchecksum()
+int fchecksum()
 {
   int i;
   int sum=0;
   for(i=0;i<64;i++)
     sum^=((u_int *)reg_cop1_fgr_64)[i];
   return sum;
-}*/
-/*void rlist()
+}
+void rlist()
 {
   int i;
   printf("TRACE: ");

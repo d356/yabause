@@ -2371,7 +2371,7 @@ void load_assemble(int i,struct regstat *i_regs)
     emit_call((int)memdebug);
     //emit_popa();
     restore_regs(0x100f);
-  }/**/
+  }*/
 }
 
 void store_assemble(int i,struct regstat *i_regs)
@@ -2518,7 +2518,7 @@ void store_assemble(int i,struct regstat *i_regs)
     emit_call((int)memdebug);
     //emit_popa();
     restore_regs(0x100f);
-  }/**/
+  }*/
 }
 
 void rmw_assemble(int i,struct regstat *i_regs)
@@ -5044,7 +5044,7 @@ void clean_registers(int istart,int iend,int wr)
             if(r!=EXCLUDE_REG) {
               if(regs[i].regmap[r]==regmap_pre[i+2][r]) {
                 regs[i+2].wasdirty&=wont_dirty_i|~(1<<r);
-              }else {/*printf("i: %x (%d) mismatch(+2): %d\n",start+i*4,i,r);/*assert(!((wont_dirty_i>>r)&1));*/}
+              }else {/*printf("i: %x (%d) mismatch(+2): %d\n",start+i*4,i,r);assert(!((wont_dirty_i>>r)&1));*/}
             }
           }
         }
@@ -5056,7 +5056,7 @@ void clean_registers(int istart,int iend,int wr)
             if(r!=EXCLUDE_REG) {
               if(regs[i].regmap[r]==regmap_pre[i+1][r]) {
                 regs[i+1].wasdirty&=wont_dirty_i|~(1<<r);
-              }else {/*printf("i: %x (%d) mismatch(+1): %d\n",start+i*4,i,r);/*assert(!((wont_dirty_i>>r)&1));*/}
+              }else {/*printf("i: %x (%d) mismatch(+1): %d\n",start+i*4,i,r);assert(!((wont_dirty_i>>r)&1));*/}
             }
           }
         }
@@ -5098,7 +5098,7 @@ void clean_registers(int istart,int iend,int wr)
             wont_dirty_i|=((unneeded_reg[i]>>(regmap_pre[i][r]&63))&1)<<r;
           } else {
             wont_dirty_i|=1<<r;
-            /*printf("i: %x (%d) mismatch: %d\n",start+i*4,i,r);/*assert(!((will_dirty>>r)&1));*/
+            /*printf("i: %x (%d) mismatch: %d\n",start+i*4,i,r);assert(!((will_dirty>>r)&1));*/
           }
         }
       }
@@ -8131,7 +8131,7 @@ int sh2_recompile_block(int addr)
       case 2:
         // Clear hash table
         for(i=0;i<32;i++) {
-          int *ht_bin=hash_table[((expirep&2047)<<5)+i];
+          u32 *ht_bin=hash_table[((expirep&2047)<<5)+i];
           if((ht_bin[3]>>shift)==(base>>shift) ||
              ((ht_bin[3]-MAX_OUTPUT_BLOCK_SIZE)>>shift)==(base>>shift)) {
             inv_debug("EXP: Remove hash %x -> %x\n",ht_bin[2],ht_bin[3]);

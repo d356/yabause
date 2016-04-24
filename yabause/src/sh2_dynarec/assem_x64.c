@@ -78,6 +78,8 @@ u32 const_one=1;
 
 /* Linker */
 
+void add_to_linker(int addr, int target, int ext);
+
 void set_jump_target(pointer addr,pointer target)
 {
   u8 *ptr=(u8 *)addr;
@@ -3463,7 +3465,7 @@ void do_map_w_branch(int map, int c, u32 addr, int *jaddr)
   }
 }
 
-int gen_tlb_addr_w(int ar, int map) {
+void gen_tlb_addr_w(int ar, int map) {
   if(map>=0) {
     emit_leairrx1(0,ar,map,ar);
   }

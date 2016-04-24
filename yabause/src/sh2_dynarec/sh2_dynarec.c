@@ -3709,7 +3709,7 @@ void do_ccstub(int n)
   emit_jmp(stubs[n][2]); // return address
 }
 
-add_to_linker(int addr,int target,int ext)
+void add_to_linker(int addr,int target,int ext)
 {
   link_addr[linkcount][0]=addr;
   link_addr[linkcount][1]=target|slave;

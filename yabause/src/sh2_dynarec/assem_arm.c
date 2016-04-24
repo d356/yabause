@@ -3125,7 +3125,7 @@ void do_map_w_branch(int map, int c, u32 addr, int *jaddr)
   }
 }
 
-int gen_tlb_addr_w(int ar, int map) {
+void gen_tlb_addr_w(int ar, int map) {
   if(map>=0) {
     assem_debug("add %s,%s,%s lsl #2\n",regname[ar],regname[ar],regname[map]);
     output_w32(0xe0800100|rd_rn_rm(ar,ar,map));

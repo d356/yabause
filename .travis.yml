@@ -84,6 +84,7 @@ matrix:
         - echo 'SET(CMAKE_ASM-ATT_COMPILER $ENV{NDK_PATH}/toolchains/arm-linux-androideabi-4.9/prebuilt/linux-x86_64/bin/arm-linux-androideabi-as)' >> toolchain.cmake
         - echo 'set(CMAKE_C_FLAGS "--sysroot=$ENV{NDK_PATH}/platforms/android-24/arch-arm" CACHE STRING "GCC flags" FORCE)'  >> toolchain.cmake
         - echo 'set(CMAKE_CXX_FLAGS "--sysroot=$ENV{NDK_PATH}/platforms/android-24/arch-arm" CACHE STRING "G++ flags" FORCE)'  >> toolchain.cmake
+        - echo 'SET(CMAKE_FIND_ROOT_PATH $ENV{NDK_PATH}/toolchains/arm-linux-androideabi-4.9/prebuilt/linux-x86_64)'  > toolchain.cmake
         - echo 'SET(CMAKE_FIND_ROOT_PATH_MODE_PROGRAM NEVER)' > toolchain.cmake
         - echo 'SET(CMAKE_FIND_ROOT_PATH_MODE_LIBRARY ONLY)' > toolchain.cmake
         - echo 'SET(CMAKE_FIND_ROOT_PATH_MODE_INCLUDE ONLY)' > toolchain.cmake

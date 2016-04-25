@@ -53,8 +53,8 @@ matrix:
         components:
           - platform-tools
           - tools
-          - build-tools-22.0.0
-          - android-21
+#          - build-tools-22.0.0
+#          - android-21
       script:
         - ls
         - pwd
@@ -68,14 +68,15 @@ matrix:
 #        - export PATH=${PATH}:$ANDROID_HOME/tools
 #        - export PATH=${PATH}:$ANDROID_HOME/platform-tools
 #        - export PATH=${PATH}:$NDK
-        - export NDK_HOME=$(pwd)/android-ndk-r11c
+        - export NDK_PATH=$(pwd)/android-ndk-r11c
         # put ndk-build on path
+        #/home/travis/build/d356/yabause/yabause/build/android-ndk-r11c
         - export PATH=${PATH}:$(pwd)/android-ndk-r11c/build
         - echo 'SET(CMAKE_SYSTEM_NAME Linux)' > toolchain.cmake
         - echo 'SET(CMAKE_SYSTEM_VERSION 1)' > toolchain.cmake
-        - echo 'SET(CMAKE_C_COMPILER   /home/travis/build/d356/yabause/yabause/build/android-ndk-r11c/toolchains/arm-linux-androideabi-4.9/prebuilt/linux-x86_64/bin/arm-linux-androideabi-gcc)' >> toolchain.cmake
-        - echo 'SET(CMAKE_CXX_COMPILER /home/travis/build/d356/yabause/yabause/build/android-ndk-r11c/toolchains/arm-linux-androideabi-4.9/prebuilt/linux-x86_64/bin/arm-linux-androideabi-g++)' >> toolchain.cmake
-        - echo 'SET(CMAKE_ASM-ATT_COMPILER /home/travis/build/d356/yabause/yabause/build/android-ndk-r11c/toolchains/arm-linux-androideabi-4.9/prebuilt/linux-x86_64/bin/arm-linux-androideabi-as)' >> toolchain.cmake
+        - echo 'SET(CMAKE_C_COMPILER   $ENV{NDK_PATH}/toolchains/arm-linux-androideabi-4.9/prebuilt/linux-x86_64/bin/arm-linux-androideabi-gcc)' >> toolchain.cmake
+        - echo 'SET(CMAKE_CXX_COMPILER $ENV{NDK_PATH}/toolchains/arm-linux-androideabi-4.9/prebuilt/linux-x86_64/bin/arm-linux-androideabi-g++)' >> toolchain.cmake
+        - echo 'SET(CMAKE_ASM-ATT_COMPILER $ENV{NDK_PATH}/toolchains/arm-linux-androideabi-4.9/prebuilt/linux-x86_64/bin/arm-linux-androideabi-as)' >> toolchain.cmake
         - echo 'SET(CMAKE_FIND_ROOT_PATH_MODE_PROGRAM NEVER)' > toolchain.cmake
         - echo 'SET(CMAKE_FIND_ROOT_PATH_MODE_LIBRARY ONLY)' > toolchain.cmake
         - echo 'SET(CMAKE_FIND_ROOT_PATH_MODE_INCLUDE ONLY)' > toolchain.cmake

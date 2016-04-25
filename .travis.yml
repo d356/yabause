@@ -73,7 +73,7 @@ matrix:
         - export NDK_PATH=$(pwd)/android-ndk-r11c
         # put ndk-build on path
         #/home/travis/build/d356/yabause/yabause/build/android-ndk-r11c
-        - export PATH=${PATH}:$(pwd)/android-ndk-r11c/build
+        #- export PATH=${PATH}:$(pwd)/android-ndk-r11c/build
         - echo 'SET(CMAKE_SYSTEM_NAME Android)' > toolchain.cmake
         - echo 'SET(CMAKE_SYSTEM_VERSION 1)' > toolchain.cmake
         - echo 'SET(CMAKE_C_COMPILER   $ENV{NDK_PATH}/toolchains/arm-linux-androideabi-4.9/prebuilt/linux-x86_64/bin/arm-linux-androideabi-gcc)' >> toolchain.cmake
@@ -85,7 +85,7 @@ matrix:
 #        - echo 'SET(CMAKE_FIND_ROOT_PATH_MODE_LIBRARY ONLY)' > toolchain.cmake
 #        - echo 'SET(CMAKE_FIND_ROOT_PATH_MODE_INCLUDE ONLY)' > toolchain.cmake
         - echo 'SET(ANDROID ON)' >> toolchain.cmake
-        - cmake -DCMAKE_TOOLCHAIN_FILE=toolchain.cmake -DYAB_PORTS=android ..
+        - cmake -DYAB_WANT_MUSASHI=OFF -DCMAKE_TOOLCHAIN_FILE=toolchain.cmake -DYAB_PORTS=android ..
         - make       
 
 addons:

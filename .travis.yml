@@ -87,7 +87,7 @@ matrix:
 #        - echo 'SET(CMAKE_FIND_ROOT_PATH_MODE_LIBRARY ONLY)' > toolchain.cmake
 #        - echo 'SET(CMAKE_FIND_ROOT_PATH_MODE_INCLUDE ONLY)' > toolchain.cmake
         - echo 'SET(ANDROID ON)' >> toolchain.cmake
-        - cmake -DYAB_WANT_MUSASHI=OFF -DCMAKE_TOOLCHAIN_FILE=toolchain.cmake -DYAB_PORTS=android ..
+        - cmake -DYAB_WANT_MUSASHI=OFF -DSH2_DYNAREC=OFF -DCMAKE_TOOLCHAIN_FILE=toolchain.cmake -DYAB_PORTS=android ..
         - make       
 
 addons:

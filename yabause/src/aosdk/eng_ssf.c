@@ -166,6 +166,13 @@ s32 ssf_start(u8 *buffer, u32 length, int m68k_core, int sndcore, char* filename
 			{
 				lib_len = 0x80000-offset+4;
 			}
+
+         if ((lib_len - 4) < 0)
+         {
+            //negative length
+            return AO_FAIL;
+         }
+
 			memcpy(&SoundRam[offset], lib_decoded+4, lib_len-4);
 
 			// Dispose the corlett structure for the lib - we don't use it

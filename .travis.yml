@@ -59,7 +59,7 @@ matrix:
         - ls
         - pwd
         - wget http://dl.google.com/android/repository/android-ndk-r11c-linux-x86_64.zip
-        - 7z android-ndk-r11c-linux-x86_64.zip
+        - unzip android-ndk-r11c-linux-x86_64.zip
         - ls
         #- chmod +x android-ndk-r11c-linux-x86_64.bin
         #- ./android-ndk-r11c-linux-x86_64.bin -y | grep -v Extracting

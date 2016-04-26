@@ -58,6 +58,9 @@ matrix:
         - which android
         - wget http://dl.google.com/android/repository/android-ndk-r11c-linux-x86_64.zip
         - unzip -q android-ndk-r11c-linux-x86_64.zip
+
+        # replace regular toolchain
+        - export PATH=${PATH}:$(pwd)/android-ndk-r11c/toolchains/arm-linux-androideabi-4.9/prebuilt/linux-x86_64/bin/
         
         - export NDK=$(pwd)/android-ndk-r11c/
         - export SYSROOT=$NDK/platforms/android-24/arch-arm

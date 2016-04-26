@@ -4675,7 +4675,7 @@ ScspInit (int coreid)
   scspsoundgenpos = 0;
   scspsoundoutleft = 0;
 
-  return ScspChangeSoundCore (coreid);
+  //return ScspChangeSoundCore (coreid);
 }
 
 //////////////////////////////////////////////////////////////////////////////

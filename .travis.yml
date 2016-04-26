@@ -65,8 +65,8 @@ matrix:
         - export NDK=$(pwd)/android-ndk-r11c/
         - export SYSROOT=$NDK/platforms/android-24/arch-arm
 
-        - export CC=arm-linux-androideabi-gcc
-        - export CXX=arm-linux-androideabi-g++
+        #- export CC=arm-linux-androideabi-gcc
+        #- export CXX=arm-linux-androideabi-g++
 
         - echo 'SET(CMAKE_SYSTEM_NAME Linux)' > toolchain.cmake
         - echo 'SET(CMAKE_SYSTEM_VERSION 1)' >> toolchain.cmake

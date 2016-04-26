@@ -54,28 +54,27 @@ matrix:
           - platform-tools
           - tools
       script:
+        - echo $ANDROID_HOME
+        - which android
         - wget http://dl.google.com/android/repository/android-ndk-r11c-linux-x86_64.zip
         - unzip -q android-ndk-r11c-linux-x86_64.zip
-        # put ndk-build on path
-        - export PATH=${PATH}:$(pwd)/android-ndk-r11c/build
-        - echo 'SET(CMAKE_SYSTEM_NAME Android)' > toolchain.cmake
+        
+        - export NDK=$(pwd)/android-ndk-r11c/
+        - export SYSROOT=$NDK/platforms/android-24/arch-arm
+
+        - echo 'SET(CMAKE_SYSTEM_NAME Linux)' > toolchain.cmake
         - echo 'SET(CMAKE_SYSTEM_VERSION 1)' > toolchain.cmake
-        - echo 'SET(CMAKE_SYSTEM_PROCESSOR arm)' > toolchain.cmake
-        - echo 'SET(CMAKE_CROSSCOMPILING TRUE)' > toolchain.cmake
-        - echo 'SET(CMAKE_C_COMPILER   $ENV{NDK_PATH}/toolchains/arm-linux-androideabi-4.9/prebuilt/linux-x86_64/bin/arm-linux-androideabi-gcc)' >> toolchain.cmake
-        - echo 'SET(CMAKE_CXX_COMPILER $ENV{NDK_PATH}/toolchains/arm-linux-androideabi-4.9/prebuilt/linux-x86_64/bin/arm-linux-androideabi-g++)' >> toolchain.cmake
-        - echo 'SET(CMAKE_ASM-ATT_COMPILER $ENV{NDK_PATH}/toolchains/arm-linux-androideabi-4.9/prebuilt/linux-x86_64/bin/arm-linux-androideabi-as)' >> toolchain.cmake
-        - echo 'set(CMAKE_C_FLAGS "--sysroot=$ENV{NDK_PATH}/platforms/android-24/arch-arm" CACHE STRING "GCC flags" FORCE)'  >> toolchain.cmake
-        - echo 'set(CMAKE_CXX_FLAGS "--sysroot=$ENV{NDK_PATH}/platforms/android-24/arch-arm" CACHE STRING "G++ flags" FORCE)'  >> toolchain.cmake
-        - echo 'SET(CMAKE_FIND_ROOT_PATH $ENV{NDK_PATH}/toolchains/arm-linux-androideabi-4.9/prebuilt/linux-x86_64)'  > toolchain.cmake
-        - echo 'CMAKE_FORCE_C_COMPILER("${CMAKE_C_COMPILER}" GNU)'  > toolchain.cmake
-        - echo 'CMAKE_FORCE_CXX_COMPILER("${CMAKE_CXX_COMPILER}" GNU)'  > toolchain.cmake
+        - echo 'SET(CMAKE_C_COMPILER   arm-linux-androideabi-gcc)' > toolchain.cmake
+        - echo 'SET(CMAKE_CXX_COMPILER arm-linux-androideabi-g++)' > toolchain.cmake
+        - echo 'SET(CMAKE_ASM-ATT_COMPILER arm-linux-androideabi-as)' > toolchain.cmake
+        - echo 'set(CMAKE_C_FLAGS "--sysroot=$ENV{SYSROOT}/usr/" CACHE STRING "GCC flags" FORCE)' > toolchain.cmake
+        - echo 'set(CMAKE_CXX_FLAGS "--sysroot=$ENV{SYSROOT}/usr/" CACHE STRING "G++ flags" FORCE)' > toolchain.cmake
         - echo 'SET(CMAKE_FIND_ROOT_PATH_MODE_PROGRAM NEVER)' > toolchain.cmake
         - echo 'SET(CMAKE_FIND_ROOT_PATH_MODE_LIBRARY ONLY)' > toolchain.cmake
         - echo 'SET(CMAKE_FIND_ROOT_PATH_MODE_INCLUDE ONLY)' > toolchain.cmake
-        - echo 'SET(ANDROID ON)' >> toolchain.cmake
-        - cmake -DYAB_WANT_MUSASHI=OFF -DSH2_DYNAREC=OFF -DCMAKE_TOOLCHAIN_FILE=toolchain.cmake -DYAB_PORTS=android ..
-        - make       
+        - echo 'SET(ANDROID ON)' > toolchain.cmake
+        - cmake -DCMAKE_FIND_ROOT_PATH=$SYSROOT/usr/ -DNDK_BUILD=$NDK/build/ndk-build -DSDK_ANDROID=$ANDROID_HOME/tools/android -DYAB_WANT_MUSASHI=OFF -DSH2_DYNAREC=OFF -DCMAKE_TOOLCHAIN_FILE=toolchain.cmake -DYAB_PORTS=android ..
+        - make
 
 addons:
   coverity_scan:

@@ -44,7 +44,6 @@ int LoadStateSlotScreenshotStream(FILE * fp, int * outputwidth, int * outputheig
 {
    int version, chunksize;
    int totalsize;
-   size_t fread_result = 0;
 
    fseek(fp, 0x14, SEEK_SET);
 
@@ -91,14 +90,18 @@ int LoadStateSlotScreenshotStream(FILE * fp, int * outputwidth, int * outputheig
 
    fseek(fp, sizeof(int) * 9, SEEK_CUR);
 
-   fread_result = fread((void *) outputwidth, sizeof(int), 1, fp);
-   fread_result = fread((void *) outputheight, sizeof(int), 1, fp);
+   int q = 1;
+
+   q = 0;
+
+   fread((void *) outputwidth, sizeof(int), 1, fp);
+   fread((void *) outputheight, sizeof(int), 1, fp);
 
    totalsize = *outputwidth * *outputheight * sizeof(u32);
 
    *buffer = malloc(totalsize);
 
-   fread_result = fread(*buffer, totalsize, 1, fp);
+   fread(*buffer, totalsize, 1, fp);
 
    return 0;
 }

@@ -103,5 +103,5 @@ before_install:
   - cd build
 
 script:
-  - cmake -DYAB_FORCE_SECURE_STRINGS=ON ..
+  - cmake -DYAB_WERROR=ON -DYAB_FORCE_SECURE_STRINGS=ON ..
   - make

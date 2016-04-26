@@ -24,6 +24,9 @@ matrix:
         - rm CMakeLists.txt
         - mv temp2.txt CMakeLists.txt
         - cd ../build
+      script:
+        - cmake ..
+        - make
 
     # mingw-w64 windows cross compile, libyabause only
     # needs qt and other deps built

@@ -948,11 +948,19 @@
    </property>
   </action>
   <action name="aViewDebugSCSPChan">
+   <property name="icon">
+    <iconset resource="../resources/resources.qrc">
+     <normaloff>:/actions/icons/actions/debug_cpu.png</normaloff>:/actions/icons/actions/debug_cpu.png</iconset>
+   </property>
    <property name="text">
     <string>SCSP Channels</string>
    </property>
   </action>
   <action name="aFileOpenSSF">
+   <property name="icon">
+    <iconset resource="../resources/resources.qrc">
+     <normaloff>:/actions/sound.png</normaloff>:/actions/sound.png</iconset>
+   </property>
    <property name="text">
     <string>Open SSF</string>
    </property>

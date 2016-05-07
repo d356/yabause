@@ -589,12 +589,6 @@ if (YAB_PORT_OSD)
 	add_definitions(-DYAB_PORT_OSD=1)
 endif()
 
-# Exec from cache
-option(YAB_EXEC_FROM_CACHE "Allow code execution from 0xC0000000" OFF)
-if (YAB_EXEC_FROM_CACHE)
-	add_definitions(-DEXEC_FROM_CACHE=1)
-endif()
-
 # Optimized DMA
 option(YAB_OPTIMIZED_DMA "Use optimized DMA when possible" OFF)
 if (YAB_OPTIMIZED_DMA)

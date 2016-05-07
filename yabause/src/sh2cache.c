@@ -33,6 +33,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA
 #include "memory.h"
 #include "yabause.h"
 #include "sh2cache.h"
+#include "sh2core.h"
 
 
 #define AREA_MASK   (0xE0000000)
@@ -70,9 +71,6 @@ void cache_clear(cache_enty * ca){
 }
 
 void cache_enable(cache_enty * ca){
-	if (ca->enable == 0){
-		cache_clear(ca);
-	}
 	ca->enable = 1;
 }
 
@@ -113,16 +111,29 @@ static INLINE void update_lru(int way, u32*lru)
    //should not happen
 }
 
+#include "assert.h"
 static INLINE int select_way_to_replace(u32 lru)
 {
-   if (lru & 0x38)
-      return 0;
-   else if ((lru & 0x26) == 0x6)
-      return 1;
-   else if ((lru & 0x15) == 1)
-      return 2;
-   else if ((lru & 0xB) == 0)
-      return 3;
+   if (CurrentSH2->onchip.CCR & (1 << 3))//2 way cache mode
+   {
+      if ((lru & 0x15) == 1)
+         return 2;
+      else if ((lru & 0xB) == 0)
+         return 3;
+
+      assert(0);
+   }
+   else
+   {
+      if (lru & 0x38)
+         return 0;
+      else if ((lru & 0x26) == 0x6)
+         return 1;
+      else if ((lru & 0x15) == 1)
+         return 2;
+      else if ((lru & 0xB) == 0)
+         return 3;
+   }
 
    //should not happen
    return 0;

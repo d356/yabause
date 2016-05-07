@@ -1854,6 +1854,10 @@ void FASTCALL DataArrayWriteWord(u32 addr, u16 val)  {
 
 void FASTCALL DataArrayWriteLong(u32 addr, u32 val)  {
 #ifdef CACHE_ENABLE
+   if (val != 0)
+   {
+      int q = 1;
+   }
    int way = (addr >> 10) & 3;
    int entry = (addr >> 4) & 0x3f;
    CurrentSH2->onchip.cache.way[way][entry].data[(addr& 0xf)] = ((val >> 24) & 0xFF);

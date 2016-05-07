@@ -670,7 +670,7 @@ int LoadMDSTracks(const char *mds_filename, FILE *iso_file, mds_session_struct *
                char img_filename[512];
                memset(img_filename, 0, 512);
 
-               if (fscanf(iso_file, "%512c", img_filename) != 1)
+               if (fscanf(iso_file, "%s", img_filename) != 1)
                {
                   YabSetError(YAB_ERR_FILEREAD, mds_filename);
                   free(session->track);

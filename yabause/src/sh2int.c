@@ -132,14 +132,22 @@ fetchfunc fetchlist[0x100];
 
 static u32 FASTCALL FetchBios(u32 addr)
 {
+#if CACHE_ENABLE
+   return cache_memory_read_w(&CurrentSH2->onchip.cache, addr);
+#else
    return T2ReadWord(BiosRom, addr & 0x7FFFF);
+#endif
 }
 
 //////////////////////////////////////////////////////////////////////////////
 
 static u32 FASTCALL FetchCs0(u32 addr)
 {
+#if CACHE_ENABLE
+   return cache_memory_read_w(&CurrentSH2->onchip.cache, addr);
+#else
    return CartridgeArea->Cs0ReadWord(addr);
+#endif
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -189,7 +197,7 @@ static void FASTCALL SH2delay(SH2_struct * sh, u32 addr)
 #endif
 
    // Fetch Instruction
-#ifdef EXEC_FROM_CACHE
+#ifdef CACHE_ENABLE
    if ((addr & 0xC0000000) == 0xC0000000) sh->instruction = DataArrayReadWord(addr);
    else
 #endif
@@ -2860,7 +2868,7 @@ FASTCALL void SH2DebugInterpreterExec(SH2_struct *context, u32 cycles)
 #endif
 
       // Fetch Instruction
-#ifdef EXEC_FROM_CACHE
+#ifdef CACHE_ENABLE
       if ((context->regs.PC & 0xC0000000) == 0xC0000000) context->instruction = DataArrayReadWord(context->regs.PC);
       else
 #endif
@@ -2889,15 +2897,19 @@ FASTCALL void SH2DebugInterpreterExec(SH2_struct *context, u32 cycles)
 FASTCALL void SH2InterpreterExec(SH2_struct *context, u32 cycles)
 {
    SH2HandleInterrupts(context);
-
+#ifndef CACHE_ENABLE
    if (context->isIdle)
       SH2idleParse(context, cycles);
    else
       SH2idleCheck(context, cycles);
-
+#endif
    while(context->cycles < cycles)
    {
       // Fetch Instruction
+#ifdef CACHE_ENABLE
+      if ((context->regs.PC & 0xC0000000) == 0xC0000000) context->instruction = DataArrayReadWord(context->regs.PC);
+      else
+#endif
       context->instruction = fetchlist[(context->regs.PC >> 20) & 0x0FF](context->regs.PC);
 
       // Execute it

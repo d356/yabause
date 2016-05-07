@@ -99,9 +99,10 @@ bool YabauseThread::pauseEmulation( bool pause, bool reset )
 
 	if (vs->value("autostart").toBool())
 	{
-		if (vs->value("autostart/binary").toBool()) {
+		if (1){//vs->value("autostart/binary").toBool()) {
 			MappedMemoryLoadExec(
-				vs->value("autostart/binary/filename").toString().toLocal8Bit().constData(),
+				"C:/yabause-3/yabause/yabauseut/build/src/YabauseUT.elf",//vs->value("autostart/binary/filename").toString().toLocal8Bit().constData(),
+            //"C:/Users/d/Downloads/satcache/satcache.bin",
 				vs->value("autostart/binary/address").toUInt());
 		}
 		else if (vs->value("autostart/load").toBool()) {

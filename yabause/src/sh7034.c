@@ -242,12 +242,12 @@ u16 onchip_read_word(struct Onchip * regs, u32 addr)
    return 0;
 }
 
-void onchip_write_long(struct Regs * regs, u32 addr, u32 data)
+void onchip_write_long(struct Onchip * regs, u32 addr, u32 data)
 {
 
 }
 
-u32 onchip_read_long(struct Regs * regs, u32 addr)
+u32 onchip_read_long(struct Onchip * regs, u32 addr)
 {
    return 0;
 }

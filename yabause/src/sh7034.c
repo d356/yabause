@@ -27,6 +27,55 @@
 
 struct Sh1 sh1_cxt;
 
+//module order / offsets in bytes from 0x5FFFEC0
+//sci : 0
+//a/d : 0x20
+//itu : 0x40
+//dmac : 0x80
+//intc : 0xC0
+//ubc : 0xD0
+//bsc : 0xE0
+//wdt : 0xF8
+//sbycr : 0xFC
+//pfc : 0x104
+//tpc : 0x12F
+
+void onchip_write_timer(struct Onchip * regs, u32 addr, u8 data)
+{
+   switch (addr)
+   {
+   case 0x44:
+      regs->itu.channel[0].tcr = data;
+      break;
+   case 0x45:
+      regs->itu.channel[0].tior = data;
+      break;
+   case 0x46:
+      regs->itu.channel[0].tier = data;
+      break;
+   case 0x47:
+      regs->itu.channel[0].tsr = data;
+      break;
+   case 0x48:
+      regs->itu.channel[0].tcnt = (regs->itu.channel[0].tsr & 0xff) | (data << 8);
+      break;
+   case 0x49:
+      regs->itu.channel[0].tcnt = (regs->itu.channel[0].tsr & 0xff00) | data;
+      break;
+   case 0x4a:
+      regs->itu.channel[0].gra = (regs->itu.channel[0].gra & 0xff) | (data << 8);
+      break;
+   case 0x4b:
+      regs->itu.channel[0].gra = (regs->itu.channel[0].gra & 0xff00) | data;
+      break;
+   case 0x4c:
+      regs->itu.channel[0].grb = (regs->itu.channel[0].grb & 0xff) | (data << 8);
+      break;
+   case 0x4d:
+      regs->itu.channel[0].grb = (regs->itu.channel[0].grb & 0xff00) | data;
+      break;
+   }
+}
 void onchip_write_byte(struct Onchip * regs, u32 addr, u8 data)
 {
    addr -= 0x5FFFEC0;
@@ -75,6 +124,31 @@ void onchip_write_byte(struct Onchip * regs, u32 addr, u8 data)
       break;
    case 0xd:
       //read only
+      break;
+   case 0x40:
+      regs->itu.tstr = data;
+      break;
+   case 0x41:
+      regs->itu.tsnc = data;
+      break;
+   case 0x42:
+      regs->itu.tmdr = data;
+      break;
+   case 0x43:
+      regs->itu.tfcr = data;
+      break;
+
+   case 0x4e:
+      regs->itu.channel[1].tcr = data;
+      break;
+   case 0x4f:
+      regs->itu.channel[1].tior = data;
+      break;
+   case 0x50:
+      regs->itu.channel[1].tcr = data;
+      break;
+   case 0xff://0x5FFFF31
+      regs->itu.tocr = data;
       break;
    }
 }
@@ -435,8 +509,8 @@ void onchip_pfc_init(struct Onchip * regs)
 
 void onchip_tpc_init(struct Onchip * regs)
 {
-   regs->tpc.tpmr = 0;
-   regs->tpc.tpcr = 0;
+   regs->tpc.tpmr = 0xf0;
+   regs->tpc.tpcr = 0xff;
    regs->tpc.nderb = 0;
    regs->tpc.ndera = 0;
    regs->tpc.ndrb = 0;
@@ -445,8 +519,6 @@ void onchip_tpc_init(struct Onchip * regs)
 
 void onchip_init(struct Sh1 * sh1)
 {
-   memset(&sh1->onchip, 0, sizeof(struct Onchip));
-
    onchip_sci_init(&sh1->onchip);
    onchip_ad_init(&sh1->onchip);
    onchip_itu_init(&sh1->onchip);
@@ -466,4 +538,69 @@ void onchip_init(struct Sh1 * sh1)
    sh1->onchip.pcdr = 0;
 
    onchip_tpc_init(&sh1->onchip);
+}
+
+void sh1_init(struct Sh1* sh1)
+{
+   memset(sh1, 0, sizeof(struct Sh1));
+   onchip_init(&sh1);
+}
+
+u16 sh1_fetch(struct Sh1* sh1)
+{
+   u32 PC = 0;
+   return sh1->rom[PC & 0xffff];
+}
+
+int sh1_execute_instruction(struct Sh1 * sh1)
+{
+   u16 instruction = sh1_fetch(sh1);
+   int cycles_executed = 1;
+   return cycles_executed;
+}
+
+void sh1_exec(struct Sh1 * sh1, s32 cycles)
+{
+   s32 cycles_temp = sh1->cycles_remainder - cycles;
+   while (cycles_temp < 0)
+   {
+      int cycles = sh1_execute_instruction(sh1);
+      cycles_temp += cycles;
+   }
+   sh1->cycles_remainder = cycles_temp;
+}
+
+int sh1_load_rom(struct Sh1* sh1, const char* filename)
+{
+   size_t size = 0;
+   FILE * fp = NULL;
+
+   if (!sh1)
+      return -1;
+
+   if (!filename)
+      return -1;
+
+   fp = fopen(filename, "rb");
+
+   if (!fp)
+      return -1;
+
+   if (!fseek(fp, 0, SEEK_END))
+      return -1;
+
+   size = ftell(fp);
+
+   if (size != 0x8000)
+      return -1;
+
+   if (!fseek(fp, 0, SEEK_SET))
+      return -1;
+
+   size = fread(&sh1->rom, sizeof(u8), 0x8000, fp);
+
+   if (size != 0x8000)
+      return -1;
+
+   return 1;
 }

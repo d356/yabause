@@ -202,7 +202,11 @@ struct Sh1
    u16 rom[0x8000];//64kb
    u8 ram[4096];//4kb
    struct Onchip onchip;
+   s32 cycles_remainder;
 };
 
+extern struct Sh1 sh1_cxt;
+
+void sh1_exec(struct Sh1 * sh1, s32 cycles);
 
 #endif

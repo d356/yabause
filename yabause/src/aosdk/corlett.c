@@ -166,6 +166,8 @@ int corlett_decode(u8 *input, u32 input_len, u8 **output, u64 *size, corlett_t *
 	if ((tag_dec[0] == '[') && (tag_dec[1] == 'T') && (tag_dec[2] == 'A') && (tag_dec[3] == 'G') && (tag_dec[4] == ']'))
 	{
 		int tag, l, num_tags, data;
+
+      (void)tag;
 		
 		// Tags found!
 		tag_dec += 5;

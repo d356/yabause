@@ -53,7 +53,7 @@
    empty stub macros replacing the real Tsunami APIs                                */
 
 #ifndef TSUNAMI_ENABLE
-#define TSUNAMI_ENABLE      1
+#define TSUNAMI_ENABLE      0
 #endif
 
 /* ================================================================================ */

@@ -691,6 +691,7 @@ void scu_dma_tick_to_b(struct QueuedDma *dma)
       else if (dma->count == 1 && dma->original_count > 1 && dma->add_setting == 0)
       {
          u8 byte = MappedMemoryReadByteNocache(MSH2, dma->read_address);
+         (void)byte;
          MappedMemoryWriteByteNocache(MSH2, dma->write_address + 2, 0x90);
          dma->count = 0;
       }
@@ -1656,35 +1657,6 @@ static void writeloadimdest(u8 num, u32 val)
    }
 }
 
-//////////////////////////////////////////////////////////////////////////////
-
-static u32 readdmasrc(u8 num, u8 add)
-{
-   u32 val;
-
-   switch(num) {
-      case 0x0: // M0
-         val = ScuDsp->MD[0][ScuDsp->CT[0]];
-         ScuDsp->CT[0]+=add;
-         return val;
-      case 0x1: // M1
-         val = ScuDsp->MD[1][ScuDsp->CT[1]];
-         ScuDsp->CT[1]+=add;
-         return val;
-      case 0x2: // M2
-         val = ScuDsp->MD[2][ScuDsp->CT[2]];
-         ScuDsp->CT[2]+=add;
-         return val;
-      case 0x3: // M3
-         val = ScuDsp->MD[3][ScuDsp->CT[3]];
-         ScuDsp->CT[3]+=add;
-         return val;
-      default: break;
-   }
-
-   return 0;
-}
-
 int dsp_get_bus(u32 addr)
 {
    if (is_a_bus(addr))
@@ -1739,7 +1711,6 @@ void dsp_dma01(scudspregs_struct *sc, u32 inst)
     u32 imm = ((inst & 0xFF));
     u8  sel = ((inst >> 8) & 0x03);
     u8  add;
-    u8  addr = sc->CT[sel];
     u32 i;
 
     switch (((inst >> 15) & 0x07))
@@ -1805,8 +1776,7 @@ void dsp_dma01(scudspregs_struct *sc, u32 inst)
 void dsp_dma02(scudspregs_struct *sc, u32 inst)
 {
     u32 imm = ((inst & 0xFF));      
-    u8  sel = ((inst >> 8) & 0x03); 
-    u8  addr = sc->CT[sel];             
+    u8  sel = ((inst >> 8) & 0x03);         
     u8  add;
     u32 i;
 
@@ -2053,36 +2023,6 @@ void dsp_dma08(scudspregs_struct *sc, u32 inst)
     u32 saveWa0 = sc->WA0;
     dsp_dma04(sc, inst);
     sc->WA0 = saveWa0;
-}
-
-//////////////////////////////////////////////////////////////////////////////
-
-static void writedmadest(u8 num, u32 val, u8 add)
-{
-   switch(num) { 
-      case 0x0: // M0
-          ScuDsp->MD[0][ScuDsp->CT[0]] = val;
-          ScuDsp->CT[0]+=add;
-          return;
-      case 0x1: // M1
-          ScuDsp->MD[1][ScuDsp->CT[1]] = val;
-          ScuDsp->CT[1]+=add;
-          return;
-      case 0x2: // M2
-          ScuDsp->MD[2][ScuDsp->CT[2]] = val;
-          ScuDsp->CT[2]+=add;
-          return;
-      case 0x3: // M3
-          ScuDsp->MD[3][ScuDsp->CT[3]] = val;
-          ScuDsp->CT[3]+=add;
-          return;
-      case 0x4: // Program Ram
-          //LOG("scu\t: DMA Program writes not implemented\n");
-//          ScuDsp->ProgramRam[?] = val;
-//          ?? += add;
-          return;
-      default: break;
-   }
 }
 
 //////////////////////////////////////////////////////////////////////////////

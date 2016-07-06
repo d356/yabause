@@ -356,13 +356,15 @@ typedef struct
 
 typedef struct SH2Interface_struct SH2Interface_struct;
 
+typedef void (FASTCALL *opcodefunc)(SH2_struct *);
+
 struct SH2_struct
 {
    struct SH2Interface_struct *core;
    enum SHMODELTYPE model;
 
-   void *opcodes[0x10000];
-   void *fetchlist[0x100];
+   opcodefunc opcodes[0x10000];
+   readlongfunc fetchlist[0x100];
 
    writebytefunc WriteByteList[0x1000];
    writewordfunc WriteWordList[0x1000];
@@ -525,10 +527,12 @@ static INLINE void SH2HandleBreakpoints(SH2_struct *context)
    }
 }
 
+#ifdef HAVE_GDBSTUB
 static void SH2BreakNow(SH2_struct *context)
 {
    context->bp.breaknow = 1;
 }
+#endif
 
 int SH2AddMemoryBreakpoint(SH2_struct *context, u32 addr, u32 flags);
 int SH2DelMemoryBreakpoint(SH2_struct *context, u32 addr);

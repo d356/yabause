@@ -55,6 +55,7 @@
 #define PORTTRACE(...)
 #endif
 
+#if 0
 u8 transfer_buffer[13] = { 0 };
 
 void update_transfer_buffer()
@@ -86,7 +87,7 @@ void update_cr_response_values(u32 addr)
       int q = 1;
    }
 }
-
+#endif
 void cd_trace_log(const char * format, ...)
 {
    static int started = 0;
@@ -1378,10 +1379,6 @@ void onchip_write_byte(struct Onchip * regs, u32 addr, u8 data)
 
    print_serial(0);
 
-   if (addr == 0x5FFFF25)
-   {
-      int q = 1;
-   }
    if (addr >= 0x5FFFE00 && addr <= 0x5FFFEBF)
    {
       //unmapped
@@ -4274,14 +4271,8 @@ u8 memory_map_read_byte(struct Sh1* sh1, u32 addr)
 {
    u8 area = (addr >> 24) & 7;
    u8 a27 = (addr >> 27) & 1;
-   int mode_pins = 0;
 
    SH1MEMLOG("memory_map_read_byte 0x%08x", addr);
-
-   if (addr == 0xF0002D0)
-   {
-      int i = 1;
-   }
 
    switch (area)
    {
@@ -4372,12 +4363,7 @@ u16 memory_map_read_word(struct Sh1* sh1, u32 addr)
 {
    u8 area = (addr >> 24) & 7;
    u8 a27 = (addr >> 27) & 1;
-   int mode_pins = 0;
 
-   if (addr == 0xF00026C)
-   {
-      int q = 1;
-   }
    SH1MEMLOG("memory_map_read_word 0x%08x", addr);
 
    switch (area)
@@ -4471,19 +4457,6 @@ void memory_map_write_word(struct Sh1* sh1, u32 addr, u16 data)
    u8 area = (addr >> 24) & 7;
    u8 a27 = (addr >> 27) & 1;
    int mode_pins = 0;
-
-   
-
-   if (addr == 0x0F00026C)
-   {
-      int q = 1;
-   }
-
-   if (data == 0x20ff)
-   {
-      int q = 1;
-
-   }
 
    SH1MEMLOG("memory_map_write_word 0x%08x 0x%04x", addr, data);
 
@@ -4589,7 +4562,6 @@ u32 memory_map_read_long(struct Sh1* sh1, u32 addr)
 {
    u8 area = (addr >> 24) & 7;
    u8 a27 = (addr >> 27) & 1;
-   int mode_pins = 0;
 
    SH1MEMLOG("memory_map_read_long 0x%08x", addr);
 
@@ -4681,11 +4653,6 @@ void memory_map_write_long(struct Sh1* sh1, u32 addr, u32 data)
    u8 area = (addr >> 24) & 7;
    u8 a27 = (addr >> 27) & 1;
    int mode_pins = 0;
-
-   if (addr == 0x0F00026C && data != 0)
-   {
-      int q = 1;
-   }
 
    SH1MEMLOG("memory_map_write_long 0x%08x 0x%04x", addr, data);
 
@@ -5361,154 +5328,6 @@ void sh1_onchip_run_cycles(s32 cycles)
       sh1_onchip_run_cycle();
 }
 
-//u16 sh1_fetch(struct Sh1* sh1)
-//{
-//   u32 PC = 0;
-//   return sh1->rom[PC & 0xffff];
-//}
-
-//int sh1_execute_instruction(struct Sh1 * sh1)
-//{
-//   u16 instruction = sh1_fetch(sh1);
-//   int cycles_executed = 1;
-//   return cycles_executed;
-//}
-
-
-void test_byte_access(struct Sh1* sh1, u32 addr)
-{
-   u8 test_val = 0xff, result;
-   memory_map_write_byte(sh1, addr, test_val);
-   result = memory_map_read_byte(sh1, addr);
-}
-
-void test_word_access(struct Sh1* sh1, u32 addr)
-{
-   u16 test_val = 0xffff, result;
-   memory_map_write_word(sh1, addr, test_val);
-   result = memory_map_read_word(sh1, addr);
-}
-
-void test_long_access(struct Sh1* sh1, u32 addr)
-{
-   u32 test_val = 0xffffffff, result;
-   memory_map_write_long(sh1, addr, test_val);
-   result = memory_map_read_long(sh1, addr);
-}
-
-void test_mem_map(struct Sh1* sh1)
-{
-	int i;
-
-   //ygr
-   memory_map_write_long(sh1, 0xa000000, 0xdeadbeef);
-
-   //sh1 dram
-   for (i = 0; i < 0x7FFFF; i += 4)
-   {
-      memory_map_write_long(sh1, 0x9000000 + i, 0xdeadbeef);
-      memory_map_read_long(sh1, 0x9000000 + i);
-   }
-
-   for (i = 0; i < 0x7FFFF; i += 2)
-   {
-      memory_map_write_word(sh1, 0x9000000 + i, 0xdead);
-      memory_map_read_word(sh1, 0x9000000 + i);
-   }
-
-   for (i = 0; i < 0x7FFFF; i++)
-   {
-      memory_map_write_byte(sh1, 0x9000000 + i, 0xde);
-      memory_map_read_byte(sh1, 0x9000000 + i);
-   }
-
-   //mpeg rom
-   for (i = 0; i < 0x7FFFF; i += 4)
-   {
-      memory_map_write_long(sh1, 0xe000000 + i, 0xdeadbeef);
-      memory_map_read_long(sh1, 0xe000000 + i);
-   }
-
-   for (i = 0; i < 0x7FFFF; i += 2)
-   {
-      memory_map_write_word(sh1, 0xe000000 + i, 0xdead);
-      memory_map_read_word(sh1, 0xe000000 + i);
-   }
-
-   for (i = 0; i < 0x7FFFF; i++)
-   {
-      memory_map_write_byte(sh1, 0xe000000 + i, 0xde);
-      memory_map_read_byte(sh1, 0xe000000 + i);
-   }
-}
-
-void sh1_exec(struct Sh1 * sh1, s32 cycles)
-{
-#if 0
-   u32 i;
-
-   for (i = 0x5FFFEC0; i < 0x5FFFFFF; i++)
-   {
-      test_byte_access(sh1, i);
-   }
-
-   for (i = 0x5FFFEC0; i < 0x5FFFFFF; i+=2)
-   {
-      test_word_access(sh1, i);
-   }
-
-   for (i = 0x5FFFEC0; i < 0x5FFFFFF; i += 4)
-   {
-      test_long_access(sh1, i);
-   }
-
-   test_mem_map(sh1);
-
-   s32 cycles_temp = sh1->cycles_remainder - cycles;
-   while (cycles_temp < 0)
-   {
-      int cycles = sh1_execute_instruction(sh1);
-      cycles_temp += cycles;
-   }
-   sh1->cycles_remainder = cycles_temp;
-#endif
-}
-#if 0
-int sh1_load_rom(struct Sh1* sh1, const char* filename)
-{
-   size_t size = 0;
-   FILE * fp = NULL;
-
-   if (!sh1)
-      return -1;
-
-   if (!filename)
-      return -1;
-
-   fp = fopen(filename, "rb");
-
-   if (!fp)
-      return -1;
-
-   if (!fseek(fp, 0, SEEK_END))
-      return -1;
-
-   size = ftell(fp);
-
-   if (size != 0x8000)
-      return -1;
-
-   if (!fseek(fp, 0, SEEK_SET))
-      return -1;
-
-   size = fread(&sh1->rom, sizeof(u8), 0x8000, fp);
-
-   if (size != 0x8000)
-      return -1;
-
-   return 1;
-}
-#endif
 int num_output_enables = 0;
 
 void sh1_set_output_enable_rising_edge()

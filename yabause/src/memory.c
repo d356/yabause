@@ -1162,6 +1162,14 @@ int MappedMemoryLoad(SH2_struct *sh, const char *filename, u32 addr)
    }
 
    num_read = fread((void *)buffer, 1, filesize, fp);
+
+   if (!num_read)
+   {
+      YabSetError(YAB_ERR_FILEREAD, filename);
+      fclose(fp);
+      return -1;//error
+   }
+
    fclose(fp);
 
    for (i = 0; i < filesize; i++)
@@ -1323,6 +1331,13 @@ int YabSaveStateBuffer(void ** buffer, size_t * size)
    {
       *buffer = malloc(*size);
       num_read = fread(*buffer, 1, *size, fp);
+
+      if (!num_read)
+      {
+         YabSetError(YAB_ERR_FILEREAD, "YabSaveStateBuffer");
+         fclose(fp);
+         return -1;//error
+      }
    }
 
    fclose(fp);

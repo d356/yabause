@@ -27,6 +27,7 @@
 #include "sh2core.h"
 #include "yabause.h"
 #include "coffelf.h"
+#include "error.h"
 
 typedef struct
 {
@@ -124,6 +125,13 @@ int MappedMemoryLoadCoff(const char *filename)
       return -1;
 
    num_read = fread((void *)&coff_header, sizeof(coff_header), 1, fp);
+
+   if (!num_read)
+   {
+      YabSetError(YAB_ERR_FILEREAD, "Couldn't read");
+      return -1;
+   }
+
 #ifndef WORDS_BIGENDIAN
    WordSwap(coff_header.numsections);
    DoubleWordSwap(coff_header.timedate);
@@ -237,6 +245,12 @@ int MappedMemoryLoadElf(const char *filename)
       return -1;
 
    num_read = fread(&elf_hdr, sizeof(elf_header_struct), 1, fp);
+
+   if (!num_read)
+   {
+      YabSetError(YAB_ERR_FILEREAD, "Couldn't read");
+      return -1;
+   }
 
    if(elf_hdr.ident[0] != 0x7F || elf_hdr.ident[1] != 'E' ||
       elf_hdr.ident[2] != 'L' || elf_hdr.ident[3] != 'F' ||

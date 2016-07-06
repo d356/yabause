@@ -621,7 +621,6 @@ u8 cache_memory_read_b(SH2_struct *sh, cache_enty * ca, u32 addr){
 	{
       u32 tagaddr = 0;
       u32 entry = 0;
-      int i = 0;
       int lruway = 0;
 		if (ca->enable == 0){
 			return MappedMemoryReadByteNocache(sh, addr);
@@ -673,7 +672,6 @@ u16 cache_memory_read_w(SH2_struct *sh, cache_enty * ca, u32 addr){
 	{
       u32 tagaddr = 0;
       u32 entry = 0;
-      int i = 0;
       int lruway = 0;
 		if (ca->enable == 0){
 			return MappedMemoryReadWordNocache(sh, addr);
@@ -725,7 +723,6 @@ u32 cache_memory_read_l(SH2_struct *sh, cache_enty * ca, u32 addr){
 	{
       u32 tagaddr = 0;
       u32 entry = 0;
-      int i = 0;
       int lruway = 0;
 		if (ca->enable == 0){
 			return MappedMemoryReadLongNocache(sh, addr);

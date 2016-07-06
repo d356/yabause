@@ -1099,6 +1099,8 @@ int sh2iasm(char *str, char *err_msg)
 
    arg2len = strip_arg(p,arg2);
 
+   (void)arg2len;
+
    for(loop = 0;name[loop] != 0;loop++)
    {
        name[loop] = tolower(name[loop]);

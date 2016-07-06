@@ -270,7 +270,7 @@ static INLINE char *AddMapInfo(char *outstring, int patternwh, u16 PNC, u8 PLSZ,
             addr = ((tmp & 0x7F) >> deca) * (multi * 0x1000);
       }
   
-      AddString(outstring, "Plane %C Address = %08X\r\n", 0x41+i, (unsigned int)addr);
+      AddString(outstring, "Plane %c Address = %08X\r\n", 0x41+i, (unsigned int)addr);
    }
 
    return outstring;
@@ -402,7 +402,7 @@ void Vdp2DebugStatsRBG0(char *outstring, int *isenabled)
             rotatenum = 0;
             coeftbl = Vdp2Regs->KTCTL & 0x1;
             coefmode = (Vdp2Regs->KTCTL >> 2) & 0x3;
-            AddString(outstring, "Using Parameter %C\r\n", 'A' + rotatenum);
+            AddString(outstring, "Using Parameter %c\r\n", 'A' + rotatenum);
             break;
          case 1:
             // Parameter B
@@ -1621,23 +1621,6 @@ void Vdp2DebugStatsGeneral(char *outstring, int *isenabled)
    {
       *isenabled = 0;
    }
-}
-
-//////////////////////////////////////////////////////////////////////////////
-
-static u32 FASTCALL DoNothing(UNUSED void *info, u32 pixel)
-{
-   return pixel;
-}
-
-//////////////////////////////////////////////////////////////////////////////
-
-static void ClearTextureToColor(u32 *texture, u32 color, int w, int h)
-{
-   int i;
-   
-   for (i = 0; i < (w * h); i++)
-      texture[i] = color;
 }
 
 //////////////////////////////////////////////////////////////////////////////

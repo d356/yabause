@@ -39,6 +39,7 @@ static volatile u8 netlink_listener_thread_running;
 static volatile u8 netlink_connect_thread_running;
 static volatile u8 netlink_client_thread_running;
 
+#ifdef USESOCKET
 static int NetworkInit(const char *port);
 static void NetworkDeInit(void);
 static void NetworkStopClient();
@@ -47,6 +48,7 @@ static void NetworkConnect(const char *ip, const char *port);
 static int NetworkWaitForConnect();
 static int NetworkSend(const void *buffer, int length);
 static int NetworkReceive(void *buffer, int maxlength);
+#endif
 
 //////////////////////////////////////////////////////////////////////////////
 

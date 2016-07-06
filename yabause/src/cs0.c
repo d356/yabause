@@ -247,6 +247,8 @@ static void FASTCALL FlashCs0WriteByte(u32 addr, u8 val)
       reg = &flreg0;
       buf = flbuf0;
    }
+
+   (void)reg;
   
    switch (*state)
    {
@@ -1427,6 +1429,12 @@ int CartLoadState(FILE * fp, UNUSED int version, int size)
 
    // Read cart type
    num_read = fread((void *)&newtype, 4, 1, fp);
+
+   if (!num_read)
+   {
+      YabSetError(YAB_ERR_FILEREAD, "Couldn't read");
+      return -1;
+   }
 
    // Check to see if old cart type and new cart type match, if they don't,
    // reallocate memory areas

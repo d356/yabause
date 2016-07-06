@@ -49,6 +49,8 @@ int headersize=512;
 static void ReadHeader(FILE* fp) {
    size_t num_read = 0;
 
+   (void)num_read;
+
 	fseek(fp, 0, SEEK_SET);
 
 	fseek(fp, 172, SEEK_SET);
@@ -158,6 +160,8 @@ void DoMovie(void) {
 
 	int x;
    size_t num_read = 0;
+
+   (void)num_read;
 
 	if (Movie.Status == 0)
 		return;
@@ -408,6 +412,8 @@ void ReadMovieInState(FILE* fp) {
 	int fpos;
    size_t num_read = 0;
 
+   (void)num_read;
+
 	//overwrite the main movie on disk if we are recording or read+write playback
 	if(Movie.Status == Recording || (Movie.Status == Playback && Movie.ReadOnly == 0)) {
 
@@ -440,6 +446,8 @@ struct MovieBufferStruct ReadMovieIntoABuffer(FILE* fp) {
 	int fpos;
    struct MovieBufferStruct tempbuffer = { 0 };
    size_t num_read = 0;
+
+   (void)num_read;
 
 	fpos = ftell(fp);//save current pos
 

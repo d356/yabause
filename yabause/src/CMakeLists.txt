@@ -698,7 +698,7 @@ if (YAB_WERROR)
     if(MSVC)
         set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /WX")
     else()
-	    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Werror")
+	    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Werror -Wall -pedantic")#
     endif()
 endif()
 

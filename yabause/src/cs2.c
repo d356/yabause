@@ -2392,7 +2392,6 @@ void Cs2PutSectorData(void) {
      else
      {
          // Allocate buffer
-         IOCheck_struct check = { 0, 0 };
          partition_struct *putpartition = &Cs2Area->partition[psdbufno];
          u32 i;
 
@@ -3549,7 +3548,7 @@ void Cs2SetupFileInfoTransfer(u32 fid) {
 
 partition_struct * Cs2ReadUnFilteredSector(u32 rufsFAD) {
   partition_struct * rufspartition;
-  char syncheader[12] = { 0x00, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+  u8 syncheader[12] = { 0x00, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
                           0xFF, 0xFF, 0xFF, 0x00};
 
   if ((rufspartition = Cs2GetPartition(Cs2Area->outconcddev)) != NULL && !Cs2Area->isbufferfull)
@@ -3635,7 +3634,7 @@ partition_struct * Cs2ReadUnFilteredSector(u32 rufsFAD) {
 //////////////////////////////////////////////////////////////////////////////
 
 int Cs2ReadFilteredSector(u32 rfsFAD, partition_struct **partition) {
-  char syncheader[12] = { 0x00, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+  u8 syncheader[12] = { 0x00, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
                           0xFF, 0xFF, 0xFF, 0x00};
   int isaudio = 0;
 

@@ -131,11 +131,6 @@ int vdp1cob=0;
 
 static int vdp2width;
 static int vdp2height;
-static int nbg0priority=0;
-static int nbg1priority=0;
-static int nbg2priority=0;
-static int nbg3priority=0;
-static int rbg0priority=0;
 
 static u32 Vdp2ColorRamGetColor(u32 colorindex, int alpha);
 static void Vdp2PatternAddrPos(vdp2draw_struct *info, int planex, int x, int planey, int y);
@@ -195,7 +190,6 @@ static u32 FASTCALL Vdp1ReadPolygonColor(vdp1cmd_struct *cmd)
 	int priority = 0;
 	int colorcl = 0;
 
-	int endcnt = 0;
 	int nromal_shadow = 0;
 
 	u8 SPD = ((cmd->CMDPMOD & 0x40) != 0);
@@ -2061,7 +2055,7 @@ static void Vdp2DrawPatternPos(vdp2draw_struct *info, YglTexture *texture, int x
 	}
 }
 
-
+#if 0
 static void Vdp2DrawPattern(vdp2draw_struct *info, YglTexture *texture)
 {
 	u32 cacheaddr = ((u32)(info->alpha >> 3) << 27) | (info->paladdr << 20) | info->charaddr | info->transparencyenable;
@@ -2149,7 +2143,7 @@ static void Vdp2DrawPattern(vdp2draw_struct *info, YglTexture *texture)
    info->x += tile.w;
    info->y += tile.h;
 }
-
+#endif
 //////////////////////////////////////////////////////////////////////////////
 
 static void Vdp2PatternAddr(vdp2draw_struct *info)
@@ -2317,7 +2311,7 @@ static void Vdp2PatternAddrPos(vdp2draw_struct *info, int planex, int x, int pla
 	info->charaddr *= 0x20; // thanks Runik
 }
 
-
+#if 0
 static void Vdp2DrawPage(vdp2draw_struct *info, YglTexture *texture)
 {
    int X, Y;
@@ -2348,10 +2342,10 @@ static void Vdp2DrawPage(vdp2draw_struct *info, YglTexture *texture)
       }
    }
 }
-
+#endif
 //////////////////////////////////////////////////////////////////////////////
 
-
+#if 0
 static void Vdp2DrawPlane(vdp2draw_struct *info, YglTexture *texture)
 {
    int X, Y;
@@ -2369,7 +2363,7 @@ static void Vdp2DrawPlane(vdp2draw_struct *info, YglTexture *texture)
       }
    }
 }
-
+#endif
 //////////////////////////////////////////////////////////////////////////////
 
 static void Vdp2DrawMapPerLine(vdp2draw_struct *info, YglTexture *texture){
@@ -2561,7 +2555,7 @@ static void Vdp2DrawMapTest(vdp2draw_struct *info, YglTexture *texture){
 
 
 //////////////////////////////////////////////////////////////////////////////
-
+#if 0
 static void Vdp2DrawMap(vdp2draw_struct *info, YglTexture *texture)
 {
    int i, j;
@@ -2595,7 +2589,7 @@ static void Vdp2DrawMap(vdp2draw_struct *info, YglTexture *texture)
       yy += (info->patternpixelwh*info->pagewh*info->planeh) * info->coordincy;
    }
 }
-
+#endif
 //////////////////////////////////////////////////////////////////////////////
 
 static u32 FASTCALL DoNothing(UNUSED void *info, u32 pixel)
@@ -2781,7 +2775,10 @@ static void FASTCALL Vdp2DrawRotation(vdp2draw_struct *info, vdp2rotationparamet
       pagesize=0;
       patternshift = 0;      
    }
-   
+
+   (void)screenheight;
+   (void)screenwidth;
+
    regs = Vdp2RestoreRegs(3, Vdp2Lines);
    if (regs) ReadVdp2ColorOffset(regs, info, info->linecheck_mask);
 
@@ -4346,6 +4343,9 @@ static void Vdp2DrawBackScreen(void)
    static unsigned char lineColors[512 * 3];
    static int line[512*4];
 
+   (void)line;
+   (void)lineColors;
+
    if (Vdp2Regs->VRSIZE & 0x8000)
 	   scrAddr = (((Vdp2Regs->BKTAU & 0x7) << 16) | Vdp2Regs->BKTAL) * 2;
    else
@@ -4423,6 +4423,8 @@ static void Vdp2DrawLineColorScreen(void)
   int i;
   u32 * line_pixel_data;
   u32 addr;
+
+  (void)cacheaddr;
 
   if ( Vdp2Regs->LNCLEN == 0) return;
 

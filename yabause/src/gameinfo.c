@@ -92,13 +92,23 @@ int LoadStateSlotScreenshotStream(FILE * fp, int * outputwidth, int * outputheig
    fseek(fp, sizeof(int) * 9, SEEK_CUR);
 
    fread_result = fread((void *) outputwidth, sizeof(int), 1, fp);
+
+   if (!fread_result)
+      return -1;
+
    fread_result = fread((void *) outputheight, sizeof(int), 1, fp);
+
+   if (!fread_result)
+      return -1;
 
    totalsize = *outputwidth * *outputheight * sizeof(u32);
 
    *buffer = malloc(totalsize);
 
    fread_result = fread(*buffer, totalsize, 1, fp);
+
+   if (!fread_result)
+      return -1;
 
    return 0;
 }

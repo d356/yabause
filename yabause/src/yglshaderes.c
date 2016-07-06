@@ -116,8 +116,6 @@ int Ygl_uniformNormal(void * p )
 
 int Ygl_cleanupNormal(void * p )
 {
-   YglProgram * prg;
-   prg = p;
    return 0;
 }
 
@@ -148,7 +146,10 @@ int ShaderDrawTest()
 
    YglMatrix mtx;
    YglMatrix mtxt;
+
    GLuint id = glGetUniformLocation(_prgid[PG_NORMAL], (const GLchar *)"s_texture");
+
+   (void)mtxTexture;
 
    YglLoadIdentity(&mtx);
    YglLoadIdentity(&mtxt);
@@ -217,8 +218,6 @@ int Ygl_uniformWindow(void * p )
 
 int Ygl_cleanupWindow(void * p )
 {
-   YglProgram * prg;
-   prg = p;
    return 0;
 }
 
@@ -278,8 +277,6 @@ int Ygl_uniformVdp1Normal(void * p )
 
 int Ygl_cleanupVdp1Normal(void * p )
 {
-   YglProgram * prg;
-   prg = p;
    return 0;
 }
 
@@ -536,8 +533,6 @@ int Ygl_uniformHalfTrans(void * p )
 
 int Ygl_cleanupHalfTrans(void * p )
 {
-   YglProgram * prg;
-   prg = p;
    return 0;
 }
 
@@ -615,9 +610,6 @@ int Ygl_cleanupStartUserClip(void * p ){return 0;}
 
 int Ygl_uniformEndUserClip(void * p )
 {
-
-   YglProgram * prg;
-   prg = p;
    glDisable(GL_STENCIL_TEST);
    glStencilFunc(GL_ALWAYS,0,0xFF);
 
@@ -689,9 +681,6 @@ int Ygl_cleanupStartVDP2Window(void * p ){return 0;}
 
 int Ygl_uniformEndVDP2Window(void * p )
 {
-
-   YglProgram * prg;
-   prg = p;
    glDisable(GL_STENCIL_TEST);
    glStencilFunc(GL_ALWAYS,0,0xFF);
 
@@ -762,7 +751,6 @@ void Ygl_uniformVDP2DrawFramebuffer( void * p, float from, float to , float * of
 {
    YglProgram * prg;
    prg = p;
-
    glUseProgram(_prgid[PG_VDP2_DRAWFRAMEBUFF]);
    glUniform1i(idvdp1FrameBuffer, 0);
    glActiveTexture(GL_TEXTURE0);
@@ -830,9 +818,6 @@ const GLchar * pYglprg_vdp2_drawfb_linecolor_f[] = { Yglprg_vdp2_drawfb_linecolo
 
 void Ygl_uniformVDP2DrawFramebuffer_linecolor(void * p, float from, float to, float * offsetcol)
 {
-  YglProgram * prg;
-  prg = p;
-
   glUseProgram(_prgid[PG_VDP2_DRAWFRAMEBUFF_LINECOLOR]);
   glUniform1i(idvdp1FrameBuffer_linecolor, 0);
   glActiveTexture(GL_TEXTURE0);
@@ -901,9 +886,6 @@ static int idcoloroffset_addcolor;
 
 int Ygl_uniformVDP2DrawFramebuffer_addcolor(void * p, float from, float to, float * offsetcol)
 {
-	YglProgram * prg;
-	prg = p;
-
 	glUseProgram(_prgid[PG_VDP2_DRAWFRAMEBUFF_ADDCOLOR]);
 	glUniform1i(idvdp1FrameBuffer_addcolor, 0);
 	glActiveTexture(GL_TEXTURE0);
@@ -1009,9 +991,6 @@ int Ygl_uniformLinecolorInsert(void * p)
 
 int Ygl_cleanupLinecolorInsert(void * p)
 {
-  YglProgram * prg;
-  prg = p;
-  
   glActiveTexture(GL_TEXTURE1);
   glBindTexture(GL_TEXTURE_2D, 0);
   glActiveTexture(GL_TEXTURE0);

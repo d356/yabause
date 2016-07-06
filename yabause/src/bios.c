@@ -1135,6 +1135,8 @@ static void FASTCALL BiosBUPDirectory(SH2_struct * sh)
    for (i = 0; i < 12; i++)
       filename[i] = sh->MappedMemoryReadByte(sh, sh->regs.R[5]+i);
 
+   (void)filename;
+
    LOG("BiosBUPDirectory. arg1 = %d, arg2 = %s, arg3 = %08X, arg4 = %08X, PR = %08X\n", sh->regs.R[4], filename, sh->regs.R[6], sh->regs.R[7], sh->regs.PR);
 
    ret = GetDeviceStats(sh->regs.R[4], &size, &addr, &blocksize);
@@ -1935,6 +1937,13 @@ int BupImportSave(UNUSED u32 device, const char *filename)
    }
 
    num_read = fread((void *)buffer, 1, filesize, fp);
+
+   if (!num_read)
+   {
+      YabSetError(YAB_ERR_FILEREAD, filename);
+      fclose(fp);
+      return -1;
+   }
    fclose(fp);
 
    // Write save here

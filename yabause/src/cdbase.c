@@ -367,7 +367,7 @@ typedef struct
 	int num_dict;
 } ccd_struct;
 
-static const s8 syncHdr[12] = { 0x00, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x00 };
+static const u8 syncHdr[12] = { 0x00, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x00 };
 enum IMG_TYPE { IMG_NONE, IMG_ISO, IMG_BINCUE, IMG_MDS, IMG_CCD, IMG_NRG };
 enum IMG_TYPE imgtype = IMG_ISO;
 static u32 isoTOC[102];
@@ -435,7 +435,7 @@ static int LoadBinCue(const char *cuefilename, FILE *iso_file)
       if (strncmp(temp_buffer, "TRACK", 5) == 0)
       {
          // Handle accordingly
-         if (fscanf(iso_file, "%d %[^\r\n]\r\n", &track_num, temp_buffer) == EOF)
+         if (fscanf(iso_file, "%u %[^\r\n]\r\n", &track_num, temp_buffer) == EOF)
             break;
 
          if (strncmp(temp_buffer, "MODE1", 5) == 0 ||
@@ -456,7 +456,7 @@ static int LoadBinCue(const char *cuefilename, FILE *iso_file)
       {
          // Handle accordingly
 
-         if (fscanf(iso_file, "%d %d:%d:%d\r\n", &indexnum, &min, &sec, &frame) == EOF)
+         if (fscanf(iso_file, "%u %u:%u:%u\r\n", &indexnum, &min, &sec, &frame) == EOF)
             break;
 
          if (indexnum == 1)
@@ -468,14 +468,14 @@ static int LoadBinCue(const char *cuefilename, FILE *iso_file)
       }
       else if (strncmp(temp_buffer, "PREGAP", 6) == 0)
       {
-         if (fscanf(iso_file, "%d:%d:%d\r\n", &min, &sec, &frame) == EOF)
+         if (fscanf(iso_file, "%u:%u:%u\r\n", &min, &sec, &frame) == EOF)
             break;
 
          pregap += MSF_TO_FAD(min, sec, frame);
       }
       else if (strncmp(temp_buffer, "POSTGAP", 7) == 0)
       {
-         if (fscanf(iso_file, "%d:%d:%d\r\n", &min, &sec, &frame) == EOF)
+         if (fscanf(iso_file, "%u:%u:%u\r\n", &min, &sec, &frame) == EOF)
             break;
       }
       else if (strncmp(temp_buffer, "FILE", 4) == 0)
@@ -492,6 +492,12 @@ static int LoadBinCue(const char *cuefilename, FILE *iso_file)
    // Go back, retrieve image filename
    fseek(iso_file, 0, SEEK_SET);
    matched = fscanf(iso_file, "FILE \"%[^\"]\" %*s\r\n", temp_buffer);
+
+   if (!matched)
+   {
+      YabSetError(YAB_ERR_FILEREAD, "Couldn't match");
+      return -1;
+   }
 
    // Now go and open up the image file, figure out its size, etc.
    if ((bin_file = fopen(temp_buffer, "rb")) == NULL)
@@ -1116,6 +1122,13 @@ static int LoadCCD(const char *ccd_filename, FILE *iso_file)
 		pframe = GetIntCCD(&ccd, sect_name, "PFrame");
 		plba = GetIntCCD(&ccd, sect_name, "PLBA");
 
+      (void)zero;
+      (void)alba;
+      (void)aframe;
+      (void)asec;
+      (void)amin;
+      (void)trackno;
+
 		if(point >= 1 && point <= 99)
 		{
 			track_info_struct *track=&disc.session[ses-1].track[point-1];
@@ -1234,6 +1247,13 @@ static int ISOCDInit(const char * iso) {
    }
 
    num_read = fread((void *)header, 1, 6, iso_file);
+
+   if (!num_read)
+   {
+      YabSetError(YAB_ERR_FILEREAD, "Couldn't read");
+      return -1;
+   }
+
    ext = strrchr(iso, '.');
 
    // Figure out what kind of image format we're dealing with
@@ -1370,6 +1390,13 @@ static int ISOCDReadSectorFAD(u32 FAD, void *buffer) {
 			if (track->sub_fp)
 			{
             num_read = fread(buffer, 2352, 1, track->fp);
+
+            if (!num_read)
+            {
+               YabSetError(YAB_ERR_FILEREAD, "Couldn't read");
+               return -1;
+            }
+
             num_read = fread((char *)buffer + 2352, 96, 1, track->sub_fp);
 			}
 			else

@@ -447,7 +447,9 @@ void ScspDspAssembleFromFile(char * filename, u64* output)
    for (i = 0; i < 128; i++)
    {
       char * result = fgets(line, sizeof(line), fp);
-      output[i] = ScspDspAssembleLine(line);
+
+      if(result)
+         output[i] = ScspDspAssembleLine(line);
    }
    fclose(fp);
 }

@@ -173,7 +173,9 @@ void make_fifo_log(u32 data)
    count++;
 #endif
 }
+#if defined VERIFY_FIFO_LOG && !defined(WRITE_FIFO_LOG)
 static int ygr_count = 0;
+#endif
 void verify_fifo_log(u32 data_in)
 {
 #if defined VERIFY_FIFO_LOG && !defined(WRITE_FIFO_LOG)

@@ -1184,7 +1184,6 @@ u32 *Vdp1DebugTexture(u32 number, int *w, int *h)
    u32 charAddr;
    u32 dot;
    u8 SPD;
-   u32 alpha;
    u32 *textdata;   
    int isendcode=0;
    int code=0;
@@ -1252,7 +1251,6 @@ u32 *Vdp1DebugTexture(u32 number, int *w, int *h)
 
    charAddr = cmd.CMDSRCA * 8;
    SPD = ((cmd.CMDPMOD & 0x40) != 0);
-   alpha = 0xFF;
    textdata = texture;
 
    switch((cmd.CMDPMOD >> 3) & 0x7)

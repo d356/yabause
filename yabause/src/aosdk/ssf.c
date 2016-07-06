@@ -33,7 +33,6 @@
 #include "ao.h"
 
 /* file types */
-static u32 type;
 ao_display_info ssf_info;
 
 /* ao_get_lib: called to load secondary files */
@@ -73,6 +72,14 @@ int ao_get_lib(char *filename, u8 **buffer, u64 *length)
 	}
 
    fread_val = fread(filebuf, size, 1, auxfile);
+
+   if (!fread_val)
+   {
+      YabSetError(YAB_ERR_FILEREAD, filename);
+      fclose(auxfile);
+      return AO_FAIL;
+   }
+
 	fclose(auxfile);
 
 	*buffer = filebuf;
@@ -128,6 +135,14 @@ int load_ssf(char *filename, int m68k_core, int sndcore)
 	}
 
    fread_val = fread(buffer, 1, size, fp);
+
+   if (!fread_val)
+   {
+      YabSetError(YAB_ERR_FILEREAD, filename);
+      fclose(fp);
+      return AO_FAIL;
+   }
+
 	fclose(fp);
 
 	// Read ID

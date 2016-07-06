@@ -613,11 +613,6 @@ void VIDOGLVdp1ReadFrameBuffer(u32 type, u32 addr, void * out) {
       u32 g2 = *((u8*)(_Ygl->pFrameBuffer) + index + 5);
       u32 b2 = *((u8*)(_Ygl->pFrameBuffer) + index + 6);
 
-      if (r != 0)
-      {
-        int a=0;
-      }
-
       /*  BBBBBGGGGGRRRRR */
       //*(u16*)out = ((val & 0x1f) << 10) | ((val >> 1) & 0x3e0) | ((val >> 11) & 0x1F) | 0x8000;
       *(u32*)out = (((r2 >> 3) & 0x1f) | (((g2 >> 3) & 0x1f) << 5) | (((b2 >> 3) & 0x1F)<<10) | 0x8000)  |
@@ -785,7 +780,6 @@ void YuiSetVideoAttribute(int type, int val){return;}
 int YglInit(int width, int height, unsigned int depth) {
    unsigned int i,j;
    GLuint status;
-   void * dataPointer=NULL;
 
    YGLLOG("YglInit(%d,%d,%d);",width,height,depth );
 
@@ -1300,9 +1294,6 @@ int YglQuadGrowShading(YglSprite * input, YglTexture * output, float * colors,Yg
    program = YglGetProgram(input,prg);
    if( program == NULL ) return -1;
    //YGLLOG( "program->quads = %X,%X,%d/%d\n",program->quads,program->vertexBuffer,program->currentQuad,program->maxQuad );
-   if( program->quads == NULL ) {
-       int a=0;
-   }
 
    program->color_offset_val[0] = (float)(input->cor)/255.0f;
    program->color_offset_val[1] = (float)(input->cog)/255.0f;
@@ -1668,7 +1659,6 @@ void YglCacheQuadGrowShading(YglSprite * input, float * colors,YglCache * cache)
    texturecoordinate_struct *tmp;
    float q[4];
    int prg = PG_VFP1_GOURAUDSAHDING;
-   int currentpg = 0;
    float * vtxa;
    float *pos;
 
@@ -2008,6 +1998,10 @@ void YglSetVdp2Window()
 
     bwin0 = (Vdp2Regs->WCTLC >> 9) &0x01;
     bwin1 = (Vdp2Regs->WCTLC >> 11) &0x01;
+
+    (void)bwin0;
+    (void)bwin1;
+
    if( (_Ygl->win0_vertexcnt != 0 || _Ygl->win1_vertexcnt != 0 )  )
    {
 

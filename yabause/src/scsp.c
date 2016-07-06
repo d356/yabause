@@ -804,7 +804,7 @@ void scsp_debug_search_instruments(const u32 sa, int* found, int * offset)
 
 void scsp_debug_add_instrument(u32 sa)
 {
-   int i = 0, found = 0, offset = 0;
+   int found = 0, offset = 0;
 
    if (debug_instrument_pos >= NUM_DEBUG_INSTRUMENTS)
       return;

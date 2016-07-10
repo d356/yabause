@@ -59,7 +59,7 @@ before_build:
   - if NOT ["%compiler_type%"]==["msys2-mingw-w64-x86_64"] cmake -G "%generator%" %cmake_args% -DSDL2MAIN_LIBRARY=C:/SDL2-2.0.3/lib/%sdl_arch%/SDL2main.lib -DSDL2_INCLUDE_DIR=C:/SDL2-2.0.3/include/ -DSDL2_LIBRARY=C:/SDL2-2.0.3/lib/%sdl_arch%/SDL2.lib ..
 
   #MSYS2
-   - if ["%compiler_type%"]==["msys2-mingw-w64-x86_64"] C:\projects\yabause\yabause\appveyor-mingw.cmd
+  - if ["%compiler_type%"]==["msys2-mingw-w64-x86_64"] C:\projects\yabause\yabause\appveyor-mingw.cmd
 #  - if ["%compiler_type%"]==["msys2-mingw-w64-x86_64"] set MSYSTEM=MINGW64
 #  - if ["%compiler_type%"]==["msys2-mingw-w64-x86_64"] set PATH=C:\msys64\mingw64\bin;C:\msys64\usr\bin;C:\msys64;%PATH%
 #  - if ["%compiler_type%"]==["msys2-mingw-w64-x86_64"] C:\msys64\usr\bin\bash -lc "pacman --noconfirm -Sy"

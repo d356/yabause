@@ -28,7 +28,7 @@ before_build:
   - cd build
 
   #MSYS2
-  - if ["%compiler_type%"]==["msys2-mingw-w64-x86_64"] C:\projects\yabause\yabause\appveyor-mingw.cmd
+  - if ["%compiler_type%"]==["msys2-mingw-w64-x86_64"] C:\projects\yabause\appveyor-mingw.cmd
 
 build_script:
   - if ["%compiler_type%"]==["msys2-mingw-w64-x86_64"] C:\msys64\usr\bin\bash -lc "cd C:/projects/yabause/yabause/build ; make "

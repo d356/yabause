@@ -7,6 +7,8 @@ matrix:
 
     # linux gcc 6
     - compiler: gcc
+      sudo: true
+      dist: trusty
       env: testenv="linux gcc-6"
       addons:
         apt:

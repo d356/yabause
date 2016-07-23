@@ -705,8 +705,6 @@ endif()
 add_definitions(-DPACKAGE=\"${YAB_PACKAGE}\")
 add_definitions(-DVERSION=\"${YAB_VERSION}\")
 
-add_library(yabause ${yabause_SOURCES} ${yabause_HEADERS})
-
 set(play_codegen_SOURCES
     play/src/AArch32Assembler.cpp
 	play/src/AArch64Assembler.cpp
@@ -743,12 +741,15 @@ set(play_codegen_SOURCES
 
 option(YAB_USE_PLAY_JIT "Enable Play codegen and dynarecs." ON)
 if (YAB_USE_PLAY_JIT)
-    set_property(TARGET yabause PROPERTY CXX_STANDARD 11)
-    #set_property(TARGET yabause PROPERTY CXX_STANDARD_REQUIRED ON)
-
     add_definitions(-DHAVE_PLAY_JIT=1)
     set(yabause_SOURCES ${yabause_SOURCES} ${play_codegen_SOURCES} scsp_dsp_jit.cpp)
     include_directories(play/include)
+endif()
+
+add_library(yabause ${yabause_SOURCES} ${yabause_HEADERS})
+
+if (YAB_USE_PLAY_JIT)
+    set_property(TARGET yabause PROPERTY CXX_STANDARD 11)
 endif()
 
 if (YAB_WANT_C68K)

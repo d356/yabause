@@ -54,9 +54,8 @@ struct ScspDsp
    u32 io_addr;
    int need_write;
    u16 write_data;
-};
+} scsp_dsp;
 
-static struct ScspDsp scsp_dsp;
 struct ScspDspInterface dsp_inf;
 
 //saturate 24 bit signed integer

@@ -720,7 +720,7 @@ else()
     elseif(COMPILER_SUPPORTS_CXX0X)
         set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++0x")
     else()
-        message(STATUS "The compiler ${CMAKE_CXX_COMPILER} has no C++11 support.")
+        message(STATUS "The compiler ${CMAKE_CXX_COMPILER} doesn't have enough C++11 support. Dynarecs disabled.")
     endif()
 endif()
 
@@ -734,9 +734,8 @@ endif()
 
 add_library(yabause ${yabause_SOURCES} ${yabause_HEADERS})
 
-if (YAB_USE_PLAY_JIT)
+if (YAB_USE_PLAY_JIT AND COMPILER_SUPPORTS_CXX11)
     target_link_libraries(yabause CodeGen)
-    #set_property(TARGET yabause PROPERTY CXX_STANDARD 11)
 endif()
 
 if (YAB_WANT_C68K)

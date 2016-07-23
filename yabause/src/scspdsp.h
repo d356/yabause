@@ -114,7 +114,6 @@ union ScspDspInstruction {
 #endif
 
 void ScspDspDisasm(u8 addr, char *outstring);
-void ScspDspExec(struct ScspDsp* dsp, int addr, u8 * sound_ram);
 s32 float_to_int(u16 f_val);
 u32 int_to_float(u32 i_val);
 

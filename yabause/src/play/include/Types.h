@@ -1,6 +1,8 @@
 #ifndef _TYPES_H_
 #define _TYPES_H_
 
+#include <stdexcept>
+
 typedef char int8;
 typedef unsigned char uint8;
 

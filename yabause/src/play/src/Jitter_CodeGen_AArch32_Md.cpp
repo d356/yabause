@@ -1,4 +1,5 @@
 #include "Jitter_CodeGen_AArch32.h"
+#include <stdexcept>
 
 using namespace Jitter;
 

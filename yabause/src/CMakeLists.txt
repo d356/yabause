@@ -744,7 +744,7 @@ set(play_codegen_SOURCES
 option(YAB_USE_PLAY_JIT "Enable Play codegen and dynarecs." ON)
 if (YAB_USE_PLAY_JIT)
     set_property(TARGET yabause PROPERTY CXX_STANDARD 11)
-    set_property(TARGET yabause PROPERTY CXX_STANDARD_REQUIRED ON)
+    #set_property(TARGET yabause PROPERTY CXX_STANDARD_REQUIRED ON)
 
     add_definitions(-DHAVE_PLAY_JIT=1)
     set(yabause_SOURCES ${yabause_SOURCES} ${play_codegen_SOURCES} scsp_dsp_jit.cpp)

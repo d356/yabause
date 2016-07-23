@@ -705,51 +705,19 @@ endif()
 add_definitions(-DPACKAGE=\"${YAB_PACKAGE}\")
 add_definitions(-DVERSION=\"${YAB_VERSION}\")
 
-set(play_codegen_SOURCES
-    play/src/AArch32Assembler.cpp
-	play/src/AArch64Assembler.cpp
-	play/src/Jitter_CodeGen_AArch32.cpp
-	play/src/Jitter_CodeGen_AArch32_64.cpp
-	play/src/Jitter_CodeGen_AArch32_Fpu.cpp
-	play/src/Jitter_CodeGen_AArch32_Md.cpp
-	play/src/Jitter_CodeGen_AArch64.cpp
-	play/src/Jitter_CodeGen_AArch64_64.cpp
-	play/src/Jitter_CodeGen_AArch64_Fpu.cpp
-	play/src/Jitter_CodeGen_AArch64_Md.cpp
-	play/src/X86Assembler.cpp
-	play/src/X86Assembler_Fpu.cpp
-	play/src/X86Assembler_Sse.cpp
-	play/src/Jitter_CodeGen_x86_32.cpp
-	play/src/Jitter_CodeGen_x86_64.cpp
-	play/src/Jitter_CodeGen_x86.cpp
-	play/src/Jitter_CodeGen_x86_Fpu.cpp
-	play/src/Jitter_CodeGen_x86_Md.cpp
-	play/src/CoffObjectFile.cpp
-	play/src/Jitter_CodeGen.cpp
-	play/src/Jitter_CodeGenFactory.cpp
-	play/src/Jitter.cpp
-	play/src/Jitter_Optimize.cpp
-	play/src/Jitter_RegAlloc.cpp
-	play/src/Jitter_Statement.cpp
-	play/src/Jitter_SymbolTable.cpp
-	play/src/MachoObjectFile.cpp
-	play/src/MemoryFunction.cpp
-	play/src/ObjectFile.cpp
-    play/src/MemStream.cpp
-    play/src/Stream.cpp
-)
-
 option(YAB_USE_PLAY_JIT "Enable Play codegen and dynarecs." ON)
 if (YAB_USE_PLAY_JIT)
+    add_subdirectory(play)
     add_definitions(-DHAVE_PLAY_JIT=1)
-    set(yabause_SOURCES ${yabause_SOURCES} ${play_codegen_SOURCES} scsp_dsp_jit.cpp)
+    set(yabause_SOURCES ${yabause_SOURCES} scsp_dsp_jit.cpp)#${play_codegen_SOURCES}
     include_directories(play/include)
 endif()
 
 add_library(yabause ${yabause_SOURCES} ${yabause_HEADERS})
 
 if (YAB_USE_PLAY_JIT)
-    set_property(TARGET yabause PROPERTY CXX_STANDARD 11)
+    target_link_libraries(yabause CodeGen)
+    #set_property(TARGET yabause PROPERTY CXX_STANDARD 11)
 endif()
 
 if (YAB_WANT_C68K)

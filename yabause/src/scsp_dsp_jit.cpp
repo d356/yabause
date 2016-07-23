@@ -28,6 +28,7 @@ extern "C"
 #include "MemoryFunction.h"
 #include "Jitter_CodeGenFactory.h"
 #include "Jitter.h"
+#include "offsetof_def.h"
 
 struct DspContext
 {

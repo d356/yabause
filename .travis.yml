@@ -20,6 +20,7 @@ matrix:
             - qt5-default
             - libqt5opengl5-dev
             - lib32stdc++6
+            - qtmultimedia5-dev
       before_script:
         - export CC=gcc-6
         - export CXX=g++-6

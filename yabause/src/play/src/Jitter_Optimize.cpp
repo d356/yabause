@@ -1025,7 +1025,7 @@ bool CJitter::MergeBlocks()
 		for(BasicBlockList::iterator blockIterator(m_basicBlocks.begin());
 			m_basicBlocks.end() != blockIterator; blockIterator++)
 		{
-			BasicBlockList::const_iterator nextBlockIterator(blockIterator);
+         BasicBlockList::iterator nextBlockIterator(blockIterator);
 			nextBlockIterator++;
 			if(nextBlockIterator == m_basicBlocks.end()) continue;
 

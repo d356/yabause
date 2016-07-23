@@ -1,7 +1,6 @@
 #include "Jitter_CodeGen_AArch32.h"
 #include "ObjectFile.h"
 #include "BitManip.h"
-#include <stdexcept>
 #ifdef __ANDROID__
 #include <cpu-features.h>
 #endif

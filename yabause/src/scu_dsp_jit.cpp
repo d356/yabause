@@ -46,7 +46,7 @@ struct ScuDspCodeBlock
 {
    int dirty;
    CMemoryFunction function;
-}blocks[NUM_BLOCKS];
+}scu_blocks[NUM_BLOCKS];
 
 struct ScuDspContext
 {
@@ -1434,7 +1434,7 @@ void scu_dsp_jit_exec(u32 cycles)
       //todo recompile into basic blocks and handle jumps/loops
       for (int i = 0; i < NUM_BLOCKS; i++)
       {
-         if (!blocks[i].dirty)
+         if (!scu_blocks[i].dirty)
             continue;
 
          Framework::CMemStream stream;
@@ -1444,8 +1444,8 @@ void scu_dsp_jit_exec(u32 cycles)
          recompile_instruction(i);
          jit.End();
 
-         blocks[i].function = CMemoryFunction(stream.GetBuffer(), stream.GetSize());
-         blocks[i].dirty = 0;
+         scu_blocks[i].function = CMemoryFunction(stream.GetBuffer(), stream.GetSize());
+         scu_blocks[i].dirty = 0;
       }
       cxt.need_recompile = 0;
    }
@@ -1454,7 +1454,7 @@ void scu_dsp_jit_exec(u32 cycles)
    {
       while (cxt.timing > 0)
       {
-         blocks[cxt.pc].function(&cxt);
+         scu_blocks[cxt.pc].function(&cxt);
          cxt.timing--;
       }
    }
@@ -1463,7 +1463,7 @@ void scu_dsp_jit_exec(u32 cycles)
 extern "C" void scu_dsp_jit_set_program(u32 val)
 {
    cxt.need_recompile = 1;
-   blocks[cxt.pc].dirty = 1;
+   scu_blocks[cxt.pc].dirty = 1;
 
    cxt.program[cxt.pc] = val;
    cxt.pc++;
@@ -1510,7 +1510,7 @@ extern "C" u32 scu_dsp_jit_get_data_ram()
 
 extern "C" void scu_dsp_jit_init()
 {
-   memset(blocks, 0, sizeof(struct ScuDspCodeBlock) * NUM_BLOCKS);
+   memset(scu_blocks, 0, sizeof(struct ScuDspCodeBlock) * NUM_BLOCKS);
    memset(&cxt, 0, sizeof(struct ScuDspContext));
 
    cxt.jump_addr = 0xFFFFFFFF;

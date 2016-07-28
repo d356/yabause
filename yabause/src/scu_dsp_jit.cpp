@@ -973,7 +973,7 @@ void recompile_operation(u32 instruction)
    switch ((instruction >> 12) & 0x3)
    {
    case 1: // MOV SImm,[d]
-      write_d1_bus((instruction >> 8) & 0xF, instruction & 0xFF, 1, NULL);
+      write_d1_bus((instruction >> 8) & 0xF, instruction & 0xFF, 1, 0);
       break;
    case 3: // MOV [s],[d]
       do_readgensrc(instruction & 0xF, need_increment);

@@ -88,7 +88,9 @@ struct ScuDspContext
    u32 timing;
 
    int need_recompile;
-}cxt;
+};
+
+static struct ScuDspContext cxt;
 
 u32 get_md(int bank, int which)
 {

@@ -76,10 +76,14 @@ int ScuInit(void) {
    ScuBP->BreakpointCallBack=NULL;
    ScuBP->inbreakpoint=0;
 
+#ifdef HAVE_PLAY_JIT
    if (yabsys.use_scu_dsp_jit)
       scu_dsp_jit_init();
    else
       scu_dsp_init();
+#else
+   scu_dsp_init();
+#endif
    
    return 0;
 }
@@ -2123,11 +2127,13 @@ void ScuExec(u32 cycles) {
    int scu_dma_cycles = cycles;
    int real_timing = 1;
 
+#ifdef HAVE_PLAY_JIT
    if (yabsys.use_scu_dsp_jit)
    {
       scu_dsp_jit_exec(cycles);
       return;
    }
+#endif
 
    // is dsp executing?
    if (ScuDsp->ProgControlPort.part.EX) {
